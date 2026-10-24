@@ -1,0 +1,358 @@
+package com.tv98.glow;
+
+import android.content.Context;
+import android.graphics.Canvas;
+import android.graphics.LinearGradient;
+import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.RectF;
+import android.graphics.Shader;
+import android.graphics.Typeface;
+import android.text.TextUtils;
+import android.text.format.DateFormat;
+import android.view.KeyEvent;
+import android.view.View;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * The classic blue programme grid, drawn as a single view (one draw pass, no per-cell views): channel
+ * column on the left, three half-hour columns, dark-blue programme blocks, yellow highlight.
+ *   ▲▼ channel · ◀▶ previous/next programme · CH± page · digits jump to a channel number · OK watch.
+ */
+class GuideGridView extends View {
+    interface Listener {
+        void onSelect(Channel ch, Guide.Prog prog, int number);
+        void onWatch(Channel ch, int indexInList);
+        void onNeedGuide(List<Channel> visible);
+    }
+
+    static final int SKY_TOP = 0xFF6FA8E8, SKY_BOTTOM = 0xFF2C5FB8;
+    static final int CELL = 0xFF1C3A8E, CELL_EDGE = 0xFF4C78D0, CELL_TEXT = 0xFFFFFFFF;
+    static final int HILITE = 0xFFF5D33C, HILITE_TEXT = 0xFF14306F, DIM_TEXT = 0xFFB9CCF2;
+    private static final long SLOT = 30 * 60 * 1000L, WINDOW = 3 * SLOT, GAP = 5 * 60 * 1000L;
+
+    private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final android.text.TextPaint text = new android.text.TextPaint(Paint.ANTI_ALIAS_FLAG);
+    private final android.text.TextPaint bold = new android.text.TextPaint(Paint.ANTI_ALIAS_FLAG), header = new android.text.TextPaint(Paint.ANTI_ALIAS_FLAG);
+    /** Shortened titles by text + width: shaping (Thai especially) is the costly part of a frame. */
+    private final java.util.HashMap<String, CharSequence> fitted = new java.util.HashMap<>();
+    private final RectF r = new RectF();
+    private final Path arrow = new Path();
+    private final float rowH, gap, chanW, headH, pad, radius;
+    private List<Channel> rows = new ArrayList<>();
+    private GuideLineup lineup;
+    private Listener listener;
+    private int sel, top;
+    private long windowStart, cursor;
+    private final StringBuilder digits = new StringBuilder();
+    private final Runnable applyDigits = this::jumpToTypedNumber;
+
+    GuideGridView(Context c) {
+        super(c);
+        setFocusable(true);
+        setFocusableInTouchMode(true);
+        rowH = Ui.dp(31);
+        gap = Ui.dp(4);
+        chanW = Ui.dp(230);
+        headH = Ui.dp(28);
+        pad = Ui.dp(10);
+        radius = Ui.dp(3);
+        Typeface medium = Typeface.create("sans-serif-medium", Typeface.NORMAL);
+        text.setTextSize(Ui.dp(15));
+        text.setTypeface(medium);
+        bold.setTextSize(Ui.dp(15));
+        bold.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
+        header.setTextSize(Ui.dp(15));
+        header.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
+        header.setColor(0xFFFFFFFF);
+        long now = System.currentTimeMillis();
+        windowStart = now - now % SLOT;
+        cursor = now;
+    }
+
+    void setListener(Listener l) {
+        listener = l;
+    }
+
+    void setRows(List<Channel> channels, GuideLineup lineup, int select) {
+        this.rows = channels;
+        this.lineup = lineup;
+        sel = Math.max(0, Math.min(select, channels.size() - 1));
+        top = Math.max(0, sel - visibleRows() / 2);
+        long now = System.currentTimeMillis();
+        windowStart = now - now % SLOT;
+        cursor = now;
+        changed();
+    }
+
+    private int visibleRows() {
+        int h = getHeight() > 0 ? getHeight() : Ui.dp(300);
+        return Math.max(1, (int) ((h - headH) / (rowH + gap)));
+    }
+
+    private void changed() {
+        clampTop();
+        invalidate();
+        if (listener == null || rows.isEmpty()) return;
+        Channel ch = rows.get(sel);
+        listener.onSelect(ch, selectedProg(), lineup == null ? 0 : lineup.number(ch));
+        int end = Math.min(rows.size(), top + visibleRows() + 2);
+        listener.onNeedGuide(rows.subList(top, end));
+    }
+
+    private void clampTop() {
+        int vis = visibleRows();
+        if (sel < top) top = sel;
+        if (sel >= top + vis) top = sel - vis + 1;
+        top = Math.max(0, Math.min(top, Math.max(0, rows.size() - vis)));
+    }
+
+    /** The programme under the cursor on the selected row (null when the channel has no guide). */
+    Guide.Prog selectedProg() {
+        if (rows.isEmpty()) return null;
+        for (Guide.Prog p : Guide.between(rows.get(sel), cursor, cursor + 1)) return p;
+        return null;
+    }
+
+    int selectedIndex() {
+        return sel;
+    }
+
+    @Override
+    protected void onSizeChanged(int w, int h, int ow, int oh) {
+        clampTop();
+    }
+
+    @Override
+    protected void onDraw(Canvas c) {
+        float w = getWidth();
+        float gridX = chanW + gap, gridW = w - gridX;
+        long windowEnd = windowStart + WINDOW;
+        long now = System.currentTimeMillis();
+
+        // Time header: "Today" over the channels, then the three half-hour marks.
+        header.setColor(0xFFFFFFFF);
+        c.drawText(DateFormat.format("EEE d MMM", windowStart).toString(), pad, headH - Ui.dp(9), header);
+        for (int k = 0; k < 3; k++) {
+            long t = windowStart + k * SLOT;
+            c.drawText(time(t), gridX + gridW * k / 3f + Ui.dp(4), headH - Ui.dp(9), header);
+        }
+        // "Now" line across the grid.
+        float y0 = headH;
+        int vis = visibleRows();
+        for (int i = 0; i < vis && top + i < rows.size(); i++) {
+            int idx = top + i;
+            Channel ch = rows.get(idx);
+            float y = y0 + i * (rowH + gap);
+            boolean selected = idx == sel;
+
+            // Channel cell: "101  Thai PBS"
+            r.set(0, y, chanW, y + rowH);
+            drawCell(c, selected);
+            text.setColor(selected ? HILITE_TEXT : CELL_TEXT);
+            bold.setColor(selected ? HILITE_TEXT : CELL_TEXT);
+            int num = lineup == null ? 0 : lineup.number(ch);
+            String n = num > 0 ? String.valueOf(num) : "";
+            float numW = bold.measureText("8888") + pad;
+            c.drawText(n, pad, y + rowH - Ui.dp(9), bold);
+            drawClipped(c, ch.name, pad + numW, y + rowH - Ui.dp(9), chanW - pad * 2 - numW, text);
+
+            // Programme blocks.
+            List<Guide.Prog> progs = Guide.between(ch, windowStart, windowEnd);
+            if (progs.isEmpty()) {
+                r.set(gridX, y, w, y + rowH);
+                boolean hl = selected;
+                drawCell(c, hl);
+                text.setColor(hl ? HILITE_TEXT : DIM_TEXT);
+                drawClipped(c, now >= windowStart && now < windowEnd ? "No information  ·  OK to watch" : "No information",
+                        gridX + pad, y + rowH - Ui.dp(9), gridW - pad * 2, text);
+                continue;
+            }
+            long covered = windowStart;
+            for (Guide.Prog p : progs) {
+                if (p.start - covered > GAP) drawGap(c, covered, p.start, y, selected);
+                covered = Math.max(covered, p.stop);
+                float x1 = gridX + gridW * Math.max(0, p.start - windowStart) / (float) WINDOW;
+                float x2 = gridX + gridW * Math.min(WINDOW, p.stop - windowStart) / (float) WINDOW;
+                if (x2 - x1 < Ui.dp(6)) continue;
+                r.set(x1, y, x2 - gap, y + rowH);
+                boolean hl = selected && p.start <= cursor && cursor < p.stop;
+                drawCell(c, hl);
+                float tx = x1 + pad;
+                if (p.start < windowStart) { // started before the window: little ◀ like the classic guide
+                    drawArrow(c, x1 + Ui.dp(4), y + rowH / 2, true, hl);
+                    tx += Ui.dp(8);
+                }
+                boolean more = p.stop > windowEnd;
+                if (more) drawArrow(c, x2 - gap - Ui.dp(4), y + rowH / 2, false, hl);
+                text.setColor(hl ? HILITE_TEXT : CELL_TEXT);
+                drawClipped(c, p.title, tx, y + rowH - Ui.dp(9), (x2 - gap) - tx - (more ? Ui.dp(12) : Ui.dp(6)), text);
+            }
+            if (windowEnd - covered > GAP) drawGap(c, covered, windowEnd, y, selected);
+        }
+        // Thin "now" marker when the current time is inside the window.
+        if (now >= windowStart && now < windowEnd) {
+            float x = gridX + gridW * (now - windowStart) / (float) WINDOW;
+            fill.setShader(null);
+            fill.setColor(0xCCF5D33C);
+            c.drawRect(x - 1, headH - Ui.dp(4), x + 1, headH, fill);
+        }
+    }
+
+    /** A stretch the schedule doesn't cover: a quieter block reading "No information". */
+    private void drawGap(Canvas c, long from, long to, float y, boolean selectedRow) {
+        float gridX = chanW + gap, gridW = getWidth() - gridX;
+        float x1 = gridX + gridW * Math.max(0, from - windowStart) / (float) WINDOW;
+        float x2 = gridX + gridW * Math.min(WINDOW, to - windowStart) / (float) WINDOW;
+        if (x2 - x1 < Ui.dp(6)) return;
+        r.set(x1, y, to >= windowStart + WINDOW ? x2 : x2 - gap, y + rowH);
+        boolean hl = selectedRow && from <= cursor && cursor < to;
+        fill.setShader(null);
+        fill.setColor(hl ? HILITE : 0xB31C3A8E);
+        c.drawRoundRect(r, radius, radius, fill);
+        text.setColor(hl ? HILITE_TEXT : DIM_TEXT);
+        drawClipped(c, "No information", x1 + pad, y + rowH - Ui.dp(9), r.right - x1 - pad * 2, text);
+    }
+
+    private void drawCell(Canvas c, boolean hl) {
+        if (hl) {
+            fill.setShader(null);
+            fill.setColor(HILITE);
+            c.drawRoundRect(r, radius, radius, fill);
+            return;
+        }
+        // Flat block with a lighter top edge: two plain draws, no per-cell gradient objects.
+        fill.setColor(CELL_EDGE);
+        c.drawRoundRect(r, radius, radius, fill);
+        fill.setColor(CELL);
+        c.drawRect(r.left, r.top + Ui.dp(2), r.right, r.bottom, fill);
+    }
+
+    private void drawArrow(Canvas c, float x, float cy, boolean left, boolean hl) {
+        float s = Ui.dp(4);
+        arrow.reset();
+        if (left) {
+            arrow.moveTo(x, cy);
+            arrow.lineTo(x + s, cy - s);
+            arrow.lineTo(x + s, cy + s);
+        } else {
+            arrow.moveTo(x, cy);
+            arrow.lineTo(x - s, cy - s);
+            arrow.lineTo(x - s, cy + s);
+        }
+        arrow.close();
+        fill.setShader(null);
+        fill.setColor(hl ? HILITE_TEXT : 0xFFFFFFFF);
+        c.drawPath(arrow, fill);
+    }
+
+    private void drawClipped(Canvas c, String s, float x, float baseline, float maxW, android.text.TextPaint p) {
+        if (maxW <= Ui.dp(8) || s == null) return;
+        String k = (p == bold ? "b" : "t") + (int) maxW + "|" + s;
+        CharSequence t = fitted.get(k);
+        if (t == null) {
+            if (fitted.size() > 600) fitted.clear();
+            t = TextUtils.ellipsize(s, p, maxW, TextUtils.TruncateAt.END).toString();
+            fitted.put(k, t);
+        }
+        c.drawText(t, 0, t.length(), x, baseline, p);
+    }
+
+    private String time(long t) {
+        return DateFormat.is24HourFormat(getContext())
+                ? DateFormat.format("HH:mm", t).toString()
+                : DateFormat.format("h.mma", t).toString().toLowerCase(); // "10.30pm", like the classic guide
+    }
+
+    // ---- remote ----
+
+    @Override
+    public boolean onKeyDown(int code, KeyEvent e) {
+        if (rows.isEmpty()) return super.onKeyDown(code, e);
+        switch (code) {
+            case KeyEvent.KEYCODE_DPAD_UP:
+                if (sel > 0) sel--;
+                changed();
+                return true;
+            case KeyEvent.KEYCODE_DPAD_DOWN:
+                if (sel < rows.size() - 1) sel++;
+                changed();
+                return true;
+            case KeyEvent.KEYCODE_CHANNEL_UP:
+            case KeyEvent.KEYCODE_PAGE_UP:
+                sel = Math.max(0, sel - visibleRows());
+                top = Math.max(0, top - visibleRows());
+                changed();
+                return true;
+            case KeyEvent.KEYCODE_CHANNEL_DOWN:
+            case KeyEvent.KEYCODE_PAGE_DOWN:
+                sel = Math.min(rows.size() - 1, sel + visibleRows());
+                top = top + visibleRows();
+                changed();
+                return true;
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
+                moveTime(true);
+                return true;
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+                moveTime(false);
+                return true;
+            case KeyEvent.KEYCODE_DPAD_CENTER:
+            case KeyEvent.KEYCODE_ENTER:
+                if (listener != null) listener.onWatch(rows.get(sel), sel);
+                return true;
+            default:
+                if (code >= KeyEvent.KEYCODE_0 && code <= KeyEvent.KEYCODE_9 && digits.length() < 4) {
+                    digits.append((char) ('0' + code - KeyEvent.KEYCODE_0));
+                    removeCallbacks(applyDigits);
+                    postDelayed(applyDigits, 2000);
+                    if (listener != null) listener.onSelect(rows.get(sel), selectedProg(), -Integer.parseInt(digits.toString()));
+                    return true;
+                }
+                return super.onKeyDown(code, e);
+        }
+    }
+
+    /** Next/previous programme on the selected row; past the window edge the window shifts half an hour. */
+    private void moveTime(boolean forward) {
+        long now = System.currentTimeMillis();
+        long earliest = now - now % SLOT;
+        Channel ch = rows.get(sel);
+        List<Guide.Prog> progs = Guide.between(ch, cursor - 26 * 60 * 60 * 1000L, cursor + 26 * 60 * 60 * 1000L);
+        Guide.Prog cur = selectedProg();
+        long target;
+        if (forward) {
+            target = cursor + SLOT;
+            if (cur != null) target = cur.stop;
+            else for (Guide.Prog p : progs) if (p.start > cursor) { target = p.start; break; }
+        } else {
+            target = cursor - SLOT;
+            if (cur != null) {
+                Guide.Prog prev = null;
+                for (Guide.Prog p : progs) if (p.stop <= cur.start) prev = p;
+                target = prev != null ? prev.start : cur.start - SLOT;
+            }
+            target = Math.max(target, Math.min(now, cursor));
+            if (target < earliest) target = now;
+        }
+        cursor = Math.max(target, now - now % SLOT);
+        if (cursor >= windowStart + WINDOW) windowStart = cursor - cursor % SLOT;
+        while (cursor < windowStart && windowStart > earliest) windowStart -= SLOT;
+        changed();
+    }
+
+    private void jumpToTypedNumber() {
+        if (digits.length() == 0 || lineup == null) return;
+        int wanted = Integer.parseInt(digits.toString());
+        digits.setLength(0);
+        for (int i = 0; i < rows.size(); i++) {
+            if (lineup.number(rows.get(i)) == wanted) {
+                sel = i;
+                top = Math.max(0, i - visibleRows() / 2);
+                break;
+            }
+        }
+        changed();
+    }
+}

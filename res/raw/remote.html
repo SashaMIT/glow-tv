@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#070a14">
+<title>Glow Remote</title>
+<style>
+  :root { --bg:#070a14; --text:#f2f4ff; --dim:rgba(242,244,255,.6); --accent:#8fa8ff; --glass:rgba(255,255,255,.07); --edge:rgba(255,255,255,.14); }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; min-height:100%; color:var(--text); font:16px/1.4 -apple-system,system-ui,"Segoe UI",Roboto,sans-serif;
+    background: radial-gradient(120% 80% at 10% 0%, #2a3a8a55, transparent 60%), radial-gradient(90% 70% at 100% 20%, #7a3fd044, transparent 60%),
+                radial-gradient(100% 70% at 50% 110%, #1aa3c033, transparent 60%), var(--bg); background-attachment:fixed; }
+  main { max-width:520px; margin:0 auto; padding:16px 16px calc(96px + env(safe-area-inset-bottom)); }
+  h1 { font-weight:300; font-size:26px; margin:8px 4px 2px; }
+  .sub { color:var(--dim); font-size:13px; margin:0 4px 14px; }
+  .card { background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.04)); border:1px solid var(--edge);
+    border-radius:20px; padding:16px; margin-bottom:14px; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); }
+  .label { font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--dim); margin:0 0 10px; }
+  input { width:100%; font-size:17px; color:var(--text); background:rgba(0,0,0,.25); border:1px solid var(--edge); border-radius:14px; padding:13px 14px; outline:none; }
+  input:focus { border-color:var(--accent); box-shadow:0 0 0 3px #8fa8ff33; }
+  button { font:inherit; color:var(--text); background:var(--glass); border:1px solid var(--edge); border-radius:14px; padding:12px 14px; cursor:pointer; }
+  button:active { transform:scale(.97); background:#8fa8ff33; border-color:var(--accent); }
+  button.primary { background:#8fa8ff2e; border-color:#8fa8ff88; }
+  .row { display:flex; gap:10px; margin-top:10px; } .row > * { flex:1; }
+  .status { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--dim); margin:0 4px 14px; }
+  .dot { width:8px; height:8px; border-radius:50%; background:#5ad49a; box-shadow:0 0 10px #5ad49a; flex:none; } .dot.off { background:#ff7a6b; box-shadow:0 0 10px #ff7a6b; }
+  .pad { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; max-width:300px; margin:6px auto 0; }
+  .pad button { height:70px; font-size:22px; border-radius:20px; }
+  .pad .ok { background:#8fa8ff33; border-color:#8fa8ff99; font-size:16px; font-weight:600; }
+  .keys { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:12px; } .keys button { font-size:14px; padding:12px 4px; }
+  .list { margin:0; padding:0; list-style:none; }
+  .ch { display:flex; align-items:center; gap:12px; padding:10px 6px; border-radius:14px; }
+  .ch:active { background:#8fa8ff22; }
+  .ch img, .ch .ph { width:56px; height:36px; object-fit:contain; flex:none; border-radius:8px; background:rgba(255,255,255,.06); }
+  .ch .ph { display:grid; place-items:center; font-size:13px; font-weight:600; color:var(--dim); }
+  .ch .t { flex:1; min-width:0; } .ch .n { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ch .m { font-size:12px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .star { background:none; border:none; font-size:22px; color:var(--dim); padding:6px 8px; } .star.on { color:#ffd27a; }
+  .empty { color:var(--dim); font-size:14px; padding:8px 6px; }
+  nav { position:fixed; left:0; right:0; bottom:0; display:flex; justify-content:center; gap:8px; padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+    background:rgba(7,10,20,.72); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); border-top:1px solid var(--edge); }
+  nav button { flex:1; max-width:160px; border-radius:14px; padding:11px 6px; font-size:14px; }
+  nav button.on { background:#8fa8ff33; border-color:#8fa8ff99; }
+  .pair { text-align:center; } .pair input { text-align:center; font-size:34px; letter-spacing:.4em; max-width:220px; margin:10px auto 0; display:block; }
+  .err { color:#ffb4a8; font-size:14px; min-height:20px; margin-top:10px; }
+  .toast { position:fixed; left:50%; bottom:calc(84px + env(safe-area-inset-bottom)); transform:translateX(-50%); background:rgba(26,33,64,.95);
+    border:1px solid var(--edge); border-radius:14px; padding:10px 16px; font-size:14px; opacity:0; transition:opacity .2s; pointer-events:none; max-width:90vw; }
+  .toast.show { opacity:1; }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Glow Remote</h1>
+  <p class="sub">Your TV98 box, from your phone.</p>
+
+  <section id="pair" class="card pair" hidden>
+    <p class="label">Pair with the TV</p>
+    <p class="sub">Enter the 4-digit code shown on the TV's Phone screen.</p>
+    <input id="code" inputmode="numeric" maxlength="4" autocomplete="one-time-code" placeholder="••••">
+    <div class="row"><button class="primary" id="pairBtn">Connect</button></div>
+    <div class="err" id="pairErr"></div>
+  </section>
+
+  <div id="app" hidden>
+    <div class="status"><span class="dot" id="dot"></span><span id="state">Connecting…</span></div>
+
+    <section id="tab-remote">
+      <div class="card">
+        <p class="label">Type on the TV</p>
+        <input id="typeBox" placeholder="Search words, a server address, a username…" enterkeyhint="send">
+        <div class="row"><button id="sendType">Send</button><button class="primary" id="sendSubmit">Send &amp; go</button></div>
+      </div>
+      <div class="card">
+        <p class="label">Remote</p>
+        <div class="pad">
+          <span></span><button data-key="up">▲</button><span></span>
+          <button data-key="left">◀</button><button class="ok" data-key="ok">OK</button><button data-key="right">▶</button>
+          <span></span><button data-key="down">▼</button><span></span>
+        </div>
+        <div class="keys">
+          <button data-key="back">Back</button><button data-key="home">Home</button>
+          <button data-key="chup">CH +</button><button data-key="chdown">CH −</button>
+        </div>
+        <div class="keys">
+          <button data-key="last">Last ch</button>
+          <input id="num" inputmode="numeric" maxlength="4" placeholder="Ch #" style="grid-column: span 2; text-align:center; padding:10px">
+          <button id="goNum">Go</button>
+        </div>
+        <div class="keys">
+          <button data-key="guide" style="grid-column: span 4">▤ TV Guide</button>
+        </div>
+        <div class="keys colours">
+          <button data-key="red" style="background:#e0312b">Recent</button><button data-key="green" style="background:#39b54a">Search</button>
+          <button data-key="yellow" style="background:#f5d33c;color:#14306f">World</button><button data-key="blue" style="background:#1e4fd6">★ Fav</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-search" hidden>
+      <div class="card">
+        <p class="label">Find a channel</p>
+        <input id="q" placeholder="BBC, CNN, Thai PBS, sport…" enterkeyhint="search" autocomplete="off">
+      </div>
+      <div class="card"><ul class="list" id="results"><li class="empty">Results play straight on the TV. ★ adds a favourite.</li></ul></div>
+    </section>
+
+    <section id="tab-favs" hidden>
+      <div class="card"><ul class="list" id="favs"><li class="empty">Loading…</li></ul></div>
+    </section>
+  </div>
+</main>
+
+<nav id="nav" hidden>
+  <button data-tab="remote" class="on">Remote</button>
+  <button data-tab="search">Search</button>
+  <button data-tab="favs">Favourites</button>
+</nav>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let token = null;
+try { token = localStorage.getItem('glowToken'); } catch (e) {}
+
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+async function api(path, body) {
+  const opt = { method: body === undefined ? 'GET' : 'POST', headers: { 'X-Glow-Token': token || '' } };
+  if (body !== undefined) { opt.body = JSON.stringify(body); opt.headers['Content-Type'] = 'application/json'; }
+  const res = await fetch(path, opt);
+  if (res.status === 401) { token = null; try { localStorage.removeItem('glowToken'); } catch (e) {} showPair(); throw new Error('unpaired'); }
+  return res.json();
+}
+
+function showPair() { $('pair').hidden = false; $('app').hidden = true; $('nav').hidden = true; $('code').focus(); }
+function showApp() { $('pair').hidden = true; $('app').hidden = false; $('nav').hidden = false; poll(); }
+
+$('pairBtn').onclick = async () => {
+  $('pairErr').textContent = '';
+  const res = await fetch('/api/pair', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: $('code').value.trim() }) }).then(r => r.json()).catch(() => null);
+  if (res && res.ok) { token = res.token; try { localStorage.setItem('glowToken', token); } catch (e) {} showApp(); }
+  else $('pairErr').textContent = res ? res.error : 'Can’t reach the TV.';
+};
+$('code').addEventListener('input', () => { if ($('code').value.length === 4) $('pairBtn').click(); });
+
+async function poll() {
+  try {
+    const s = await api('/api/state');
+    $('dot').classList.remove('off');
+    const where = { home: 'Home screen', search: 'Search', login: 'IPTV login', channels: 'Channel list', player: 'Watching', glow: 'Glow', other: 'Another app' }[s.screen] || s.screen;
+    $('state').textContent = s.playing ? 'On TV: ' + s.playing : 'On TV: ' + where;
+  } catch (e) {
+    if (e.message !== 'unpaired') { $('dot').classList.add('off'); $('state').textContent = 'Can’t reach the TV — is the Phone screen still on?'; }
+  }
+  clearTimeout(poll.timer); poll.timer = setTimeout(poll, 3000);
+}
+
+document.querySelectorAll('[data-key]').forEach(b => b.onclick = async () => {
+  if (navigator.vibrate) navigator.vibrate(8);
+  const r = await api('/api/key', { key: b.dataset.key }).catch(() => null);
+  if (r && !r.ok && r.error) toast(r.error);
+});
+
+$('goNum').onclick = async () => {
+  const n = $('num').value.replace(/\D/g, '');
+  for (const d of n) await api('/api/key', { key: d }).catch(() => null);
+  $('num').value = '';
+  if (n) toast('Channel ' + n);
+};
+
+async function sendType(submit) {
+  const text = $('typeBox').value;
+  if (!text) return;
+  await api('/api/type', { text, submit }).catch(() => null);
+  toast(submit ? 'Sent and submitted' : 'Sent to the TV');
+  $('typeBox').value = '';
+}
+$('sendType').onclick = () => sendType(false);
+$('sendSubmit').onclick = () => sendType(true);
+$('typeBox').addEventListener('keydown', e => { if (e.key === 'Enter') sendType(true); });
+
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function initials(n) { return (n.match(/[A-Za-z0-9฀-๿]+/g) || ['TV']).slice(0, 2).map(w => w[0].toUpperCase()).join(''); }
+
+function renderList(el, items, emptyMsg) {
+  if (!items.length) { el.innerHTML = '<li class="empty">' + emptyMsg + '</li>'; return; }
+  const keys = items.map(c => c.key);
+  el.innerHTML = items.map((c, i) => `
+    <li class="ch" data-i="${i}">
+      ${c.logo ? `<img src="${esc(c.logo)}" alt="" loading="lazy" onerror="this.outerHTML='<span class=ph>${esc(initials(c.name))}</span>'">` : `<span class="ph">${esc(initials(c.name))}</span>`}
+      <span class="t"><div class="n">${c.num ? '<b>' + c.num + '</b>&nbsp; ' : ''}${esc(c.name)}</div><div class="m">${esc([c.country, c.group].filter(Boolean).join(' · '))}</div></span>
+      <button class="star ${c.fav ? 'on' : ''}" data-fav="${i}" aria-label="Favourite">★</button>
+    </li>`).join('');
+  el.querySelectorAll('.ch').forEach(li => li.onclick = async (e) => {
+    const c = items[+li.dataset.i];
+    if (e.target.dataset.fav !== undefined) {
+      const r = await api('/api/fav', { key: c.key }).catch(() => null);
+      if (r && r.ok) { c.fav = r.fav; e.target.classList.toggle('on', r.fav); toast(r.fav ? '★ Added to favourites' : 'Removed from favourites'); }
+      return;
+    }
+    const r = await api('/api/play', { key: c.key, list: keys }).catch(() => null);
+    toast(r && r.ok ? '▶ ' + r.playing : (r && r.error) || 'Couldn’t start it');
+  });
+}
+
+let searchTimer;
+$('q').addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(async () => {
+    const q = $('q').value.trim();
+    if (!q) { $('results').innerHTML = '<li class="empty">Results play straight on the TV. ★ adds a favourite.</li>'; return; }
+    const items = await api('/api/search?q=' + encodeURIComponent(q)).catch(() => []);
+    renderList($('results'), items, 'No working channels match “' + esc(q) + '”.');
+  }, 250);
+});
+
+document.querySelectorAll('nav button').forEach(b => b.onclick = async () => {
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
+  ['remote', 'search', 'favs'].forEach(t => $('tab-' + t).hidden = t !== b.dataset.tab);
+  if (b.dataset.tab === 'search') $('q').focus();
+  if (b.dataset.tab === 'favs') renderList($('favs'), await api('/api/favs').catch(() => []), 'No favourites yet — tap ★ on a channel in Search, or hold OK on one on the TV.');
+});
+
+if (token) showApp(); else showPair();
+</script>
+</body>
+</html>

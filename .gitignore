@@ -1,0 +1,12 @@
+# Build output and downloaded libraries
+build/
+libs/
+*.apk
+# Your signing key stays on your machine
+glow.keystore
+# Generated at build time from World Monitor's catalogue (AGPL-3.0)
+src/com/tv98/glow/WmCatalog.java
+# Benchmark results and raw recordings
+bench/
+glow_tour.mp4
+.DS_Store

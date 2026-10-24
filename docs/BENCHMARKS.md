@@ -1,0 +1,147 @@
+# Glow benchmarks — TV98 box
+
+Measured on the box with `glow/tools/bench.sh` (raw output in `glow/bench/`).
+"Reboot" runs restart the box and let it settle 90 s first; "no-reboot" runs reuse the running system.
+
+## Speed pass — 24 Oct 2026
+
+What changed: regex-free M3U parser + binary channel index (`free.idx`), logo cache on storage (24 MB LRU),
+full ART pre-compile on install (`tools/install.sh`), parallel link checks during channel start, 7 s per-link
+timeout (was 9 s), lower initial bitrate estimate, official backup streams + YouTube live fallback for news
+channels (World Monitor catalogue).
+
+| Metric | Before | After | Result |
+|---|---|---|---|
+| Channel lists loaded during boot | 12,054 ms | **466 ms** | **26× faster** |
+| Channel lists loaded on each Glow start | ~1,430 ms (1,401–2,581) | **~70 ms** (55–87) | **~20× faster** |
+| Glow start, Android "Displayed" (no-reboot, avg of 5) | 843 ms | **761 ms** | 10% faster |
+| Logo downloads per Glow start | 7–21 | **0** | all from storage |
+| Logo downloads during boot | 11 | **0** | |
+| Glow memory on Home (PSS) | 40.9 MB | **36.4 MB** | −11% |
+| System used RAM, idle after boot | 561 MB | **542 MB** | −19 MB |
+| Memory available, idle after boot | 466 MB | **479 MB** | +13 MB |
+| 1-min load average after boot settle | 4.48 | **2.79** | less boot-time work |
+| Glow compile state | speed-profile | **speed** | fully pre-compiled |
+| Scroll smoothness, settled (janky frames) | 4.6 % | 3.2–4.5 % | no meaningful change |
+| Channel start, working Thai channels | 1.9–3.3 s | 2.1–3.7 s | unchanged (set by the stream servers) |
+| Channels with official backup links | 0 | **107** | new |
+| Channels with an official YouTube live fallback (live now) | 0 | **47** | new — verified hand-off plays Bloomberg live |
+| APK size | 775 KB | 779 KB | |
+
+Investigated and deliberately left alone:
+- **zram** is sized 5.3 GB (75 % of the fake 7 GB RAM) but holds only ~34 MB (7.6 MB compressed, already lz4) with
+  ~470 MB RAM available. Changing it needs a `/vendor` edit (dm-verity); no measured benefit → not touched.
+- **Allwinner log daemon** used 3–4 s CPU since boot → negligible.
+- **4 of 6 Thai test channels fail** (Channel 7, Workpoint, One 31, Thairath) in both runs: their only source,
+  `lb1-live-mv.v2h-cdn.com`, returns 404 at the source and iptv-org has no alternative. They now fail in ~0.3 s.
+  Fix needs their official YouTube channels added (next session).
+
+Earlier the same day: switching from the box's built-in Allwinner player to ExoPlayer took the tested set from
+mostly failing (Red Bull TV, NFL Channel, Pluto/Wurl HTTPS streams) to 9/9 playing on the first link.
+
+## Thai rescue, phone remote, faster give-up, Spotify — 24 Oct 2026 (evening)
+
+| Metric | Before | After | Result |
+|---|---|---|---|
+| Big Thai channels whose only link is dead (Ch 7, Workpoint, One 31, Thairath) | 0 / 4 play | **3 / 4 play** | via each broadcaster's official YouTube live (17 Thai channels mapped; resolved on demand, cached 10 min) |
+| Time to picture for those rescued channels | never | **1.2 s / 1.2 s / 3.5 s** (Ch 7 / Thairath / Workpoint) | One 31 works whenever it's live on YouTube |
+| Rescuable channels hidden as "offline" | yes (hidden 12 h) | **never hidden**; full failure hides only 30 min | they show up in lists and search again |
+| Search "bbc news" | ~44 remote presses | **type on phone + 2 taps** | phone remote |
+| IPTV login (31-char server, user, password) | **~264 remote presses** | **type on phone + 4 taps** | phone remote |
+| Moving past a link that hangs | 9.0 s | **4.0 s** | parallel probes (3 s connect / 4 s read) |
+| A second hanging link | +9 s | **skipped instantly** | already probed in parallel |
+| Giving up on a fully dead channel | ~27 s | **11.1 s** | measured with `tools/mock_xtream.py` "Hanging Channel" |
+| Spotify running in the background | 17 MB PSS, auto-starts | **0**, disabled | user doesn't use Spotify; `undo_phase2.sh` re-enables it |
+| APK size | 779 KB | 799 KB | + phone remote page, QR encoder (Nayuki, MIT) |
+
+Phone remote: `http://<box>:8099`, 4-digit pairing code on the TV's Phone screen, home-network addresses only,
+new code after 5 wrong tries, switches itself off after 30 min unused. Tested end-to-end from another device:
+pair, wrong code rejected, search, play (Thai PBS on screen in 4.3 s), Home, D-pad keys, Thai-language typing,
+favourites; typing from the phone no longer pops up the TV keyboard.
+
+## TV guide, faster zapping, numbers & last channel, settings — 24 Oct 2026 (night)
+
+| Metric | Before | After | Result |
+|---|---|---|---|
+| Channels with "now / next" | 0 | **164** UK/US (epg.pw, 2,021 programmes) **+ 14 Thai** (TrueID, on demand) | guide in list rows, player banner, phone status |
+| Guide load on each Glow start | — | **20 ms** (90 KB index) | |
+| Daily UK+US guide refresh (35 MB + 12 MB XML, streamed from gzip) | — | US: **15.8 s** in the background, **+8 MB** Java heap; Glow peak 53 MB → back to 37 MB | Java streaming parser kept — **Rust not justified** (once-a-day background job; 20 ms day-to-day) |
+| Thailand list, working channels shown | 44 | **54** | channels with a YouTube backup no longer hidden |
+| Zap time, same 14 channels (median) | 2,395 ms | **1,984 ms** | −17 %: neighbours' sources prepared + their servers pre-warmed |
+| 20 ▲ zaps staying inside Glow | 14 played, 1 jumped out to YouTube | **20 / 20 played** | YouTube is offered (OK to open) while zapping, never forced |
+| Channel by number | not possible | **type digits** (remote or phone) | 5→7 jumped to Thai PBS |
+| Last channel | not possible | **Last button** (remote/phone) | back to 3HD in 1.9 s (first visit 2.6 s, warm) |
+| Turning developer access (ADB) off | Android Developer options, many menus deep | **Glow ▸ Settings ▸ Developer access** (2 clicks) + red warning on Home while on | needs `pm grant … WRITE_SECURE_SETTINGS` once (done) |
+| Home scroll, janky frames (3-pass) | 5.9 % | 7–10 % (noisy, no real change) | removing tile shadows didn't help; GPU draw-command time on the Mali-G31 is the limit → needs a tile redesign |
+| Glow memory on Home | 36.4 MB | **42.3 MB** | guide data + remote + settings; still < 50 MB |
+| APK | 799 KB | 808 KB | |
+
+Not achieved: median zap < 1.5 s (now ~2.0 s — three HTTP round trips to each broadcaster's server dominate), and
+< 1 % janky scrolling. One 31 still needs to be live on YouTube to rescue.
+The 3BB GigaTV guide (37 Thai channels) was skipped on purpose: its HTTPS certificate is expired and Glow won't
+switch certificate checks off.
+
+## Classic TV Guide ("Glow TV Guide") — 24 Oct 2026 (late)
+
+A blue, numbered satellite-style guide: menu (1 All Channels · 2 Favourites · 3 Thailand · 4 UK · 5 News · 6 Sports ·
+7 US · 8 My IPTV), channel × time grid (90 min on screen, ◀▶ through the day), info panel, muted live preview,
+channel numbers 101+. Opens from Home ▸ Live TV ▸ TV Guide, the remote's MENU/GUIDE key in the player (lands on the
+channel you're watching), and the phone remote's "TV Guide" button. Screenshots: `shots/guide_*.png`.
+
+| Metric | Before | After | Result |
+|---|---|---|---|
+| See what's on across channels | one channel at a time (row "now" text / player banner) | **7 channels × 90 min per screen**, 2,352 numbered channels | classic grid |
+| Guide open, first time | — | 3,198 ms → **648 ms** | catalogue names pre-normalised once (`OfficialLive.match` was re-normalising 66 names × 3,340 channels) |
+| Guide open, again | — | **101 ms** | numbered lineup kept 30 min while lists unchanged |
+| Overlapping listings (e.g. a "1pm–7am" block over real shows) | info panel and highlight disagreed | **one programme at a time** (`Guide.tidy`) | info = highlighted block |
+| Jump to a channel | scroll | **type 1-6-0** → Iqra Bangla | verified on box |
+| OK to watch from the guide | — | **989 ms** to picture (Iqra Bangla) | MENU in player → guide on the same channel |
+| UK section top rows | mostly "No information" | **full grid** | channels with guide data ordered before ones without (after top picks) |
+| Browsing smoothness, same 52-key path (`tools/guidebench.sh`, 3 passes) | Free TV list: 59 % janky, p90 42–44 ms | Guide v1: 78 % janky, p90 22–29 ms → **Guide v2: 33 % janky, p90 21–34 ms** | v2: no per-cell gradient objects, shortened titles cached, single-line info text (no relayout per key) |
+| Glow memory | Home fresh 42 MB | Home fresh **42 MB** (unchanged); in guide with preview 52 MB; Home after using guide 67 MB (after browsing Free TV only: 58 MB) | the extra is mostly Media3 code pages (+13 MB "Code"), which Android drops first under pressure |
+| APK | 808 KB | 816 KB | |
+
+Not achieved: < 16 ms frames on every key press (p99 still 42–61 ms — Thai text shaping on the Mali-G31/A53).
+Thai schedules come from TrueID, which only lists the rest of today: after midnight Thai rows read "No information"
+until the new day is published (Glow now re-checks every 5 min when a schedule is about to run out).
+Home's Live TV tiles still show list positions (e.g. "57 Thai PBS") rather than the guide's numbers (105).
+
+## Sky-style guide menu + genre ranking — 25 Oct 2026
+
+The guide now opens on a classic menu: "glow guide" logo, tabs (TV GUIDE · SEARCH · WORLD NEWS · SETTINGS),
+1 All Channels · 2 Favourites · 3 Entertainment · 4 Lifestyle & Culture · 5 Movies · 6 Sports · 7 News ·
+8 Documentaries · 9 Kids · 0 More… (Music, Religious, Shopping, Recently watched, Thailand, UK, US, My IPTV, Other),
+and colour keys (red Recently watched, green Search A–Z, yellow World news, blue Favourites / ★ the highlighted
+channel), on the phone remote too. Ranking lives in `Genres.java`; numbers in `GuideLineup.java`.
+
+| Metric | Before | After | Result |
+|---|---|---|---|
+| Guide sections | by country/list (Thailand, UK, News, Sports, US) | **Sky-style genres** + "0 More…" for countries | 7 genres from iptv-org's categories |
+| Channel numbers | one running count; a section read 1119, 209, 1120, 1121… | **blocks**: Entertainment 1xx, Lifestyle 2xx, Movies 3xx, Sports 4xx, News 5xx, Docs 6xx, Kids 7xx, Music 8xx, other 9xx (overflow 1100…, 4100…) | numbers ascend inside each genre |
+| Sports, top 8 | Red Bull TV, FIFA+, NFL Channel, beIN XTRA, CBS Sports HQ, Golazo, DAZN Combat | **Red Bull TV, FUEL TV, DAZN Combat, Bellator MMA, PFL MMA, FightBox HD, FightBox, Swerve Combat** (then Fast&FunBox, WWE, Monster Jam, TVS Boxing…) | action & fight first, as asked |
+| News, top 8 | mixed list order | **Al Jazeera English, CNA, DW English, France 24 English, NBC News NOW, ABC News Live, CBS News 24/7, Bloomberg** (BBC News/Sky News/GB News rank first whenever their links are up) | English-language global → US → UK → Asia → Thai |
+| Top picks that actually play | — | **15 / 15** (8 sports + 7 news; 1.6–3.7 s; ABC News Live via its official YouTube) | |
+| Pay-TV re-streams (ESPN, CNN, Fox News Channel, beIN 1–8, NBA TV…) | could sit anywhere | **never promoted** (bottom of their genre) | |
+| Other-language feeds ("FIFA+ French", "Red Bull TV DE", "Avatar (Germany)") | mixed in | **after** the English/Thai ones | country in the id isn't trusted for hand-picked channels (FUEL TV has a Portuguese id, broadcasts in English) |
+| Ranking 3,138 channels | — | 748 ms → 3,903 ms (regex split) → **384 ms** | word lookups instead of regular expressions |
+| Guide open | 648 ms cold / 101 ms warm | **147 ms** after Home (lineup pre-built in the background), 1.1 s if Home hasn't run yet | |
+| APK | 816 KB | 828 KB | |
+
+Not done: the ranking uses no viewing figures (there's no free, legal source for them on this box); it's hand-picked
+tops + language + re-stream/local/brand rules. Personal history goes to "Recently watched", not into numbers,
+so numbers stay put.
+
+## One number everywhere, search ranking, showcase — 25 Oct 2026 (later)
+
+| Metric | Before | After | Result |
+|---|---|---|---|
+| Numbers on Home tiles / Free TV rows / player banner / phone remote | list positions (e.g. "57 Thai PBS", "195 Bellator MMA") | **guide numbers** everywhere (502 Al Jazeera English, 401 Red Bull TV, 404 Bellator MMA) | `GuideLineup.numberOf()` |
+| Typing a number that isn't in the current list | "No channel N in this list" | **switches to the full lineup** and plays it (in News, 4-0-1 → Red Bull TV in 4.0 s; Last → back to Al Jazeera) | like a satellite box |
+| Numbers after a restart / list refresh | recomputed each time | **saved** (`numbers.tsv`); a channel keeps its number while in the same genre; new ones take the next free slot | identical file (md5) after force-stop + restart |
+| Time allowed between typed digits | 1.5 s player / 1.3 s guide | **2.0 s** both | the recorded tour typed "5" then timed out ("No channel 5"); 5-0-2 now lands on Al Jazeera |
+| Search "sport", first results | Sport 1 (Ukraine), Sport 1 Baltic, Sport 2 (Ukraine)… | **SportsGrid, beIN SPORTS XTRA, CBS Sports HQ, Golazo, NBC Sports NOW, T Sports 7** | guide rank first, then starts-with |
+| Search opened from the phone | could flash "No working channels match" before the lists loaded | shows "Loading channels…" until they're in | |
+| APK | 828 KB | 828 KB | |
+
+Showcase: `glow/tools/tour.sh` (19 screenshots → `shots/tour/`), `glow/tools/tourvideo.sh` (2½-min screen recording,
+5.2 MB H.264 in `share/glow_tour.mp4`), page in `share/index.html`.
