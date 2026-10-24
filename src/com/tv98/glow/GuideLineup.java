@@ -158,6 +158,14 @@ final class GuideLineup {
                 android.util.Log.d("GlowRank", b.toString());
             }
         }
+        StringBuilder cov = new StringBuilder("guide coverage:");
+        for (Section s : g.main) {
+            if (s.channels.isEmpty() || s.name.equals("Favourites")) continue;
+            int with = 0;
+            for (Channel ch : s.channels) if (Guide.has(ch)) with++;
+            cov.append(' ').append(s.name).append(' ').append(with).append('/').append(s.channels.size()).append(';');
+        }
+        android.util.Log.i("GlowPerf", cov.toString());
         g.refreshPersonal(c);
         last = g;
         lastFree = free;

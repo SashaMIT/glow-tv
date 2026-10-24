@@ -163,3 +163,21 @@ phone-remote pairing and colour buttons, on the box with logcat running.
 
 Promo video re-cut: 28 s, starts on Home (title card moved to the end), Thai-listings shot dropped, captions
 ease in once per caption instead of re-sliding on every clip.
+
+## Listings for free channels, logos, World with pictures, icon header — 25 Oct 2026 (night)
+
+| Metric | Before | After | Result |
+|---|---|---|---|
+| Channels with programme listings | 121 / 2,339 (5 %) | **348 / 2,339 (15 %)** | + Pluto TV's own schedules (i.mjh.nz), matched exactly on the Pluto id in the stream link; refreshed every 6 h (1.5 MB, 4.9 s in the background, +4 MB heap briefly) |
+| … Entertainment | 28 / 561 | **162 / 561** | |
+| … Movies | 6 / 109 | **55 / 109** | |
+| … Documentaries / Kids | 5 / 113 · 2 / 78 | **23 / 113 · 22 / 78** | |
+| Rows without any published schedule | "No information · OK to watch" | **"Live now · Comedy · OK to watch"** (the channel's genre) | rolling news / sport loops don't publish schedules |
+| Guide branding | names only | **logo in every channel row + large logo in the info panel** | |
+| Guide browsing (`guidebench.sh guide`, 3 passes) | 33 % janky, p90 21–34 ms, p99 42–61 ms (rows mostly one "No information" bar) | 80 % janky, p90 21–28 ms, **p99 26–42 ms** (logos + up to 4 programme blocks per row) | slowest frames better; more frames just over 16 ms → row caching is the next step |
+| Netflix on the apps shelf | small icon + name on glass | **full black card with the Netflix logo** (adaptive icon background fills the card) | same treatment for any app without a TV banner |
+| Header | 5 text pills + a red warning line | **6 icon buttons**; name shows under the focused one; developer access = red shield button that switches it off | |
+| Favourites | empty | **14 starter channels** (Al Jazeera English, CNA, DW, France 24, NBC News NOW, ABC News Live, Red Bull TV, FUEL TV, DAZN Combat, Bellator MMA, PFL MMA, 3HD, Thai PBS, Channel 7) — once, only working ones | |
+| World news | text list | **pictures** (article preview images; designed source cards where the feed only gives Google News links), detail panel with QR code to read on the phone, **OK = watch live** on a matching news channel (Middle East story → Al Jazeera English playing in 2.8 s) | |
+| HTML codes in summaries ("&nbsp;") | shown | decoded | |
+| APK | 828 KB | 836 KB | |

@@ -55,6 +55,14 @@ final class Guide {
             {"https://epg.pw/xmltv/epg_US.xml.gz", "us"},
     };
     private static final long FEED_FRESH_MS = 20 * 60 * 60 * 1000L;
+    /**
+     * Pluto TV's own schedules (matthuisman/i.mjh.nz, about 20 h ahead, 1.5 MB a day). They're matched on the
+     * Pluto channel id inside the stream link (jmp2.uk/plu-<id>), so they're exact, and they cover most of the
+     * free Entertainment, Movies and Kids channels that epg.pw doesn't. Refreshed every 6 hours.
+     */
+    private static final String[] PLUTO_FEEDS = {"https://i.mjh.nz/PlutoTV/us.xml.gz", "https://i.mjh.nz/PlutoTV/gb.xml.gz"};
+    private static final long PLUTO_FRESH_MS = 6 * 60 * 60 * 1000L;
+    private static final Set<String> plutoKeys = java.util.Collections.newSetFromMap(new ConcurrentHashMap<>());
     private static final long KEEP_BEFORE_MS = 60 * 60 * 1000L, KEEP_AFTER_MS = 26 * 60 * 60 * 1000L;
     private static final long THAI_FRESH_MS = 30 * 60 * 1000L;
 
@@ -156,6 +164,10 @@ final class Guide {
         return new File(c.getFilesDir(), "guide.idx");
     }
 
+    private static File plutoIndex(Context c) {
+        return new File(c.getFilesDir(), "guide-pluto.idx");
+    }
+
     /** Loads the saved index and refreshes the UK/US guide if it's a day old. Call off the main thread. */
     static void ensure(Context ctx, Listener l) {
         Context c = ctx.getApplicationContext();
@@ -163,15 +175,51 @@ final class Guide {
             loadSaved(c);
             if (l != null) l.updated();
         }
-        File f = index(c);
-        if (refreshing || (f.exists() && System.currentTimeMillis() - f.lastModified() < FEED_FRESH_MS)) return;
+        if (refreshing) return;
         refreshing = true;
         try {
-            refreshFeeds(c);
-            if (l != null) l.updated();
+            File p = plutoIndex(c);
+            if (!p.exists() || System.currentTimeMillis() - p.lastModified() > PLUTO_FRESH_MS) {
+                refreshPluto(c);
+                if (l != null) l.updated();
+            }
+            File f = index(c);
+            if (!f.exists() || System.currentTimeMillis() - f.lastModified() > FEED_FRESH_MS) {
+                refreshFeeds(c);
+                if (l != null) l.updated();
+            }
         } finally {
             refreshing = false;
         }
+    }
+
+    /** "https://jmp2.uk/plu-6462190b7cb4b1000862dd60.m3u8" -> "6462190b7cb4b1000862dd60", else null. */
+    static String plutoId(Channel ch) {
+        if (ch.url == null) return null;
+        int at = ch.url.indexOf("jmp2.uk/plu-");
+        if (at < 0) return null;
+        int from = at + "jmp2.uk/plu-".length(), to = from;
+        while (to < ch.url.length() && Character.isLetterOrDigit(ch.url.charAt(to))) to++;
+        return to > from ? ch.url.substring(from, to) : null;
+    }
+
+    private static void refreshPluto(Context c) {
+        Map<String, List<String>> byId = new HashMap<>();
+        for (Channel ch : FreeTv.cached(c)) {
+            String id = plutoId(ch);
+            if (id != null) byId.computeIfAbsent(id, k -> new ArrayList<>()).add(ch.key());
+        }
+        if (byId.isEmpty()) return;
+        Map<String, List<Prog>> fresh = new HashMap<>();
+        for (String url : PLUTO_FEEDS) parseFeed(url, "pluto", null, byId, fresh);
+        if (fresh.isEmpty()) return;
+        for (String k : plutoKeys) if (!thaiFetched.containsKey(k)) byKey.remove(k);
+        plutoKeys.clear();
+        for (Map.Entry<String, List<Prog>> e : fresh.entrySet()) {
+            byKey.put(e.getKey(), tidy(e.getValue()));
+            plutoKeys.add(e.getKey());
+        }
+        writeIndex(c, fresh, plutoIndex(c));
     }
 
     private static String norm(String s) {
@@ -195,15 +243,17 @@ final class Guide {
             mine.computeIfAbsent(norm(ch.name), k -> new ArrayList<>()).add(ch);
         }
         Map<String, List<Prog>> fresh = new HashMap<>();
-        for (String[] feed : FEEDS) parseFeed(feed[0], feed[1], mine, fresh);
+        for (String[] feed : FEEDS) parseFeed(feed[0], feed[1], mine, null, fresh);
         if (fresh.isEmpty()) return;
         for (Map.Entry<String, List<Prog>> e : fresh.entrySet()) {
             java.util.Collections.sort(e.getValue(), (a, b) -> Long.compare(a.start, b.start));
         }
-        // Keep Thai entries already fetched; replace the UK/US part.
-        for (String k : new ArrayList<>(byKey.keySet())) if (!thaiFetched.containsKey(k)) byKey.remove(k);
-        for (Map.Entry<String, List<Prog>> e : fresh.entrySet()) byKey.put(e.getKey(), tidy(e.getValue()));
-        writeIndex(c, fresh);
+        // Keep Thai and Pluto entries; replace the epg.pw part. Pluto's own schedule wins where both have a channel.
+        for (String k : new ArrayList<>(byKey.keySet())) if (!thaiFetched.containsKey(k) && !plutoKeys.contains(k)) byKey.remove(k);
+        for (Map.Entry<String, List<Prog>> e : fresh.entrySet()) {
+            if (!plutoKeys.contains(e.getKey())) byKey.put(e.getKey(), tidy(e.getValue()));
+        }
+        writeIndex(c, fresh, index(c));
     }
 
     private static boolean countryFits(Channel ch, String feedCountry) {
@@ -212,8 +262,12 @@ final class Guide {
         return feedCountry.equals("gb") ? cc.equals("uk") || cc.equals("gb") : cc.equals(feedCountry);
     }
 
-    /** Streams one gzip XMLTV file: <channel> names first, then <programme> entries. */
-    private static void parseFeed(String url, String country, Map<String, List<Channel>> mine, Map<String, List<Prog>> out) {
+    /**
+     * Streams one gzip XMLTV file: <channel> names first, then <programme> entries. Channels are matched by
+     * name ({@code mine}) or, when {@code byId} is given, by the feed's own channel ids.
+     */
+    private static void parseFeed(String url, String country, Map<String, List<Channel>> mine, Map<String, List<String>> byId,
+            Map<String, List<Prog>> out) {
         long t0 = SystemClock.elapsedRealtime();
         Runtime rt = Runtime.getRuntime();
         long heap0 = rt.totalMemory() - rt.freeMemory();
@@ -228,7 +282,8 @@ final class Guide {
             try (InputStream in = new GZIPInputStream(new BufferedInputStream(conn.getInputStream(), 64 * 1024), 64 * 1024)) {
                 XmlPullParser p = android.util.Xml.newPullParser();
                 p.setInput(in, "UTF-8");
-                Map<String, List<String>> idToKeys = new HashMap<>();
+                Map<String, List<String>> idToKeys = byId != null ? byId : new HashMap<>();
+                if (byId != null) matchedChannels = byId.size();
                 SimpleDateFormat fmt = new SimpleDateFormat("yyyyMMddHHmmss Z", Locale.ROOT);
                 long now = System.currentTimeMillis(), from = now - KEEP_BEFORE_MS, to = now + KEEP_AFTER_MS;
                 String chId = null, progCh = null, title = null;
@@ -239,7 +294,7 @@ final class Guide {
                         String tag = p.getName();
                         if (tag.equals("channel")) {
                             chId = p.getAttributeValue(null, "id");
-                        } else if (tag.equals("display-name") && chId != null && !idToKeys.containsKey(chId)) {
+                        } else if (tag.equals("display-name") && byId == null && chId != null && !idToKeys.containsKey(chId)) {
                             inName = true;
                         } else if (tag.equals("programme")) {
                             progCh = p.getAttributeValue(null, "channel");
@@ -293,8 +348,8 @@ final class Guide {
                 + (Math.max(0, peak - heap0) / 1024) + " KB");
     }
 
-    private static void writeIndex(Context c, Map<String, List<Prog>> data) {
-        File tmp = new File(c.getFilesDir(), "guide.idx.tmp");
+    private static void writeIndex(Context c, Map<String, List<Prog>> data, File target) {
+        File tmp = new File(c.getFilesDir(), target.getName() + ".tmp");
         try (DataOutputStream out = new DataOutputStream(new java.io.BufferedOutputStream(new FileOutputStream(tmp), 32 * 1024))) {
             out.writeInt(1);
             out.writeInt(data.size());
@@ -311,11 +366,15 @@ final class Guide {
             tmp.delete();
             return;
         }
-        tmp.renameTo(index(c));
+        tmp.renameTo(target);
     }
 
     private static void readIndex(Context c) {
-        File f = index(c);
+        readIndex(index(c), false);
+        readIndex(plutoIndex(c), true); // after epg.pw, so Pluto's exact schedules win
+    }
+
+    private static void readIndex(File f, boolean pluto) {
         if (!f.exists()) return;
         long t0 = SystemClock.elapsedRealtime();
         int n = 0;
@@ -335,12 +394,13 @@ final class Guide {
                 if (!l.isEmpty()) {
                     l = tidy(l);
                     byKey.put(key, l);
+                    if (pluto) plutoKeys.add(key);
                     n += l.size();
                 }
             }
         } catch (Exception ignored) {
         }
-        Log.i("GlowPerf", "guide index: " + byKey.size() + " channels, " + n + " programmes in " + (SystemClock.elapsedRealtime() - t0) + " ms");
+        Log.i("GlowPerf", "guide index " + f.getName() + ": " + byKey.size() + " channels, " + n + " programmes in " + (SystemClock.elapsedRealtime() - t0) + " ms");
     }
 
     // ---- Thai channels: TrueID, on demand ----

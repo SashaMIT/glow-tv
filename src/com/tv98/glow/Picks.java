@@ -111,6 +111,30 @@ final class Picks {
         return now;
     }
 
+    /** A starter set of favourites: the most useful news, sports and Thai channels. Added once; never re-added. */
+    private static final String[] STARTER = {
+            "al jazeera english", "bbc news", "sky news", "cna international", "dw english", "france 24 english",
+            "nbc news now", "abc news live", "red bull tv", "fuel tv", "dazn combat", "bellator mma", "pfl mma",
+            "3hd", "thai pbs", "channel 7 (thailand)"};
+
+    /** Call off the main thread. Adds the starter channels that currently work, after any the viewer starred. */
+    static void seedFavourites(Context c) {
+        SharedPreferences prefs = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        if (prefs.getBoolean("favs_seeded", false)) return;
+        List<Channel> all = FreeTv.cached(c);
+        if (all.isEmpty()) return; // lists not downloaded yet: try again next time
+        Set<String> s = favs(c);
+        for (String name : STARTER) {
+            for (Channel ch : all) {
+                if (ch.name.toLowerCase(Locale.ROOT).equals(name) && !Channel.isOffline(c, ch)) {
+                    s.add(ch.key());
+                    break;
+                }
+            }
+        }
+        prefs.edit().putString("favs", android.text.TextUtils.join("\n", s)).putBoolean("favs_seeded", true).apply();
+    }
+
     static List<Channel> favourites(Context c, List<Channel> all) {
         Map<String, Channel> byKey = new HashMap<>();
         for (Channel ch : all) byKey.put(ch.key(), ch);

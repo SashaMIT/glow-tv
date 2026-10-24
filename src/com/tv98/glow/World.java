@@ -21,7 +21,7 @@ import java.util.Set;
  */
 final class World {
     static final class Story {
-        String title, source, snippet, category, threat;
+        String title, source, snippet, category, threat, link;
         long at;
         boolean alert;
         int importance;
@@ -88,10 +88,11 @@ final class World {
                 for (int i = 0; i < items.length(); i++) {
                     JSONObject o = items.getJSONObject(i);
                     Story s = new Story();
-                    s.title = o.optString("title").trim();
+                    s.title = plain(o.optString("title"));
                     if (s.title.isEmpty()) continue;
                     s.source = o.optString("source");
-                    s.snippet = o.optString("snippet").trim();
+                    s.link = o.optString("link");
+                    s.snippet = plain(o.optString("snippet"));
                     s.category = cat;
                     s.at = o.optLong("publishedAt");
                     s.alert = o.optBoolean("isAlert");
@@ -142,6 +143,7 @@ final class World {
                 Story copy = new Story(); // per-list copy, so lists don't overwrite each other's counts
                 copy.title = s.title;
                 copy.source = s.source;
+                copy.link = s.link;
                 copy.snippet = s.snippet;
                 copy.category = s.category;
                 copy.threat = s.threat;
@@ -170,6 +172,105 @@ final class World {
         for (String w : a) if (b.contains(w)) common++;
         int union = a.size() + b.size() - common;
         return common >= 3 && common * 3 >= union;
+    }
+
+    // ---- pictures: the article's own preview image (og:image), looked up when a story is shown ----
+
+    private static final java.util.Map<String, String> IMAGES = new java.util.concurrent.ConcurrentHashMap<>();
+
+    interface ImageFound {
+        void found(String imageUrl);
+    }
+
+    /** The story's preview picture URL ("" if none) — from memory, else read from the article's <head> in the background. */
+    static void image(final Story s, final ImageFound cb) {
+        if (s.link == null || s.link.isEmpty()) {
+            cb.found("");
+            return;
+        }
+        String known = IMAGES.get(s.link);
+        if (known != null) {
+            cb.found(known);
+            return;
+        }
+        Net.IO.execute(() -> {
+            String img = "";
+            try {
+                img = previewImage(s.link, Net.head(s.link, 192 * 1024));
+            } catch (Exception ignored) {
+            }
+            if (IMAGES.size() > 400) IMAGES.clear();
+            IMAGES.put(s.link, img);
+            final String found = img;
+            Net.MAIN.post(() -> cb.found(found));
+        });
+    }
+
+    /** og:image, else twitter:image, from a page's head; resolved against the page address. */
+    static String previewImage(String page, String html) {
+        for (String key : new String[] {"og:image", "twitter:image"}) {
+            int at = 0;
+            while ((at = html.indexOf(key, at)) >= 0) {
+                int open = html.lastIndexOf('<', at), close = html.indexOf('>', at);
+                at += key.length();
+                if (open < 0 || close < 0) continue;
+                String tag = html.substring(open, close);
+                if (!tag.startsWith("<meta")) continue;
+                int c = tag.indexOf("content=");
+                if (c < 0) continue;
+                char q = tag.charAt(c + 8);
+                int end = q == '"' || q == '\'' ? tag.indexOf(q, c + 9) : tag.indexOf(' ', c + 8);
+                String v = tag.substring(q == '"' || q == '\'' ? c + 9 : c + 8, end < 0 ? tag.length() : end).replace("&amp;", "&").trim();
+                if (v.isEmpty()) continue;
+                try {
+                    return new java.net.URL(new java.net.URL(page), v).toString();
+                } catch (Exception e) {
+                    return "";
+                }
+            }
+        }
+        return "";
+    }
+
+    // ---- "watch live": a news channel that covers the story's part of the world ----
+
+    private static final String[][] LIVE = {
+            {"middleeast", "al jazeera english", "france 24 english", "dw english"},
+            {"africa", "al jazeera english", "france 24 english", "dw english"},
+            {"europe", "dw english", "france 24 english", "euronews english", "bbc news", "sky news"},
+            {"asia", "cna international", "nhk world-japan", "al jazeera english"},
+            {"us", "abc news live", "nbc news now", "cbs news 24/7", "livenow from fox"},
+            {"politics", "abc news live", "nbc news now", "cbs news 24/7"},
+            {"gov", "abc news live", "nbc news now", "cbs news 24/7"},
+            {"latam", "france 24 english", "dw english", "al jazeera english"},
+            {"finance", "bloomberg tv", "cheddar news"},
+            {"commodities", "bloomberg tv"},
+            {"energy", "bloomberg tv"},
+            {"tech", "bloomberg tv", "cheddar news"},
+            {"ai", "bloomberg tv", "cheddar news"},
+            {"*", "al jazeera english", "dw english", "france 24 english", "nbc news now"},
+    };
+
+    /** A working news channel for this story, or null. Call off the main thread (reads the channel lists). */
+    static Channel liveFor(Context c, Story s) {
+        List<Channel> all = FreeTv.cached(c);
+        for (String[] row : LIVE) {
+            if (!row[0].equals(s.category) && !row[0].equals("*")) continue;
+            for (int i = 1; i < row.length; i++) {
+                for (Channel ch : all) {
+                    if (ch.name.toLowerCase(java.util.Locale.ROOT).equals(row[i]) && !Channel.isOffline(c, ch)) return ch;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Feed text can carry HTML entities ("&nbsp;", "&#39;"): turn them into plain characters. */
+    private static String plain(String s) {
+        if (s == null) return "";
+        String t = s.indexOf('&') >= 0 || s.indexOf('<') >= 0
+                ? android.text.Html.fromHtml(s, android.text.Html.FROM_HTML_MODE_LEGACY).toString() : s;
+        return t.replace('\u00A0', ' ').replaceAll("\\s+", " ").trim();
     }
 
     static String ago(long at) {

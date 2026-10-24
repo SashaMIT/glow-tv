@@ -36,7 +36,7 @@ public class HomeActivity extends Activity {
     private static final List<String> HIDDEN = Arrays.asList(
             "com.tv98.glow", "com.android.tv.settings", "com.android.vending", "com.google.android.tvlauncher");
 
-    private TextView clock, date, weather, headline, adbWarning;
+    private TextView clock, date, weather, headline, quickLabel;
     private List<World.Story> headlines = new ArrayList<>();
     private int headlineIndex;
     /** Rotates the top world headlines under the date, one every 9 seconds. */
@@ -187,21 +187,20 @@ public class HomeActivity extends Activity {
         h.addView(weather, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.END | Gravity.TOP));
 
-        adbWarning = Ui.text(this, 13, 0xFFFFB4A8, 600);
-        adbWarning.setText("⚠  Developer access is on — anyone on your Wi-Fi can control this box. Switch it off in Settings.");
-        adbWarning.setVisibility(View.GONE);
-        FrameLayout.LayoutParams wl = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.END);
-        wl.topMargin = Ui.dp(4);
-        wl.rightMargin = Ui.dp(96);
-        h.addView(adbWarning, wl);
-
         quick = new LinearLayout(this);
         quick.setClipChildren(false);
         FrameLayout.LayoutParams qlp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.END | Gravity.TOP);
-        qlp.topMargin = Ui.dp(52);
+        qlp.topMargin = Ui.dp(50);
         h.addView(quick, qlp);
+        // The focused header button's name, so the icon-only row stays readable.
+        quickLabel = Ui.text(this, 12, Ui.TEXT_DIM, 600);
+        quickLabel.setLetterSpacing(0.08f);
+        FrameLayout.LayoutParams llp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.END | Gravity.TOP);
+        llp.topMargin = Ui.dp(104);
+        llp.rightMargin = Ui.dp(12);
+        h.addView(quickLabel, llp);
         return h;
     }
 
@@ -252,7 +251,7 @@ public class HomeActivity extends Activity {
                 iv.setImageDrawable(banner);
                 t.card.addView(iv);
             } else {
-                t.card.addView(iconWithName(ri.loadIcon(pm), ri.loadLabel(pm).toString()));
+                t.card.addView(brandCard(ri.loadIcon(pm), ri.loadLabel(pm).toString()));
             }
             final Intent launch = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
                     .setClassName(ri.activityInfo.packageName, ri.activityInfo.name)
@@ -266,6 +265,55 @@ public class HomeActivity extends Activity {
             Tile more = actionTile("⬇", "Get more apps", "Google Play");
             more.setOnClickListener(v -> startActivity(store));
             apps.addView(more);
+        }
+    }
+
+    /**
+     * For apps without a TV banner (Netflix's phone build, for one): an adaptive icon's own background fills
+     * the whole card with its logo large in the middle, like the banner apps. Other icons sit on a colour
+     * taken from the icon, with the app's name.
+     */
+    private View brandCard(Drawable icon, String name) {
+        if (icon instanceof android.graphics.drawable.AdaptiveIconDrawable) {
+            android.graphics.drawable.AdaptiveIconDrawable a = (android.graphics.drawable.AdaptiveIconDrawable) icon;
+            FrameLayout f = new FrameLayout(this);
+            if (a.getBackground() != null) {
+                View bg = new View(this);
+                bg.setBackground(a.getBackground());
+                f.addView(bg, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            }
+            if (a.getForeground() != null) {
+                ImageView fg = new ImageView(this);
+                fg.setImageDrawable(a.getForeground());
+                fg.setScaleType(ImageView.ScaleType.FIT_CENTER);
+                // The foreground layer is 108 units with the logo in the middle 72: show it at card height.
+                f.addView(fg, new FrameLayout.LayoutParams(Ui.dp(132), Ui.dp(132), Gravity.CENTER));
+            }
+            return f;
+        }
+        View v = iconWithName(icon, name);
+        v.setBackgroundColor(averageColour(icon));
+        return v;
+    }
+
+    /** A dark version of an icon's average colour, for the card behind it. */
+    private static int averageColour(Drawable d) {
+        try {
+            android.graphics.Bitmap b = android.graphics.Bitmap.createBitmap(24, 24, android.graphics.Bitmap.Config.ARGB_8888);
+            android.graphics.Canvas c = new android.graphics.Canvas(b);
+            d.setBounds(0, 0, 24, 24);
+            d.draw(c);
+            long r = 0, g = 0, bl = 0, n = 0;
+            for (int y = 0; y < 24; y++) for (int x = 0; x < 24; x++) {
+                int px = b.getPixel(x, y);
+                if ((px >>> 24) < 128) continue;
+                r += (px >> 16) & 255; g += (px >> 8) & 255; bl += px & 255; n++;
+            }
+            b.recycle();
+            if (n == 0) return 0x33FFFFFF;
+            return 0xFF000000 | (int) (r / n * 0.45) << 16 | (int) (g / n * 0.45) << 8 | (int) (bl / n * 0.45);
+        } catch (Exception e) {
+            return 0x33FFFFFF;
         }
     }
 
@@ -312,6 +360,7 @@ public class HomeActivity extends Activity {
             }
             Health.scanIfDue(this);
             Guide.loadSaved(this);
+            Picks.seedFavourites(this);
             boolean fresh = GuideLineup.current() == null;
             GuideLineup.build(this); // ready before the TV Guide is opened (kept 30 min)
             if (fresh) Net.MAIN.post(() -> { if (!isFinishing()) showChannels(); }); // tiles now show guide numbers
@@ -421,45 +470,42 @@ public class HomeActivity extends Activity {
 
     private void fillQuick() {
         quick.removeAllViews();
-        Tile search = chip("⌕", "Search");
-        search.setOnClickListener(v -> startActivity(new Intent(this, SearchActivity.class)));
-        quick.addView(search);
-
-        Tile world = chip("◍", "World");
-        world.setOnClickListener(v -> startActivity(new Intent(this, WorldActivity.class)));
-        quick.addView(world);
-
-        Tile phone = chip("▣", "Phone");
-        phone.setOnClickListener(v -> startActivity(new Intent(this, RemoteActivity.class)));
-        quick.addView(phone);
-
-        Tile login = chip("◉", "IPTV");
-        login.setOnClickListener(v -> startActivity(new Intent(this, LoginActivity.class)));
-        quick.addView(login);
-
-        Tile settings = chip("⚙", "Settings");
-        settings.setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
-        quick.addView(settings);
-
-        // Developer access left on is a security hole: say so on Home; Settings (just below) switches it off.
-        adbWarning.setVisibility(SettingsActivity.adbOn(this) ? View.VISIBLE : View.GONE);
+        quickButton(Icons.SEARCH, "Search", Ui.ACCENT, v -> startActivity(new Intent(this, SearchActivity.class)));
+        quickButton(Icons.WORLD, "World news", Ui.ACCENT, v -> startActivity(new Intent(this, WorldActivity.class)));
+        quickButton(Icons.PHONE, "Phone remote", Ui.ACCENT, v -> startActivity(new Intent(this, RemoteActivity.class)));
+        quickButton(Icons.IPTV, "My IPTV sign-in", Ui.ACCENT, v -> startActivity(new Intent(this, LoginActivity.class)));
+        quickButton(Icons.SETTINGS, "Settings", Ui.ACCENT, v -> startActivity(new Intent(this, SettingsActivity.class)));
+        // Developer access left on lets anyone on the Wi-Fi control the box: a red button that switches it off.
+        if (SettingsActivity.adbOn(this)) {
+            quickButton(Icons.SHIELD, "Developer access is ON · press to switch off", 0xFFFF8A7A, v -> {
+                try {
+                    android.provider.Settings.Global.putInt(getContentResolver(), android.provider.Settings.Global.ADB_ENABLED, 0);
+                    android.widget.Toast.makeText(this, "Developer access switched off", android.widget.Toast.LENGTH_SHORT).show();
+                } catch (SecurityException e) {
+                    startActivity(new Intent(this, SettingsActivity.class));
+                }
+                fillQuick();
+            });
+        }
     }
 
-    /** Small pill-shaped action in the header. */
-    private Tile chip(String glyph, String title) {
-        Tile t = new Tile(this, title.length() > 9 ? 138 : 112, 38);
-        LinearLayout box = new LinearLayout(this);
-        box.setGravity(Gravity.CENTER);
-        TextView g = Ui.text(this, 14, Ui.ACCENT, 400);
-        g.setText(glyph);
-        TextView a = Ui.text(this, 13, Ui.TEXT, 600);
-        a.setText(title);
-        a.setPadding(Ui.dp(8), 0, 0, 0);
-        box.addView(g);
-        box.addView(a);
-        t.card.addView(box);
-        t.setContentDescription(title);
-        return t;
+    /** Round icon-only button in the header; its name shows underneath while it has focus. */
+    private void quickButton(int icon, final String name, int color, View.OnClickListener click) {
+        Tile t = new Tile(this, 46, 46);
+        ImageView iv = new ImageView(this);
+        iv.setImageDrawable(new Icons(icon, color));
+        int pad = Ui.dp(12);
+        iv.setPadding(pad, pad, pad, pad);
+        t.card.addView(iv, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) t.getLayoutParams();
+        lp.setMargins(Ui.dp(6), 0, Ui.dp(6), 0);
+        t.setContentDescription(name);
+        t.setOnClickListener(click);
+        t.setOnFocusChangeListener((v, has) -> {
+            if (has) quickLabel.setText(name.toUpperCase(java.util.Locale.ROOT));
+            else if (quickLabel.getText().toString().equalsIgnoreCase(name)) quickLabel.setText("");
+        });
+        quick.addView(t);
     }
 
     private Tile actionTile(String glyph, String title, String sub) {

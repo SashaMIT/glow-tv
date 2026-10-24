@@ -89,6 +89,7 @@ public class SettingsActivity extends Activity {
                     Net.IO.execute(() -> {
                         FreeTv.refresh(this);
                         new java.io.File(getFilesDir(), "guide.idx").setLastModified(0);
+                        new java.io.File(getFilesDir(), "guide-pluto.idx").setLastModified(0);
                         Guide.ensure(this, null);
                         Health.scanIfDue(this);
                     });

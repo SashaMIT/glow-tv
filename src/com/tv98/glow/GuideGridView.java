@@ -55,7 +55,7 @@ class GuideGridView extends View {
         setFocusableInTouchMode(true);
         rowH = Ui.dp(31);
         gap = Ui.dp(4);
-        chanW = Ui.dp(230);
+        chanW = Ui.dp(262);
         headH = Ui.dp(28);
         pad = Ui.dp(10);
         radius = Ui.dp(3);
@@ -157,7 +157,8 @@ class GuideGridView extends View {
             String n = num > 0 ? String.valueOf(num) : "";
             float numW = bold.measureText("8888") + pad;
             c.drawText(n, pad, y + rowH - Ui.dp(9), bold);
-            drawClipped(c, ch.name, pad + numW, y + rowH - Ui.dp(9), chanW - pad * 2 - numW, text);
+            float logoW = drawLogo(c, ch, y);
+            drawClipped(c, ch.name, pad + numW, y + rowH - Ui.dp(9), chanW - pad * 2 - numW - logoW, text);
 
             // Programme blocks.
             List<Guide.Prog> progs = Guide.between(ch, windowStart, windowEnd);
@@ -166,7 +167,7 @@ class GuideGridView extends View {
                 boolean hl = selected;
                 drawCell(c, hl);
                 text.setColor(hl ? HILITE_TEXT : DIM_TEXT);
-                drawClipped(c, now >= windowStart && now < windowEnd ? "No information  ·  OK to watch" : "No information",
+                drawClipped(c, now >= windowStart && now < windowEnd ? liveLabel(ch) : "No listings",
                         gridX + pad, y + rowH - Ui.dp(9), gridW - pad * 2, text);
                 continue;
             }
@@ -201,6 +202,52 @@ class GuideGridView extends View {
         }
     }
 
+    // ---- channel logos, right of the name ----
+
+    private final java.util.HashMap<String, android.graphics.Bitmap> logos = new java.util.HashMap<>();
+    private final java.util.HashSet<String> asked = new java.util.HashSet<>();
+    private final Paint bitmapPaint = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG);
+    private final RectF logoBox = new RectF();
+
+    /** Draws the channel's logo at the right of its cell (on a dark plate so white logos read on yellow too); returns the width used. */
+    private float drawLogo(Canvas c, Channel ch, float y) {
+        if (ch.logo == null || ch.logo.isEmpty()) return 0;
+        android.graphics.Bitmap bm = logos.get(ch.key());
+        if (bm == null) {
+            if (asked.add(ch.key())) {
+                final String key = ch.key();
+                Net.bitmap(getContext(), ch.logo, Ui.dp(96), loaded -> {
+                    if (loaded == null) return;
+                    if (logos.size() > 120) logos.clear(); // a screenful at a time is all that's drawn
+                    // Scaled once to the size it's drawn at, so each frame copies a small texture as-is.
+                    float k = Math.min(Ui.dp(54) / (float) loaded.getWidth(), (rowH - Ui.dp(8)) / loaded.getHeight());
+                    int w = Math.max(1, Math.round(loaded.getWidth() * k)), h = Math.max(1, Math.round(loaded.getHeight() * k));
+                    logos.put(key, android.graphics.Bitmap.createScaledBitmap(loaded, w, h, true));
+                    invalidate();
+                });
+            }
+            return 0;
+        }
+        float maxW = Ui.dp(54), maxH = rowH - Ui.dp(8);
+        float scale = Math.min(maxW / bm.getWidth(), maxH / bm.getHeight());
+        float w = bm.getWidth() * scale, h = bm.getHeight() * scale;
+        float right = chanW - Ui.dp(6), cx = right - maxW / 2, cy = y + rowH / 2;
+        logoBox.set(right - maxW - Ui.dp(3), y + Ui.dp(3), right + Ui.dp(1), y + rowH - Ui.dp(3));
+        fill.setShader(null);
+        fill.setColor(0x400A1A4A);
+        c.drawRoundRect(logoBox, radius, radius, fill);
+        c.drawBitmap(bm, Math.round(cx - w / 2), Math.round(cy - h / 2), bitmapPaint);
+        return maxW + Ui.dp(8);
+    }
+
+    /** For channels with no published schedule: "Live now · Comedy · OK to watch" instead of a bare "No information". */
+    private static String liveLabel(Channel ch) {
+        String g = ch.group == null ? "" : ch.group.trim();
+        int sp = g.indexOf(' ');
+        if (sp > 0) g = g.substring(0, sp); // first category only
+        return g.isEmpty() || g.equalsIgnoreCase("general") ? "Live now  ·  OK to watch" : "Live now  ·  " + g + "  ·  OK to watch";
+    }
+
     /** A stretch the schedule doesn't cover: a quieter block reading "No information". */
     private void drawGap(Canvas c, long from, long to, float y, boolean selectedRow) {
         float gridX = chanW + gap, gridW = getWidth() - gridX;
@@ -213,7 +260,7 @@ class GuideGridView extends View {
         fill.setColor(hl ? HILITE : 0xB31C3A8E);
         c.drawRoundRect(r, radius, radius, fill);
         text.setColor(hl ? HILITE_TEXT : DIM_TEXT);
-        drawClipped(c, "No information", x1 + pad, y + rowH - Ui.dp(9), r.right - x1 - pad * 2, text);
+        drawClipped(c, "No listings", x1 + pad, y + rowH - Ui.dp(9), r.right - x1 - pad * 2, text);
     }
 
     private void drawCell(Canvas c, boolean hl) {

@@ -42,6 +42,8 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
     private TextView menuClock, menuTitle;
     private boolean inMore;
     private GuideGridView grid;
+    private android.widget.ImageView infoLogo;
+    private String infoLogoUrl;
     private TextView heading, infoTime, infoTitle, infoChannel, infoNext, previewNote, clock;
     private FrameLayout preview;
     private SurfaceView previewSurface;
@@ -100,10 +102,28 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
         infoTime.setSingleLine();
         infoChannel.setSingleLine();
         infoChannel.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        info.addView(infoTime);
-        info.addView(infoTitle);
-        info.addView(infoChannel);
-        info.addView(infoNext);
+        // Channel logo beside the programme details, like the old guides' info banner.
+        LinearLayout details = new LinearLayout(this);
+        details.setGravity(Gravity.CENTER_VERTICAL);
+        infoLogo = new android.widget.ImageView(this);
+        infoLogo.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        GradientDrawable plate = new GradientDrawable();
+        plate.setColor(0x330A1A4A);
+        plate.setCornerRadius(Ui.dp(8));
+        infoLogo.setBackground(plate);
+        infoLogo.setPadding(Ui.dp(10), Ui.dp(8), Ui.dp(10), Ui.dp(8));
+        LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(Ui.dp(120), Ui.dp(84));
+        ilp.rightMargin = Ui.dp(18);
+        ilp.topMargin = Ui.dp(10);
+        details.addView(infoLogo, ilp);
+        LinearLayout texts = new LinearLayout(this);
+        texts.setOrientation(LinearLayout.VERTICAL);
+        texts.addView(infoTime);
+        texts.addView(infoTitle);
+        texts.addView(infoChannel);
+        texts.addView(infoNext);
+        details.addView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        info.addView(details);
 
         preview = new FrameLayout(this);
         GradientDrawable frame = new GradientDrawable();
@@ -471,6 +491,14 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
     }
 
     private void showInfo(Channel ch, Guide.Prog prog, int number) {
+        if (ch.logo == null || ch.logo.isEmpty()) {
+            infoLogoUrl = null;
+            infoLogo.setVisibility(View.INVISIBLE);
+        } else if (!ch.logo.equals(infoLogoUrl)) {
+            infoLogoUrl = ch.logo;
+            infoLogo.setVisibility(View.VISIBLE);
+            Net.image(infoLogo, ch.logo, Ui.dp(240), () -> infoLogo.setVisibility(View.INVISIBLE));
+        }
         CharSequence now = DateFormat.format(DateFormat.is24HourFormat(this) ? "HH:mm" : "h:mm a", System.currentTimeMillis());
         if (!now.toString().contentEquals(clock.getText())) clock.setText(now);
         String num = number > 0 ? number + "  " : "";
@@ -479,8 +507,8 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
         if (prog == null) {
             infoTime.setText("");
             infoTitle.setText(ch.name);
-            infoNext.setText(Guide.hasData(ch) ? "No programme information for this time  ·  OK to watch"
-                    : Guide.hasThai(ch) ? "Fetching this channel's schedule…" : "No programme information for this channel  ·  OK to watch");
+            infoNext.setText(Guide.hasData(ch) ? "No listings for this time  ·  OK to watch"
+                    : Guide.hasThai(ch) ? "Fetching this channel's schedule…" : "Live now  ·  this channel doesn't publish a schedule  ·  OK to watch");
             return;
         }
         boolean live = prog.start <= System.currentTimeMillis();

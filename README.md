@@ -12,8 +12,9 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
 
 ## What it does
 
-- **Home screen**: clock, local weather, a rolling world headline, your apps, and live TV (guide, free channels,
-  recently watched) with channel numbers.
+- **Home screen**: clock, local weather, a rolling world headline, icon buttons (search, world, phone, IPTV,
+  settings, and a red shield while developer access is on), your apps as full-colour cards, and live TV
+  (guide, free channels, favourites) with channel numbers.
 - **TV guide**: a numbered menu (All Channels, Favourites, Entertainment, Lifestyle & Culture, Movies, Sports,
   News, Documentaries, Kids, 0 More…), then channels against half-hour columns with a muted live preview.
   Type a number to jump; ◀ ▶ moves through the day; colour keys for Recently watched, Search, World and Favourites.
@@ -27,19 +28,21 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
   about 2 s. Last channel, digits, now/next banner.
 - **Free TV**: about 2,300 working channels from the public [iptv-org](https://github.com/iptv-org/iptv) lists
   (Thailand, UK, US, world news, sports), link-checked every 12 hours so dead ones stay hidden.
-- **Programme listings**: UK/US from [epg.pw](https://epg.pw)'s daily XMLTV files, streamed and indexed in the
-  background; Thai channels from TrueID, fetched when they scroll into view.
+- **Programme listings**: UK/US from [epg.pw](https://epg.pw)'s daily XMLTV files, Pluto TV channels from their own
+  schedules ([i.mjh.nz](https://github.com/matthuisman/i.mjh.nz), matched on the Pluto id in the stream link), and
+  Thai channels from TrueID, fetched when they scroll into view. Channel logos in the guide.
 - **Phone remote**: open the box's address on your phone, enter the 4-digit code shown on the TV, then use a
   D-pad, type searches and logins, open favourites. Home network only; switches itself off after 30 minutes.
-- **World**: top stories and alerts by region from [World Monitor](https://github.com/koala73/worldmonitor).
+- **World**: top stories and alerts by region from [World Monitor](https://github.com/koala73/worldmonitor), with
+  article pictures, a QR code to read the story on your phone, and OK to watch a news channel covering that region.
 - **My IPTV**: sign in with your own Xtream-style provider details to browse and play their channels.
 - **Settings**: switch developer access (ADB) off and on in two clicks, hide offline channels, refresh lists.
 
 | | | |
 |---|---|---|
-| ![Home](docs/screenshots/01_home.jpg) | ![Guide menu](docs/screenshots/03_guide_menu.jpg) | ![Sports](docs/screenshots/04_guide_sports.jpg) |
+| ![Home](docs/screenshots/v2_after_home_header.jpg) | ![Guide menu](docs/screenshots/03_guide_menu.jpg) | ![Sports](docs/screenshots/04_guide_sports.jpg) |
 | ![News](docs/screenshots/06_guide_news.jpg) | ![Thailand with listings](docs/screenshots/10_guide_thailand.jpg) | ![FUEL TV playing](docs/screenshots/14_player_fuel_tv.jpg) |
-| ![Search](docs/screenshots/16_search.jpg) | ![World headlines](docs/screenshots/17_world_headlines.jpg) | ![Settings](docs/screenshots/18_settings.jpg) |
+| ![Search](docs/screenshots/16_search.jpg) | ![World headlines](docs/screenshots/v2_after_world3.jpg) | ![Entertainment with listings and logos](docs/screenshots/v2_after_entertainment.jpg) |
 
 ## Measured on the box
 
@@ -111,7 +114,7 @@ switched off.
 - [QR Code generator](https://www.nayuki.io/page/qr-code-generator-library) by Project Nayuki: MIT, included in `src/io/nayuki/qrcodegen`
 - [iptv-org/iptv](https://github.com/iptv-org/iptv): channel lists (Unlicense), fetched by the app
 - [World Monitor](https://github.com/koala73/worldmonitor): headlines and the news-channel catalogue (AGPL-3.0); the catalogue is downloaded and turned into `WmCatalog.java` at build time and is not part of this repository
-- [epg.pw](https://epg.pw) and [TrueID](https://tv.trueid.net): programme listings, fetched by the app
+- [epg.pw](https://epg.pw), [i.mjh.nz](https://github.com/matthuisman/i.mjh.nz) (Pluto TV) and [TrueID](https://tv.trueid.net): programme listings, fetched by the app
 - [Open-Meteo](https://open-meteo.com): weather (CC BY 4.0)
 
 Built with [Claude Code](https://claude.com/claude-code).
