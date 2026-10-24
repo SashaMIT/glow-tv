@@ -210,7 +210,7 @@ final class GuideLineup {
         Collections.sort(list, (a, b) -> Integer.compare(number(a), number(b)));
     }
 
-    private void refreshPersonal(Context c) {
+    void refreshPersonal(Context c) {
         Section favs = main.get(1);
         favs.channels.clear();
         favs.channels.addAll(Picks.favourites(c, everything));

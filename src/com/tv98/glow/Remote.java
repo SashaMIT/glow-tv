@@ -338,6 +338,7 @@ final class Remote {
     }
 
     private static final Map<String, Integer> KEYS = new HashMap<>();
+    private static final Map<String, Integer> COLOURS = new HashMap<>();
 
     static {
         KEYS.put("up", KeyEvent.KEYCODE_DPAD_UP);
@@ -350,15 +351,20 @@ final class Remote {
         KEYS.put("chdown", KeyEvent.KEYCODE_CHANNEL_DOWN);
         KEYS.put("menu", KeyEvent.KEYCODE_MENU);
         KEYS.put("last", KeyEvent.KEYCODE_LAST_CHANNEL);
-        KEYS.put("red", KeyEvent.KEYCODE_PROG_RED);
-        KEYS.put("green", KeyEvent.KEYCODE_PROG_GREEN);
-        KEYS.put("yellow", KeyEvent.KEYCODE_PROG_YELLOW);
-        KEYS.put("blue", KeyEvent.KEYCODE_PROG_BLUE);
+        COLOURS.put("red", KeyEvent.KEYCODE_PROG_RED);
+        COLOURS.put("green", KeyEvent.KEYCODE_PROG_GREEN);
+        COLOURS.put("yellow", KeyEvent.KEYCODE_PROG_YELLOW);
+        COLOURS.put("blue", KeyEvent.KEYCODE_PROG_BLUE);
         for (int d = 0; d <= 9; d++) KEYS.put(String.valueOf(d), KeyEvent.KEYCODE_0 + d);
     }
 
     /** Presses a remote key in Glow. Home works everywhere; other keys only while a Glow screen is in front. */
     private static JSONObject key(String name) throws Exception {
+        Integer colour = COLOURS.get(name);
+        if (colour != null) { // handled inside Glow: the box's firmware opens its file manager on a real blue key
+            Net.MAIN.post(() -> ClassicGuideActivity.colourFromPhone(app, colour));
+            return new JSONObject().put("ok", true);
+        }
         if (name.equals("guide")) { // opens from anywhere, like Home
             Net.MAIN.post(() -> app.startActivity(new Intent(app, ClassicGuideActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)));
             return new JSONObject().put("ok", true);

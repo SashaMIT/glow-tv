@@ -145,3 +145,21 @@ so numbers stay put.
 
 Showcase: `glow/tools/tour.sh` (19 screenshots → `shots/tour/`), `glow/tools/tourvideo.sh` (2½-min screen recording,
 5.2 MB H.264 in `share/glow_tour.mp4`), page in `share/index.html`.
+
+## Final check before sharing — 25 Oct 2026
+
+Full screenshot tour (19 screens) + guide colour keys, favourites, Guide key from the player, Last channel,
+phone-remote pairing and colour buttons, on the box with logcat running.
+
+| Check | Result |
+|---|---|
+| Crashes / "app not responding" | **none** (same process throughout) |
+| Phone remote while switched off | port closed |
+| Phone remote, unpaired request | **401**; wrong pairing code rejected |
+| Guide key in the player | opens the guide on the channel being watched |
+| Red / green / yellow keys | Recently watched / Search / World news |
+| **Blue key** | **bug found and fixed**: this box's firmware also opens its file manager on a real blue key, which covered the guide. The phone remote's colour buttons are now handled inside Glow (no key injected); blue from Home opens Favourites, blue in the grid stars the channel and Favourites updates at once |
+| Glow memory on Home after the whole session | 60 MB (42 MB fresh) |
+
+Promo video re-cut: 28 s, starts on Home (title card moved to the end), Thai-listings shot dropped, captions
+ease in once per caption instead of re-sliding on every clip.

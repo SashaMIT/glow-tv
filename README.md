@@ -8,7 +8,7 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
 
 ![The TV guide: numbered menu, Sports ranked with action and fight sports first, then FUEL TV playing](docs/glow-guide.gif)
 
-**[Watch the 30-second tour (MP4)](docs/glow-promo.mp4)** · [All screenshots](docs/screenshots) · [Measured results](docs/BENCHMARKS.md)
+**[Watch the 28-second tour (MP4)](docs/glow-promo.mp4)** · [All screenshots](docs/screenshots) · [Measured results](docs/BENCHMARKS.md)
 
 ## What it does
 

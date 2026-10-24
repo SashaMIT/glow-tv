@@ -60,7 +60,7 @@ def end():
     im.save(OUT / "end.png")
 
 CAPS = ["New home screen", "Classic TV guide", "Sports: action & fight first", "Live in one press",
-        "Type 502: Al Jazeera", "Thai TV with real listings", "World headlines", "Search that ranks"]
+        "Type 502: Al Jazeera", "World headlines", "Search that ranks"]
 for i, c in enumerate(CAPS, 1):
     caption(i, c, f"cap{i}")
 title(); end()

@@ -32,6 +32,8 @@ import java.util.List;
  */
 public class ClassicGuideActivity extends Activity implements GuideGridView.Listener {
     static final String EXTRA_CHANNEL_KEY = "channel";
+    /** A colour key pressed on the phone remote while the guide wasn't open (KEYCODE_PROG_*). */
+    static final String EXTRA_COLOUR = "colour";
     private static final int PREVIEW_DWELL_MS = 1200;
 
     private GuideLineup lineup;
@@ -158,6 +160,8 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
                     if (section == null) showMenu(false, 0);
                 } else {
                     showMenu(false, 0);
+                    int colour = getIntent().getIntExtra(EXTRA_COLOUR, 0);
+                    if (colour != 0) colourKey(colour);
                 }
                 Log.i("GlowPerf", "guide shown " + (SystemClock.elapsedRealtime() - openedAt) + " ms after open");
             });
@@ -304,6 +308,7 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
         menuClock.setText(DateFormat.format(DateFormat.is24HourFormat(this) ? "HH:mm" : "h:mm a", System.currentTimeMillis()));
         menuTitle.setText(more ? "TV GUIDE  ›  MORE" : DateFormat.format("EEEE d MMMM", System.currentTimeMillis()).toString().toUpperCase());
         menuList.removeAllViews();
+        lineup.refreshPersonal(this); // favourites or recently watched may have changed since the lineup was built
         List<GuideLineup.Section> list = more ? lineup.more : lineup.main;
         for (int i = 0; i < list.size() && i < 9; i++) {
             final GuideLineup.Section s = list.get(i);
@@ -401,6 +406,21 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
     }
 
     /** Red / green / yellow / blue, anywhere in the guide. Blue on a highlighted channel stars it. */
+    /**
+     * Colour buttons from the phone remote. They're handled here rather than injected as key presses because
+     * this box's firmware also opens its file manager on the blue key.
+     */
+    static void colourFromPhone(android.content.Context app, int code) {
+        Activity a = GlowApp.front();
+        if (a instanceof ClassicGuideActivity && ((ClassicGuideActivity) a).lineup != null) {
+            ((ClassicGuideActivity) a).colourKey(code);
+            return;
+        }
+        Class<?> target = code == KeyEvent.KEYCODE_PROG_GREEN ? SearchActivity.class
+                : code == KeyEvent.KEYCODE_PROG_YELLOW ? WorldActivity.class : ClassicGuideActivity.class;
+        app.startActivity(new Intent(app, target).putExtra(EXTRA_COLOUR, code).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+    }
+
     private boolean colourKey(int code) {
         switch (code) {
             case KeyEvent.KEYCODE_PROG_RED:
@@ -417,6 +437,7 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
                 if (section != null) {
                     Channel ch = section.channels.get(grid.selectedIndex());
                     HomeActivity.toastFavourite(this, ch, Picks.toggleFavourite(this, ch));
+                    lineup.refreshPersonal(this);
                 } else {
                     openSection(named("Favourites"), null);
                 }
