@@ -73,6 +73,16 @@ class Tile extends FrameLayout {
         }
     }
 
+    /** Rows kept between visits to Home get their cached textures back (released in onPause). */
+    static void restore(ViewGroup row) {
+        for (int i = 0; i < row.getChildCount(); i++) {
+            View v = row.getChildAt(i);
+            if (v instanceof Tile && ((Tile) v).card.getLayerType() != LAYER_TYPE_HARDWARE) {
+                ((Tile) v).card.setLayerType(LAYER_TYPE_HARDWARE, null);
+            }
+        }
+    }
+
     void setLift(float scale) {
         lift = scale;
     }

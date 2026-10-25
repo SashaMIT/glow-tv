@@ -152,6 +152,10 @@ class GuideGridView extends View {
             cachedWindow = windowStart;
             cachedWidth = getWidth();
         }
+        // At most one new row picture per frame (3 was worse: p90 27-32 ms vs 21-26): after ◀ ▶ moves the time window every row is new, and making all
+        // of them at once dropped frames; the rest are drawn directly until their turn comes.
+        int budget = 1;
+        boolean missing = false;
         for (int i = 0; i < vis && top + i < rows.size(); i++) {
             int idx = top + i;
             Channel ch = rows.get(idx);
@@ -161,7 +165,13 @@ class GuideGridView extends View {
             } else {
                 // Other rows are drawn once into a picture and reused, so each costs one draw call per frame.
                 android.graphics.Bitmap bm = rowCache.get(ch.key());
+                if (bm == null && budget == 0) {
+                    drawRow(c, ch, y, false, now);
+                    missing = true;
+                    continue;
+                }
                 if (bm == null) {
+                    budget--;
                     int bw = (int) w, bh = (int) Math.ceil(rowH);
                     bm = null;
                     while (!spare.isEmpty() && bm == null) {
@@ -178,6 +188,7 @@ class GuideGridView extends View {
                 c.drawBitmap(bm, 0, y, null);
             }
         }
+        if (missing) postInvalidateOnAnimation(); // next frame makes the next row's picture
         // Thin "now" marker when the current time is inside the window.
         if (now >= windowStart && now < windowEnd) {
             float x = gridX + gridW * (now - windowStart) / (float) WINDOW;
@@ -323,7 +334,12 @@ class GuideGridView extends View {
 
     /** The bitmap without its fully transparent border (the box around pixels with any real opacity). */
     /** Trimmed logos by address: the guide's info panel asked for the same few on every key press. */
-    private static final android.util.LruCache<String, android.graphics.Bitmap> TRIMMED = new android.util.LruCache<>(40);
+    private static final android.util.LruCache<String, android.graphics.Bitmap> TRIMMED = new android.util.LruCache<>(12);
+
+    /** Let go of trimmed logos (Home calls this when it's back on screen). */
+    static void trimCache() {
+        TRIMMED.evictAll();
+    }
 
     static android.graphics.Bitmap trimmed(String url, android.graphics.Bitmap b) {
         String key = url == null ? null : url + "#" + b.getWidth(); // rows and the info panel load different sizes

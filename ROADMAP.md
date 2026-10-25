@@ -25,7 +25,7 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 | Player | ~~▼ as instant as ▲~~ ✅ (2,353 → 276 ms); ~~audio + subtitle switching~~ ✅ | done |
 | Player | Picture-in-picture / two channels; pause & rewind live; night-mode audio, dialogue boost, volume levelling; zoom/aspect, stats overlay | later |
 | TV Guide | ~~Now & Next~~ ✅; ~~Live sport now~~ ✅; smoother first pass (logos off the main thread ✅; rows still drawn on demand) | done / partly |
-| Memory | Listings held in memory push Home to 114 MB: keep only the next 12 h and load the rest on demand | next |
+| Memory | ~~Listings' descriptions on disk, rows updated in place~~ ✅ (Home 118 → 81–100 MB); under 80 MB every time needs fewer layered cards / smaller banners | later |
 | TV Guide | Radio favourites + album art; F1 live timing (OpenF1); Trending (TMDB, free key) | later |
 | Home & box | Photos to the screensaver from the phone; settings backup | next |
 | Home & box | Remote remapping + quick settings; notifications over TV; Thai menus; parental PIN / Kids mode; data usage + Wi-Fi; faster cold start | later |

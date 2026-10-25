@@ -55,6 +55,28 @@ final class Intel {
 
     private Intel() {}
 
+    // Parsed results, reused while their data is fresh: Home asks again every time it comes back into view, and
+    // re-parsing ~600 KB of JSON each time made Glow's heap grow (Android keeps a grown heap for a foreground app).
+    private static final Map<String, Object[]> MEMO = new HashMap<>();
+
+    @SuppressWarnings("unchecked")
+    private static <T> T memo(String name, long freshMs, java.util.concurrent.Callable<T> load) {
+        synchronized (MEMO) {
+            Object[] m = MEMO.get(name);
+            if (m != null && System.currentTimeMillis() - (Long) m[0] < freshMs) return (T) m[1];
+        }
+        T v;
+        try {
+            v = load.call();
+        } catch (Exception e) {
+            return null;
+        }
+        synchronized (MEMO) {
+            MEMO.put(name, new Object[] {System.currentTimeMillis(), v});
+        }
+        return v;
+    }
+
     // ---- cache ----
 
     static String cached(Context c, String name, String url, long freshMs) {
@@ -89,6 +111,10 @@ final class Intel {
 
     /** USGS: magnitude 4.5+ in the last day. */
     static List<Event> quakes(Context c) {
+        return memo("quakes", 10 * 60_000L, () -> quakesNow(c));
+    }
+
+    private static List<Event> quakesNow(Context c) {
         List<Event> out = new ArrayList<>();
         String s = cached(c, "usgs", "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson", 10 * 60_000L);
         if (s == null) return out;
@@ -119,6 +145,10 @@ final class Intel {
 
     /** GDACS (UN/EU): current orange and red alerts for earthquakes, cyclones, floods, volcanoes, droughts, wildfires. */
     static List<Event> alerts(Context c) {
+        return memo("alerts", 30 * 60_000L, () -> alertsNow(c));
+    }
+
+    private static List<Event> alertsNow(Context c) {
         List<Event> out = new ArrayList<>();
         String s = cached(c, "gdacs", "https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?eventlist=EQ;TC;FL;VO;DR;WF",
                 30 * 60_000L);
@@ -164,6 +194,10 @@ final class Intel {
 
     /** NASA EONET: open natural events of the last 30 days (wildfires, storms, volcanoes, ice). */
     static List<Event> natural(Context c) {
+        return memo("natural", 30 * 60_000L, () -> naturalNow(c));
+    }
+
+    private static List<Event> naturalNow(Context c) {
         List<Event> out = new ArrayList<>();
         String s = cached(c, "eonet", "https://eonet.gsfc.nasa.gov/api/v3/events?status=open&days=30", 30 * 60_000L);
         if (s == null) return out;
@@ -201,6 +235,10 @@ final class Intel {
 
     /** Headlines placed on their country: one hotspot per country with how many top stories name it. */
     static List<Event> newsHotspots(Context c) {
+        return memo("newsHotspots", 10 * 60_000L, () -> newsHotspotsNow(c));
+    }
+
+    private static List<Event> newsHotspotsNow(Context c) {
         Map<String, Event> by = new HashMap<>();
         for (World.Story s : World.section(World.cached(c), "__top")) {
             for (Countries.Country k : Countries.mentioned(c, s.title)) {
@@ -290,6 +328,10 @@ final class Intel {
 
     /** Polymarket's most-traded open questions this day, minus sports and price bets (this is about the world). */
     static List<Market> markets(Context c) {
+        return memo("markets", 15 * 60_000L, () -> marketsNow(c));
+    }
+
+    private static List<Market> marketsNow(Context c) {
         List<Market> out = new ArrayList<>();
         String s = cached(c, "polymarket",
                 "https://gamma-api.polymarket.com/markets?active=true&closed=false&order=volume24hr&ascending=false&limit=60", 15 * 60_000L);
@@ -319,6 +361,10 @@ final class Intel {
     // ---- weather ----
 
     static Weather weather(Context c) {
+        return memo("weather", 30 * 60_000L, () -> weatherNow(c));
+    }
+
+    private static Weather weatherNow(Context c) {
         double[] ll = com.tv98.glow.Weather.location(c);
         String q = String.format(Locale.US, "latitude=%.2f&longitude=%.2f", ll[0], ll[1]);
         String f = cached(c, "forecast", "https://api.open-meteo.com/v1/forecast?" + q

@@ -469,3 +469,33 @@ logos were never asked for again. `guidebench.sh` (with ◀ ▶ window changes):
 **Listings on the box after the third nightly run**: **1,032 / 2,326 channels** (News 343, Sports 140); index loads
 in 0.42 s. **Home**: 2.2 % late frames when scrolling; settled 114 MB (93 MB before the third run's listings): the
 listings held in memory are now the biggest cost → next on the roadmap.
+
+## Memory diet — 25 Oct 2026 (late night)
+
+Heap dump (`am dumpheap`, parsed with a small HPROF reader): Glow's live Java objects were ~20 MB, **~14 MB of it text**
+(145,000 strings): mostly the listings' titles and 220-character descriptions (38,024 programmes, 3.65 M description
+characters). Descriptions are only read for the highlighted programme, so programmes loaded from the saved index now
+keep **where their description is in the file** and the info panel reads it on demand (one small read; a stamp
+guards against the file having been rewritten). After a refresh Glow re-reads the new index, so fresh descriptions
+don't stay in memory either.
+
+| Glow on Home | Before | After |
+|---|---|---|
+| Java heap, settled | ~37 MB (24–39 across runs) | **14–22 MB** |
+| Total, settled (3 cold starts) | 104–118 MB | **81–100 MB** (median 99) |
+| After 5 returns to Home | 151 MB (native 47 → 87 MB) | 120–135 MB (native ~56–62 MB, incl. a guide visit) |
+| Listings index load | 0.42 s | 0.24 s (descriptions skipped, not decoded) |
+| Home scrolling | 2.2 % late | 1.6 % late |
+
+Other changes: Intelligence/Sports data parsed once while fresh (was re-parsed on every return to Home); Home's
+parse-heavy jobs run one at a time (`Net.WORK`), network refreshes stay parallel; rows are only rebuilt when what they
+show changes (apps signature, same channels refreshed in place, Intelligence cards updated in place) and get their GPU
+layers back on return; trimmed-logo cache 40 → 12 and cleared on return to Home.
+
+Not reached: under 80 MB every time. What's left is mostly pictures and GPU textures (24 MB of GPU memory, half of it
+the cached card layers that keep Home scrolling at ~1–2 %; dropping them was tried before and made scrolling 13–76 %
+late). Next options: fewer cards with layers (e.g. hide system utilities from the Apps row by default), smaller banners.
+
+**Guide ◀ ▶ (time window moves)**: at most one new row picture per frame; the other new rows are drawn directly until
+their turn. `guidebench.sh`: p90 by pass 36 / 31 / 24 → **26 / 21 / 23 ms**, p99 53 / 46 / 38 → **44 / 34 / 34 ms**;
+more (shorter) frames, so "late frames" stays ~50 %. Three pictures per frame was worse (p90 27–32 ms).

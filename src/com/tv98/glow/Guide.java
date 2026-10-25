@@ -37,8 +37,14 @@ final class Guide {
     static final class Prog {
         final long start, stop;
         final String title;
-        /** First sentence or so of the synopsis, or null. */
+        /**
+         * First sentence or so of the synopsis, or null. Programmes read from a saved index don't hold it: they keep
+         * where it is in that file ({@link #descOf}), as ~40,000 descriptions were most of Glow's Java heap.
+         */
         final String desc;
+        int descAt = -1;
+        File descFile;
+        long descStamp;
 
         Prog(long start, long stop, String title) {
             this(start, stop, title, null);
@@ -49,6 +55,29 @@ final class Guide {
             this.stop = stop;
             this.title = title;
             this.desc = desc == null || desc.isEmpty() ? null : desc;
+        }
+
+        /** The same programme ending earlier (desc kept, in memory or on disk). */
+        Prog endingAt(long newStop) {
+            Prog p = new Prog(start, newStop, title, desc);
+            p.descAt = descAt;
+            p.descFile = descFile;
+            p.descStamp = descStamp;
+            return p;
+        }
+    }
+
+    /** A programme's description: in memory, or one small read from the index it was loaded from. */
+    static String descOf(Prog p) {
+        if (p == null) return null;
+        if (p.desc != null || p.descAt < 0 || p.descFile == null) return p.desc;
+        if (p.descFile.lastModified() != p.descStamp) return null; // the index has been rewritten since
+        try (java.io.RandomAccessFile f = new java.io.RandomAccessFile(p.descFile, "r")) {
+            f.seek(p.descAt);
+            String d = f.readUTF();
+            return d.isEmpty() ? null : d;
+        } catch (Exception e) {
+            return null;
         }
     }
 
@@ -133,7 +162,7 @@ final class Guide {
             if (!out.isEmpty()) {
                 Prog last = out.get(out.size() - 1);
                 if (p.start == last.start) continue; // duplicate slot: keep the first
-                if (last.stop > p.start) out.set(out.size() - 1, new Prog(last.start, p.start, last.title, last.desc));
+                if (last.stop > p.start) out.set(out.size() - 1, last.endingAt(p.start));
             }
             out.add(p);
         }
@@ -248,6 +277,7 @@ final class Guide {
             plutoKeys.add(e.getKey());
         }
         writeIndex(c, fresh, plutoIndex(c));
+        readIndex(plutoIndex(c), plutoKeys); // from disk: descriptions stay there
     }
 
     private static void refreshGlowData(Context c) {
@@ -272,6 +302,7 @@ final class Guide {
             glowKeys.add(e.getKey());
         }
         writeIndex(c, fresh, glowIndex(c));
+        readIndex(glowIndex(c), glowKeys); // from disk: descriptions stay there
     }
 
     private static String norm(String s) {
@@ -314,6 +345,9 @@ final class Guide {
             if (!plutoKeys.contains(e.getKey()) && !glowKeys.contains(e.getKey())) byKey.put(e.getKey(), tidy(e.getValue()));
         }
         writeIndex(c, fresh, index(c));
+        readIndex(index(c), null); // from disk: descriptions stay there
+        readIndex(glowIndex(c), glowKeys); // and the exact sources still win
+        readIndex(plutoIndex(c), plutoKeys);
     }
 
     // ---- epg.pw one channel at a time ----
@@ -499,7 +533,34 @@ final class Guide {
         if (!f.exists()) return;
         long t0 = SystemClock.elapsedRealtime();
         int n = 0;
-        try (DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(f), 32 * 1024))) {
+        final long stamp = f.lastModified();
+        final long[] pos = {0};
+        // Counts bytes read, so each description's place in the file can be kept instead of its text.
+        java.io.InputStream file;
+        try {
+            file = new BufferedInputStream(new FileInputStream(f), 32 * 1024);
+        } catch (java.io.IOException e) {
+            return;
+        }
+        final byte[] skip = new byte[65536];
+        java.io.InputStream counted = new java.io.FilterInputStream(file) {
+            @Override public int read() throws java.io.IOException {
+                int b = super.read();
+                if (b >= 0) pos[0]++;
+                return b;
+            }
+            @Override public int read(byte[] b, int off, int len) throws java.io.IOException {
+                int n = super.read(b, off, len);
+                if (n > 0) pos[0] += n;
+                return n;
+            }
+            @Override public long skip(long n) throws java.io.IOException {
+                long k = super.skip(n);
+                if (k > 0) pos[0] += k;
+                return k;
+            }
+        };
+        try (DataInputStream in = new DataInputStream(counted)) {
             int version = in.readInt();
             if (version != 1 && version != 2) return;
             if (version == 1) f.setLastModified(0); // an older index without descriptions: refresh it soon
@@ -512,8 +573,22 @@ final class Guide {
                 for (int j = 0; j < count; j++) {
                     long s = in.readLong(), e = in.readLong();
                     String t = in.readUTF();
-                    String d = version >= 2 ? in.readUTF() : null;
-                    if (e >= cutoff) l.add(new Prog(s, e, t, d));
+                    int at = -1;
+                    if (version >= 2) {
+                        at = (int) pos[0];
+                        int len = in.readUnsignedShort();
+                        if (len == 0) at = -1;
+                        else in.readFully(skip, 0, len); // (skipBytes may stop short)
+                    }
+                    if (e >= cutoff) {
+                        Prog p = new Prog(s, e, t, null);
+                        if (at >= 0) {
+                            p.descAt = at;
+                            p.descFile = f;
+                            p.descStamp = stamp;
+                        }
+                        l.add(p);
+                    }
                 }
                 if (!l.isEmpty()) {
                     l = tidy(l);

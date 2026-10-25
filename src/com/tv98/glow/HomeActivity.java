@@ -111,10 +111,16 @@ public class HomeActivity extends Activity {
         resumedBefore = true;
         tick.run();
         Weather.load(this, t -> weather.setText(t));
+        // Rows are only rebuilt when what they show has changed; otherwise they're updated in place. Rebuilding all
+        // of them on every return to Home made new banners, pictures and GPU layers each time (native memory 47 →
+        // 87 MB after five returns).
         fillApps();
         fillLive();
         fillIntel();
         fillQuick();
+        Tile.restore(apps);
+        Tile.restore(live);
+        Tile.restore(intel);
         restoreFocus();
         headline.removeCallbacks(rotateHeadline);
         if (!headlines.isEmpty()) headline.postDelayed(rotateHeadline, 9000);
@@ -169,7 +175,7 @@ public class HomeActivity extends Activity {
     }
 
     private void loadHeadlines() {
-        Net.IO.execute(() -> {
+        Net.WORK.execute(() -> {
             if (World.stale(this)) World.refresh(this);
             List<World.Story> top = World.section(World.cached(this), "__top");
             final List<World.Story> pick = top.size() > 8 ? new ArrayList<>(top.subList(0, 8)) : top;
@@ -256,10 +262,15 @@ public class HomeActivity extends Activity {
     }
 
     private static final String MIRACAST = "com.softwinner.miracastReceiver";
+    private String appsSig;
 
     private void fillApps() {
         PackageManager pm = getPackageManager();
         List<ResolveInfo> ordered = AppsActivity.ordered(this, false); // Glow ▸ Settings ▸ Apps on Home
+        StringBuilder sig = new StringBuilder();
+        for (ResolveInfo ri : ordered) sig.append(ri.activityInfo.packageName).append('/').append(ri.activityInfo.name).append(';');
+        if (apps.getChildCount() > 0 && sig.toString().equals(appsSig)) return; // same apps, same order: keep the cards
+        appsSig = sig.toString();
 
         apps.removeAllViews();
         for (final ResolveInfo ri : ordered) {
@@ -357,18 +368,19 @@ public class HomeActivity extends Activity {
     private int sourceTiles;
 
     private void fillLive() {
-        live.removeAllViews();
-        // One way in: the TV Guide has every channel (free and My IPTV), radio, and the country lists under More.
-        Tile guide = actionTile("▤", "TV Guide", "TV and radio, channel by channel");
-        guide.setOnClickListener(v -> startActivity(new Intent(this, ClassicGuideActivity.class)));
-        live.addView(guide);
+        if (live.getChildCount() == 0) {
+            // One way in: the TV Guide has every channel (free and My IPTV), radio, and the country lists under More.
+            Tile guide = actionTile("▤", "TV Guide", "TV and radio, channel by channel");
+            guide.setOnClickListener(v -> startActivity(new Intent(this, ClassicGuideActivity.class)));
+            live.addView(guide);
+        }
 
         final Xtream.Account acct = Xtream.load(this);
-        sourceTiles = live.getChildCount();
+        sourceTiles = 1; // the TV Guide card; channel cards follow it
         showChannels();
 
         Genres.factsContext = getApplicationContext();
-        Net.IO.execute(() -> {
+        Net.WORK.execute(() -> {
             ChannelFacts.refreshIfDue(this);
             if (FreeTv.stale(this)) {
                 FreeTv.refresh(this);
@@ -380,9 +392,13 @@ public class HomeActivity extends Activity {
             boolean fresh = GuideLineup.current() == null;
             GuideLineup.build(this); // ready before the TV Guide is opened (kept 30 min)
             if (fresh) Net.MAIN.post(() -> { if (!isFinishing()) showChannels(); }); // tiles now show guide numbers
-            Health.priorityIfDue(this);
-            Updates.checkIfDue(this); // weekly: is there a newer Glow on GitHub Releases?
-            Guide.ensure(this, null);
+            // The slow network refreshes go back to the shared pool, so the Intelligence row and headlines
+            // (queued behind this job) aren't kept waiting for them.
+            Net.IO.execute(() -> {
+                Health.priorityIfDue(this);
+                Updates.checkIfDue(this); // weekly: is there a newer Glow on GitHub Releases?
+                Guide.ensure(this, null);
+            });
         });
         if (acct != null) {
             Net.IO.execute(() -> {
@@ -441,7 +457,25 @@ public class HomeActivity extends Activity {
         });
     }
 
+    private String liveSig;
+
     private void renderChannels(final List<Channel> shown) {
+        StringBuilder sig = new StringBuilder();
+        for (Channel ch : shown) sig.append(ch.key()).append(';');
+        if (sig.toString().equals(liveSig) && live.getChildCount() == sourceTiles + shown.size()) {
+            // Same channels: refresh each card in place (what's on now, favourite star) rather than make new ones.
+            for (int i = 0; i < shown.size(); i++) {
+                Tile t = (Tile) live.getChildAt(sourceTiles + i);
+                fillChannel(this, t.card, shown.get(i));
+                t.card.setAlpha(Channel.isOffline(this, shown.get(i)) ? 0.4f : 1f);
+            }
+            if (pendingLive >= 0) {
+                live.getChildAt(Math.min(pendingLive, live.getChildCount() - 1)).requestFocus();
+                pendingLive = -1;
+            }
+            return;
+        }
+        liveSig = sig.toString();
         View focused = getCurrentFocus();
         boolean focusInRow = focused != null && focused.getParent() == live && live.indexOfChild(focused) >= sourceTiles;
         while (live.getChildCount() > sourceTiles) live.removeViewAt(sourceTiles);
@@ -590,7 +624,25 @@ public class HomeActivity extends Activity {
     private static long mapShotAt;
     private static String mapLine = "Earthquakes, disasters and news, live";
 
+    // The Intelligence row's cards, kept between visits and refreshed in place.
+    private ImageView intelImg;
+    private TextView intelSub;
+    private Tile intelSports, intelWeather, intelOdds;
+    private String intelSig;
+
     private void fillIntel() {
+        StringBuilder camSig = new StringBuilder(Sports.chosenNames(this)).append('|');
+        for (String slot : HOME_CAMS) {
+            for (int i = 0; i < WmCams.CAMS.length; i++) if (WmCams.CAMS[i][0].equals(slot) && Cams.live(this, i)) camSig.append(i).append(',');
+        }
+        if (intel.getChildCount() == 0 || !camSig.toString().equals(intelSig)) {
+            intelSig = camSig.toString();
+            buildIntel();
+        }
+        refreshIntel();
+    }
+
+    private void buildIntel() {
         intel.removeAllViews();
         Tile map = new Tile(this, 176, 99);
         ImageView img = new ImageView(this);
@@ -640,9 +692,20 @@ public class HomeActivity extends Activity {
         Tile all = actionTile("◉", "All live cams", Cams.liveCount(this) + " places, live now");
         all.setOnClickListener(v -> openIntel(IntelActivity.CAMS));
         intel.addView(all);
+        intelImg = img;
+        intelSub = sub;
+        intelSports = sportsTile;
+        intelWeather = weatherTile;
+        intelOdds = odds;
+    }
 
+    /** New weather, odds, scores and (every 10 min) map picture into the existing cards. */
+    private void refreshIntel() {
+        final ImageView img = intelImg;
+        final TextView sub = intelSub;
+        final Tile sportsTile = intelSports, weatherTile = intelWeather, odds = intelOdds;
         final int h = Ui.dp(99), w = h * 5 / 2; // the map's own shape; the card crops the far Pacific
-        Net.IO.execute(() -> {
+        Net.WORK.execute(() -> {
             Intel.Weather wx = Intel.weather(this);
             List<Intel.Market> m = Intel.markets(this);
             List<Sports.Game> games = Sports.load(this);
@@ -682,7 +745,7 @@ public class HomeActivity extends Activity {
                     Sports.Game g = Sports.headline(games);
                     LinearLayout box = (LinearLayout) sportsTile.card.getChildAt(0);
                     TextView glyph = (TextView) box.getChildAt(0), sub2 = (TextView) box.getChildAt(2);
-                    if (g.state == Sports.LIVE) glyph.setTextColor(0xFFFF4D4D); // a red dot when something is live
+                    glyph.setTextColor(g.state == Sports.LIVE ? 0xFFFF4D4D : Ui.ACCENT); // a red dot when something is live
                     String what = g.teams()
                             ? g.home + (g.state == Sports.PRE ? " v " : " " + g.homeScore + "–" + g.awayScore + " ") + g.away : g.title;
                     sub2.setMaxLines(2);

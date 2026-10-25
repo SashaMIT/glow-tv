@@ -59,6 +59,7 @@ final class Sports {
         StringBuilder s = new StringBuilder();
         for (int i = 0; i < LEAGUES.length; i++) if (on[i]) s.append(s.length() > 0 ? "," : "").append(LEAGUES[i][0]);
         c.getSharedPreferences("sports", Context.MODE_PRIVATE).edit().putString("leagues", s.toString()).apply();
+        invalidate();
     }
 
     /** "UFC, PFL, F1, Premier League…" for headings. */
@@ -89,7 +90,23 @@ final class Sports {
     private Sports() {}
 
     /** Live first, then league by league in priority order (fight and motorsport first): fixtures, then results. */
-    static List<Game> load(Context c) {
+    private static List<Game> memo;
+    private static long memoAt;
+
+    /** Forget the last result (leagues or favourite teams changed). */
+    static synchronized void invalidate() {
+        memo = null;
+    }
+
+    /** Reused for a minute (Home asks every time it comes back into view; the scores refresh every 3 min). */
+    static synchronized List<Game> load(Context c) {
+        if (memo != null && System.currentTimeMillis() - memoAt < 60_000L) return memo;
+        memo = loadNow(c);
+        memoAt = System.currentTimeMillis();
+        return memo;
+    }
+
+    private static List<Game> loadNow(Context c) {
         long t0 = android.os.SystemClock.uptimeMillis();
         List<Game> out = new ArrayList<>();
         long now = System.currentTimeMillis();
@@ -402,6 +419,7 @@ final class Sports {
 
     static void setFavourites(Context c, java.util.Set<String> keys) {
         c.getSharedPreferences("sports", Context.MODE_PRIVATE).edit().putStringSet("teams", keys).apply();
+        invalidate();
     }
 
     /** Off the main thread. {key, team name, league} for every team in the chosen team-sport leagues (lists cached a week). */

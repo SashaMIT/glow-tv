@@ -777,8 +777,9 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
         boolean live = prog.start <= System.currentTimeMillis();
         setTime((live ? "NOW  " : "") + time(prog.start) + " – " + time(prog.stop));
         infoTitle.setText(prog.title);
-        infoDesc.setText(prog.desc == null ? "" : prog.desc);
-        infoDesc.setVisibility(prog.desc == null ? View.GONE : View.VISIBLE);
+        String desc = Guide.descOf(prog); // usually one small read from the saved listings
+        infoDesc.setText(desc == null ? "" : desc);
+        infoDesc.setVisibility(desc == null ? View.GONE : View.VISIBLE);
         Guide.Prog after = null;
         for (Guide.Prog p : Guide.between(ch, prog.stop, prog.stop + 12 * 60 * 60 * 1000L)) {
             if (p.start >= prog.stop) { after = p; break; }

@@ -19,6 +19,11 @@ import java.util.concurrent.Executors;
 /** Small HTTP + image helpers. No libraries: the box has 1 GB of RAM. */
 final class Net {
     static final ExecutorService IO = Executors.newFixedThreadPool(3);
+    /**
+     * Home's parse-heavy jobs (channel lineup, Intelligence row, headlines) one after another rather than side by
+     * side: their garbage peaks used to add up, and the heap Android grows for them is kept while Glow is in front.
+     */
+    static final ExecutorService WORK = Executors.newSingleThreadExecutor();
     static final Handler MAIN = new Handler(Looper.getMainLooper());
 
     private static final LruCache<String, Bitmap> IMAGES = new LruCache<String, Bitmap>(6 * 1024 * 1024) {
@@ -33,6 +38,7 @@ final class Net {
     /** Drops decoded pictures held in memory (they reload from the storage cache in milliseconds). */
     static void trim() {
         IMAGES.evictAll();
+        GuideGridView.trimCache();
     }
 
     /** The first {@code limit} bytes of a web page (enough for its <head>), as a browser would ask for it. */
