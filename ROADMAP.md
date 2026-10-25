@@ -9,7 +9,7 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 
 | Area | Feature |
 |---|---|
-| Box | Debloat, Glow as Home, undo scripts, developer-access shield; Gradle-free build, MIT repo, releases workflow, in-app update check |
+| Box | Debloat, Glow as Home, undo scripts, developer-access shield; Gradle-free build, MIT repo, signed releases (v1.0.0, `tools/release.sh`), in-app updates |
 | Home | Clock, weather, headline ticker, icon header (Search, World, Phone remote, Cast, IPTV, Settings); full-colour app cards; app order; smooth scrolling (29.5 % → 1.1 % late) |
 | Home | Live TV row (TV Guide, favourites, recents, white/black logo cards, Resume badge); Intelligence row; Cast from phone |
 | TV Guide | Numbered genre menu, ranking, fixed numbers; classic grid with logos, info panel, preview, reminders, search; Radio tab |
@@ -32,7 +32,7 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 | Intelligence | Markets ticker (CoinGecko), overview page, tennis/golf, map zoom | later |
 | Smart home | Home Assistant card, doorbell pop-ups, AirPlay (test first) | later |
 | Privacy (owner's call) | Private DNS ad/tracker blocking; vendor-app audit | needs OK |
-| Sharing | ~~Extra apps installer~~ ✅; ~~tour on the repo page~~ ✅ (GIF); Obtainium note ✅; signed releases (key decision) and awesome-list PR (owner's OK) | needs OK |
+| Sharing | ~~Extra apps installer~~ ✅; ~~tour on the repo page~~ ✅ (GIF); Obtainium note ✅; ~~signed releases~~ ✅ (v1.0.0, signed on the owner's Mac, update tested); awesome-list PR (after v1.0.0, owner's OK) | next |
 | Sharing | Contributors' guide, translations | later |
 
 ### Ruled out

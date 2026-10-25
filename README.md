@@ -106,7 +106,7 @@ key (`glow.keystore`, kept out of git; set `GLOW_KS_PASS` to choose its password
 
 **Keep it updated:** Glow checks GitHub Releases weekly and offers updates in Settings. With
 [Obtainium](https://github.com/ImranR98/Obtainium) on the box you can also add `https://github.com/SashaMIT/glow-tv`
-and it will track releases for you (once signed releases are published).
+and it will track releases for you. [Latest release](https://github.com/SashaMIT/glow-tv/releases/latest).
 
 1. On the box, turn on developer options and USB/network debugging. Many cheap boxes expose ADB on port 5555 or
    8888 once it's on.

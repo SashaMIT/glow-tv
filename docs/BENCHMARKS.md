@@ -520,3 +520,9 @@ screensaver ("Your photos · From your phone"); test photo deleted and the phone
 |---|---|---|
 | Time to first frame | 2.2–2.5 s | **1.05–1.09 s** (heavy start-up jobs one at a time; descriptions not decoded) |
 | Glow on Home, settled | 104–118 MB | **80–87 MB** |
+
+**Release v1.0.0**: built and signed on the owner's Mac with `tools/release.sh 1.0.0` (key never uploaded; certificate
+SHA-256 c2810927…ed6fd8, the same as the box's copy), APK published to GitHub Releases. The tag-triggered workflow
+that would have attached a throwaway-key build is now a manual build check. On the box: the weekly check found
+"latest 1.0.0 (installed 1)", Settings showed "Update available: Glow 1.0.0", Android offered "an update to this
+existing application", and after Install the box runs versionName 1.0.0 / versionCode 10000 with its data intact.
