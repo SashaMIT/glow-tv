@@ -1,6 +1,8 @@
 """Generates the World Map's base data from Natural Earth (public domain, naturalearthdata.com):
 
     res/raw/world_land.bin   land polygons, 1:110m, as int16 (lon*100, lat*100) pairs
+    res/raw/land_50m.bin     land polygons, 1:50m (the rain radar's close-up), same format
+    res/raw/borders_50m.bin  country borders on land, 1:50m, as lines in the same format
     res/raw/countries.tsv    ISO code, name, label latitude, label longitude, "|"-separated names Glow matches in headlines
 
 Run once (the outputs are committed):  python3 tools/gen_world_map.py
@@ -64,16 +66,29 @@ def rings(geometry):
     return []
 
 
-land = get("ne_110m_land.geojson")
-polys = [r for f in land["features"] for r in rings(f["geometry"])]
-out = bytearray(struct.pack(">i", len(polys)))
-points = 0
-for ring in polys:
-    out += struct.pack(">i", len(ring))
-    for lon, lat in ring:
-        out += struct.pack(">hh", round(lon * 100), round(lat * 100))
-        points += 1
-(RAW / "world_land.bin").write_bytes(out)
+def strokes(geometry):
+    t, c = geometry["type"], geometry["coordinates"]
+    if t == "LineString":
+        return [c]
+    if t == "MultiLineString":
+        return list(c)
+    return []
+
+
+def write(name, shapes):
+    """int count; per shape: int n, then n int16 pairs (lon*100, lat*100), big-endian."""
+    out = bytearray(struct.pack(">i", len(shapes)))
+    for ring in shapes:
+        out += struct.pack(">i", len(ring))
+        for lon, lat in ring:
+            out += struct.pack(">hh", round(lon * 100), round(lat * 100))
+    (RAW / name).write_bytes(out)
+    print(name, len(shapes), "shapes,", sum(len(r) for r in shapes), "points,", len(out), "bytes")
+
+
+write("world_land.bin", [r for f in get("ne_110m_land.geojson")["features"] for r in rings(f["geometry"])])
+write("land_50m.bin", [r for f in get("ne_50m_land.geojson")["features"] for r in rings(f["geometry"])])
+write("borders_50m.bin", [l for f in get("ne_50m_admin_0_boundary_lines_land.geojson")["features"] for l in strokes(f["geometry"])])
 
 countries = get("ne_110m_admin_0_countries.geojson")
 lines = []
@@ -86,4 +101,4 @@ for f in countries["features"]:
     words = [n.lower() for n in sorted(names) if n] + [w for w in EXTRA.get(iso, "").split("|") if w]
     lines.append("\t".join([iso, p.get("NAME", ""), "%.2f" % p["LABEL_Y"], "%.2f" % p["LABEL_X"], "|".join(dict.fromkeys(words))]))
 (RAW / "countries.tsv").write_text("\n".join(sorted(lines)) + "\n", encoding="utf-8")
-print(f"{len(polys)} land polygons, {points} points, {len(out)} bytes; {len(lines)} countries")
+print(f"countries.tsv: {len(lines)} countries")

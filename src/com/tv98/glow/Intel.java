@@ -57,7 +57,7 @@ final class Intel {
 
     // ---- cache ----
 
-    private static String cached(Context c, String name, String url, long freshMs) {
+    static String cached(Context c, String name, String url, long freshMs) {
         File f = new File(c.getFilesDir(), "intel-" + name + ".json");
         if (f.exists() && System.currentTimeMillis() - f.lastModified() < freshMs) {
             String s = read(f);
@@ -233,11 +233,11 @@ final class Intel {
     }
 
     /** Live webcams with a fixed place, as map pins. */
-    static List<Event> cams() {
+    static List<Event> cams(Context c) {
         List<Event> out = new ArrayList<>();
         for (int i = 0; i < WmCams.CAMS.length; i++) {
             String[] r = WmCams.CAMS[i];
-            if (r[4].isEmpty()) continue;
+            if (r[4].isEmpty() || !Cams.live(c, i)) continue;
             Event e = new Event();
             e.kind = CAM;
             e.category = "Live cam";

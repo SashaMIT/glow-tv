@@ -36,14 +36,14 @@ import java.util.Locale;
  */
 public class IntelActivity extends Activity {
     static final String EXTRA_SECTION = "section";
-    static final int MAP = 0, CAMS = 1, WEATHER = 2, PREDICTIONS = 3;
-    private static final String[] SECTIONS = {"World map", "Live cams", "Weather", "Predictions"};
+    static final int MAP = 0, SPORTS = 1, CAMS = 2, WEATHER = 3, RADAR = 4, PREDICTIONS = 5;
+    private static final String[] SECTIONS = {"World map", "Sports now", "Live cams", "Weather", "Rain radar", "Predictions"};
     private static final String[][] FILTERS = {{"All", ""}, {"Earthquakes", Intel.QUAKE}, {"Disaster alerts", Intel.ALERT},
             {"Natural events", Intel.NATURAL}, {"News hotspots", Intel.NEWS}, {"Live cams", Intel.CAM}};
 
     private ListView rail;
     private FrameLayout content;
-    private View mapPane, camsPane, weatherPane, marketsPane;
+    private View mapPane, sportsPane, camsPane, weatherPane, radarPane, marketsPane;
     private WorldMapView map;
     private TextView mapHeading, evTitle, evDetail, evMeta, evHint;
     private LinearLayout chips;
@@ -107,7 +107,7 @@ public class IntelActivity extends Activity {
         rail.setOnItemClickListener((p, v, i, id) -> focusContent());
         left.addView(rail, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
         TextView credit = Ui.text(this, 9.5f, Ui.TEXT_DIM, 400);
-        credit.setText("USGS · GDACS · NASA EONET · World Monitor · Open-Meteo · Polymarket · Natural Earth · wheretheiss.at");
+        credit.setText("USGS · GDACS · NASA EONET · World Monitor · ESPN · Open-Meteo · RainViewer · Polymarket · Natural Earth · wheretheiss.at");
         credit.setLineSpacing(0, 1.15f);
         credit.setPadding(Ui.dp(10), Ui.dp(8), Ui.dp(6), Ui.dp(2));
         left.addView(credit);
@@ -118,9 +118,11 @@ public class IntelActivity extends Activity {
         root.addView(content, clp);
         mapPane = buildMap();
         camsPane = buildCams();
+        sportsPane = new LinearLayout(this);
         weatherPane = new LinearLayout(this);
+        radarPane = new LinearLayout(this);
         marketsPane = new LinearLayout(this);
-        for (View v : new View[] {mapPane, camsPane, weatherPane, marketsPane}) {
+        for (View v : new View[] {mapPane, sportsPane, camsPane, weatherPane, radarPane, marketsPane}) {
             v.setVisibility(View.GONE);
             content.addView(v, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         }
@@ -138,15 +140,23 @@ public class IntelActivity extends Activity {
         if (i == section) return;
         section = i;
         mapPane.setVisibility(i == MAP ? View.VISIBLE : View.GONE);
+        sportsPane.setVisibility(i == SPORTS ? View.VISIBLE : View.GONE);
         camsPane.setVisibility(i == CAMS ? View.VISIBLE : View.GONE);
         weatherPane.setVisibility(i == WEATHER ? View.VISIBLE : View.GONE);
         marketsPane.setVisibility(i == PREDICTIONS ? View.VISIBLE : View.GONE);
+        radarPane.setVisibility(i == RADAR ? View.VISIBLE : View.GONE);
+        // The radar holds its frames only while it's on screen (~3 MB).
+        ((LinearLayout) radarPane).removeAllViews();
+        if (i == RADAR) fillRadar();
+        content.removeCallbacks(sportsTick);
+        if (i == SPORTS) sportsTick.run();
         if (i == WEATHER) loadWeather();
         if (i == PREDICTIONS) loadMarkets();
     }
 
     private void focusContent() {
-        View target = section == MAP ? mapPane : section == CAMS ? camsPane : section == PREDICTIONS ? marketsPane : null;
+        View target = section == MAP ? mapPane : section == SPORTS ? sportsPane : section == CAMS ? camsPane
+                : section == PREDICTIONS ? marketsPane : null;
         if (target == null || !target.requestFocus()) rail.requestFocus();
     }
 
@@ -154,12 +164,14 @@ public class IntelActivity extends Activity {
     protected void onResume() {
         super.onResume();
         issTick.run();
+        if (section == SPORTS) sportsTick.run();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         content.removeCallbacks(issTick);
+        content.removeCallbacks(sportsTick);
     }
 
     // ---- world map ----
@@ -273,7 +285,7 @@ public class IntelActivity extends Activity {
         list.addAll(Intel.quakes(this));
         list.addAll(Intel.newsHotspots(this));
         list.addAll(Intel.natural(this));
-        list.addAll(Intel.cams());
+        list.addAll(Intel.cams(this));
         // Most serious first, then newest.
         Collections.sort(list, (x, y) -> x.severity != y.severity ? y.severity - x.severity : Long.compare(y.at, x.at));
         synchronized (IntelActivity.class) {
@@ -375,13 +387,222 @@ public class IntelActivity extends Activity {
         return "*";
     }
 
+    // ---- sports now ----
+
+    /** Scores while the page is open: re-read every minute (the data itself refreshes every 3 min when live). */
+    private final Runnable sportsTick = new Runnable() {
+        @Override
+        public void run() {
+            Net.IO.execute(() -> {
+                List<Sports.Game> games = Sports.load(IntelActivity.this);
+                Net.MAIN.post(() -> { if (!isFinishing() && section == SPORTS) fillSports(games); });
+            });
+            content.postDelayed(this, 60_000);
+        }
+    };
+    private String sportsShown = "";
+    private LinearLayout sportsRows;
+
+    private void fillSports(List<Sports.Game> games) {
+        StringBuilder key = new StringBuilder();
+        for (Sports.Game g : games) key.append(g.title).append(g.status).append(g.homeScore).append(g.awayScore).append(g.line2).append('|');
+        if (key.toString().equals(sportsShown)) return; // nothing changed: keep the list (and focus) as it is
+        sportsShown = key.toString();
+        LinearLayout pane = (LinearLayout) sportsPane;
+        View focused = pane.findFocus();
+        int focusAt = focused != null && focused.getParent() == sportsRows ? sportsRows.indexOfChild(focused) : -1;
+        pane.removeAllViews();
+        pane.setOrientation(LinearLayout.VERTICAL);
+        TextView h = Ui.text(this, 21, Ui.TEXT, 300);
+        int live = 0;
+        for (Sports.Game g : games) if (g.state == Sports.LIVE) live++;
+        h.setText("Sports now" + (live > 0 ? "   ·   " + live + " live" : "") + "   ·   UFC, F1, Premier League, Champions League, NBA, NFL");
+        h.setSingleLine();
+        h.setEllipsize(TextUtils.TruncateAt.END);
+        pane.addView(h);
+        TextView note = Ui.text(this, 11.5f, Ui.TEXT_DIM, 400);
+        note.setText("Live scores, fixtures in your time and results from the last day (ESPN). TV shows who broadcasts it in the US;"
+                + " OK plays it when a free channel here carries it, otherwise the free sports channels below.");
+        note.setPadding(0, Ui.dp(4), 0, Ui.dp(8));
+        pane.addView(note);
+
+        // A plain column in a scroll view, not a ListView: a ListView re-attaches every visible row on each key
+        // press (8-42 % late frames; 83-100 % with cached row layers). These rows stay put, each a cached layer.
+        ScrollView list = new ScrollView(this);
+        list.setVerticalScrollBarEnabled(false);
+        list.setSmoothScrollingEnabled(true);
+        sportsRows = new LinearLayout(this);
+        sportsRows.setOrientation(LinearLayout.VERTICAL);
+        sportsRows.setPadding(0, Ui.dp(2), 0, Ui.dp(2));
+        list.addView(sportsRows);
+        LinearLayout freeRow = new LinearLayout(this);
+        freeRow.setClipChildren(false);
+        freeRow.setClipToPadding(false);
+        freeRow.setPadding(Ui.dp(2), Ui.dp(14), 0, Ui.dp(6));
+        for (int i = 0; i < games.size(); i++) {
+            final Sports.Game g = games.get(i);
+            View row = gameRow(g);
+            row.setFocusable(true);
+            row.setOnFocusChangeListener((v, has) -> v.setBackground(Ui.glass(Ui.dp(12), has)));
+            row.setOnClickListener(v -> {
+                Channel ch = Sports.freeChannel(g);
+                if (ch != null) play(ch, null);
+                else if (freeRow.getChildCount() > 1) freeRow.getChildAt(1).requestFocus();
+            });
+            LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            if (i > 0) rlp.topMargin = Ui.dp(6);
+            sportsRows.addView(row, rlp);
+        }
+        if (games.isEmpty()) {
+            TextView none = Ui.text(this, 16, Ui.TEXT_DIM, 400);
+            none.setText("Nothing on right now in these leagues. The free sports channels are below.");
+            pane.addView(none, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
+        } else {
+            pane.addView(list, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
+        }
+
+        // Always something to watch: the guide's top free sports channels (action and fight first), with what's on.
+        TextView lab = Ui.text(this, 11, Ui.TEXT_DIM, 600);
+        lab.setText("FREE SPORTS\nCHANNELS");
+        lab.setLetterSpacing(0.1f);
+        lab.setPadding(0, 0, Ui.dp(10), 0);
+        lab.setGravity(Gravity.CENTER_VERTICAL);
+        freeRow.addView(lab, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, Ui.dp(70)));
+        GuideLineup l = GuideLineup.current();
+        final List<Channel> sports = new ArrayList<>();
+        if (l != null) for (GuideLineup.Section sec : l.main) if (sec.name.equals("Sports")) {
+            for (Channel ch : sec.channels) {
+                if (Channel.isOffline(this, ch) || Genres.neverPromote(ch)) continue;
+                sports.add(ch);
+                if (sports.size() == 4) break; // four fit across
+            }
+        }
+        for (Channel ch : sports) {
+            Tile t = HomeActivity.channelTile(this, ch);
+            LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) t.getLayoutParams();
+            lp.width = Ui.dp(134);
+            lp.height = Ui.dp(70);
+            t.setLift(1.04f);
+            t.setOnClickListener(v -> play(ch, sports));
+            freeRow.addView(t);
+        }
+        pane.addView(freeRow);
+        if (focusAt >= 0 && sportsRows.getChildCount() > 0) {
+            sportsRows.getChildAt(Math.min(focusAt, sportsRows.getChildCount() - 1)).requestFocus();
+        } else if (focused != null) {
+            pane.requestFocus();
+        }
+    }
+
+    private View gameRow(Sports.Game g) {
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(Ui.dp(12), Ui.dp(8), Ui.dp(14), Ui.dp(8));
+        row.setBackground(Ui.glass(Ui.dp(12), false));
+        row.setMinimumHeight(Ui.dp(62));
+        // Built once and kept, so each row can be one cached GPU texture while the list scrolls.
+        row.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+
+        TextView badge = Ui.text(this, 10.5f, 0xFFFFFFFF, 600);
+        badge.setText(Sports.LEAGUES[g.league][1].toUpperCase(Locale.ROOT));
+        badge.setGravity(Gravity.CENTER);
+        badge.setSingleLine();
+        badge.setPadding(Ui.dp(6), Ui.dp(4), Ui.dp(6), Ui.dp(4));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(Ui.dp(6));
+        bg.setColor(0xFF000000 | Integer.parseInt(Sports.LEAGUES[g.league][2], 16));
+        badge.setBackground(bg);
+        LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(Ui.dp(118), ViewGroup.LayoutParams.WRAP_CONTENT);
+        blp.rightMargin = Ui.dp(14);
+        row.addView(badge, blp);
+
+        LinearLayout mid = new LinearLayout(this);
+        mid.setOrientation(LinearLayout.VERTICAL);
+        if (g.teams()) {
+            mid.addView(side(g.home, g.homeScore, g.homeLogo, g.state != Sports.PRE, g.homeWon || (g.state == Sports.DONE && !g.awayWon && !g.homeWon)));
+            mid.addView(side(g.away, g.awayScore, g.awayLogo, g.state != Sports.PRE, g.awayWon || (g.state == Sports.DONE && !g.awayWon && !g.homeWon)));
+        } else {
+            TextView t = Ui.text(this, 14.5f, Ui.TEXT, 600);
+            t.setText(g.title);
+            t.setSingleLine();
+            t.setEllipsize(TextUtils.TruncateAt.END);
+            TextView d = Ui.text(this, 12, 0xCCF2F4FF, 400);
+            d.setText(g.line2);
+            d.setSingleLine();
+            d.setEllipsize(TextUtils.TruncateAt.END);
+            d.setPadding(0, Ui.dp(3), 0, 0);
+            mid.addView(t);
+            mid.addView(d);
+        }
+        row.addView(mid, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
+        LinearLayout right = new LinearLayout(this);
+        right.setOrientation(LinearLayout.VERTICAL);
+        right.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+        TextView st = Ui.text(this, g.state == Sports.LIVE ? 12 : 13, g.state == Sports.LIVE ? 0xFFFFFFFF : Ui.TEXT, 600);
+        st.setText(g.state == Sports.LIVE ? " ● " + (g.status.isEmpty() || g.status.equals("Live") ? "LIVE" : "LIVE  " + g.status) + " " : g.status);
+        st.setSingleLine();
+        st.setGravity(Gravity.END);
+        if (g.state == Sports.LIVE) {
+            GradientDrawable lg = new GradientDrawable();
+            lg.setCornerRadius(Ui.dp(4));
+            lg.setColor(0xFFE0312B);
+            st.setBackground(lg);
+        }
+        LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        slp.gravity = Gravity.END;
+        right.addView(st, slp);
+        Channel free = Sports.freeChannel(g);
+        TextView tv = Ui.text(this, 10.5f, free != null ? Ui.ACCENT : Ui.TEXT_DIM, free != null ? 600 : 400);
+        tv.setText(free != null ? "OK  watch on " + free.name : g.tv.isEmpty() ? "" : "US TV: " + g.tv);
+        tv.setSingleLine();
+        tv.setEllipsize(TextUtils.TruncateAt.END);
+        tv.setGravity(Gravity.END);
+        tv.setPadding(0, Ui.dp(4), 0, 0);
+        right.addView(tv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        row.addView(right, new LinearLayout.LayoutParams(Ui.dp(230), ViewGroup.LayoutParams.WRAP_CONTENT));
+        return row;
+    }
+
+    private View side(String name, String score, String logo, boolean showScore, boolean strong) {
+        LinearLayout l = new LinearLayout(this);
+        l.setGravity(Gravity.CENTER_VERTICAL);
+        ImageView iv = new ImageView(this);
+        iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        // ESPN's resizer: an 80 px logo is ~7 KB instead of the 500 px original's ~80 KB.
+        String small = logo.startsWith("https://a.espncdn.com/i/")
+                ? "https://a.espncdn.com/combiner/i?img=" + logo.substring("https://a.espncdn.com".length()) + "&w=80&h=80" : logo;
+        Net.image(iv, small, Ui.dp(22), null);
+        l.addView(iv, new LinearLayout.LayoutParams(Ui.dp(20), Ui.dp(20)));
+        TextView n = Ui.text(this, 14, strong || !showScore ? Ui.TEXT : 0xB3F2F4FF, strong ? 600 : 400);
+        n.setText(name);
+        n.setSingleLine();
+        n.setEllipsize(TextUtils.TruncateAt.END);
+        n.setPadding(Ui.dp(8), 0, Ui.dp(8), 0);
+        l.addView(n, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        if (showScore) {
+            TextView sc = Ui.text(this, 15, strong ? Ui.TEXT : 0xB3F2F4FF, 600);
+            sc.setText(score);
+            l.addView(sc);
+        }
+        l.setPadding(0, Ui.dp(1), 0, Ui.dp(1));
+        return l;
+    }
+
+    private void play(Channel ch, List<Channel> around) {
+        List<Channel> list = around != null ? new ArrayList<>(around) : new ArrayList<>();
+        if (!list.contains(ch)) list.add(0, ch);
+        Xtream.playlist = list;
+        startActivity(new Intent(this, PlayerActivity.class).putExtra("index", list.indexOf(ch)));
+    }
+
     // ---- live cams ----
 
     private View buildCams() {
         LinearLayout pane = new LinearLayout(this);
         pane.setOrientation(LinearLayout.VERTICAL);
         TextView h = Ui.text(this, 21, Ui.TEXT, 300);
-        h.setText("Live cams   ·   " + WmCams.CAMS.length + " places, live now");
+        h.setText("Live cams   ·   " + Cams.liveCount(this) + " places, live now");
         pane.addView(h);
         // All 22 cards are built once (no recycling), so each keeps its cached GPU layer while the grid scrolls:
         // a recycling GridView redrew layers on every reuse (16-26 % late frames; 95 % without layers).
@@ -393,18 +614,20 @@ public class IntelActivity extends Activity {
         rows.setClipChildren(false);
         rows.setPadding(Ui.dp(Tile.GLOW_DP + 2), Ui.dp(16), Ui.dp(Tile.GLOW_DP + 2), Ui.dp(16));
         LinearLayout row = null;
-        for (int i = 0; i < WmCams.CAMS.length; i++) {
-            if (i % 3 == 0) {
+        int[] order = Cams.order(this); // ended streams last
+        for (int n = 0; n < order.length; n++) {
+            final int i = order[n];
+            if (n % 3 == 0) {
                 row = new LinearLayout(this);
                 row.setClipChildren(false);
                 LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(128));
-                if (i > 0) rlp.topMargin = Ui.dp(14);
+                if (n > 0) rlp.topMargin = Ui.dp(14);
                 rows.addView(row, rlp);
             }
             final int idx = i;
             Tile t = camTile(this, 1, 128);
             LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1);
-            tlp.setMargins(i % 3 == 0 ? 0 : Ui.dp(7), 0, i % 3 == 2 ? 0 : Ui.dp(7), 0);
+            tlp.setMargins(n % 3 == 0 ? 0 : Ui.dp(7), 0, n % 3 == 2 ? 0 : Ui.dp(7), 0);
             t.setLayoutParams(tlp);
             fillCam(this, t, i);
             t.setOnClickListener(v -> openCam(this, idx));
@@ -459,13 +682,18 @@ public class IntelActivity extends Activity {
         img.setBackground(new SourceArt(r[1], 0xFF2C5FB8, Ui.dp(14)));
         // A recent frame of the stream from YouTube: 320x180 (16:9, ~225 KB decoded) rather than hqdefault's
         // letterboxed 480x360 (~690 KB) – it fills the card without bars at a third of the memory.
-        Net.image(img, "https://i.ytimg.com/vi/" + r[6] + "/mqdefault_live.jpg", Ui.dp(240), null);
+        Net.image(img, "https://i.ytimg.com/vi/" + Cams.id(c, i) + "/mqdefault_live.jpg", Ui.dp(240), null);
         t.setContentDescription(r[1] + " live cam");
+        if (!Cams.live(c, i)) { // its streams have ended: still there to try, but dimmed and labelled
+            t.card.setAlpha(0.45f);
+            ((TextView) t.card.getChildAt(2)).setText(" OFFLINE ");
+            t.card.getChildAt(2).getBackground().setTint(0xDD555B6E);
+        }
     }
 
     /** Opens a cam in the YouTube app (they're YouTube live streams). */
     static void openCam(Context c, int i) {
-        String id = WmCams.CAMS[i][6];
+        String id = Cams.id(c, i);
         Intent yt = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/watch?v=" + id))
                 .setPackage("com.google.android.youtube.tv").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try {
@@ -597,6 +825,30 @@ public class IntelActivity extends Activity {
         t.setLetterSpacing(0.12f);
         t.setPadding(Ui.dp(4), Ui.dp(14), 0, Ui.dp(6));
         return t;
+    }
+
+    // ---- rain radar ----
+
+    private void fillRadar() {
+        LinearLayout pane = (LinearLayout) radarPane;
+        pane.setOrientation(LinearLayout.VERTICAL);
+        TextView h = Ui.text(this, 21, Ui.TEXT, 300);
+        String city = com.tv98.glow.Weather.cityName(this);
+        h.setText("Rain radar   ·   " + city + " and around, the last two hours");
+        h.setSingleLine();
+        pane.addView(h);
+        TextView note = Ui.text(this, 11.5f, Ui.TEXT_DIM, 400);
+        note.setText("Beige is light rain, blue is rain, yellow to red is heavy. Radar by RainViewer; map Natural Earth."
+                + " Change the city in Glow ▸ Settings ▸ Weather city.");
+        note.setPadding(0, Ui.dp(4), 0, Ui.dp(10));
+        pane.addView(note);
+        double[] ll = com.tv98.glow.Weather.location(this);
+        RadarView r = new RadarView(this, ll[0], ll[1], city);
+        r.setClipToOutline(true);
+        r.setOutlineProvider(new android.view.ViewOutlineProvider() {
+            @Override public void getOutline(View v, android.graphics.Outline o) { o.setRoundRect(0, 0, v.getWidth(), v.getHeight(), Ui.dp(14)); }
+        });
+        pane.addView(r, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
     }
 
     // ---- prediction markets ----

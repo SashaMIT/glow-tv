@@ -73,9 +73,13 @@ class WorldMapView extends View {
     }
 
     private static synchronized void loadLand(Context c) {
-        if (land != null) return;
-        int id = c.getResources().getIdentifier("world_land", "raw", c.getPackageName());
-        try (DataInputStream in = new DataInputStream(c.getResources().openRawResource(id))) {
+        if (land == null) land = shapes(c, "world_land");
+    }
+
+    /** A res/raw shape file from tools/gen_world_map.py: count, then per shape n and n (lon*100, lat*100) pairs. */
+    static short[][] shapes(Context c, String raw) {
+        int id = c.getResources().getIdentifier(raw, "raw", c.getPackageName());
+        try (DataInputStream in = new DataInputStream(new java.io.BufferedInputStream(c.getResources().openRawResource(id), 65536))) {
             int n = in.readInt();
             short[][] polys = new short[n][];
             for (int i = 0; i < n; i++) {
@@ -84,9 +88,9 @@ class WorldMapView extends View {
                 for (int j = 0; j < pts * 2; j++) p[j] = in.readShort();
                 polys[i] = p;
             }
-            land = polys;
+            return polys;
         } catch (Exception e) {
-            land = new short[0][];
+            return new short[0][];
         }
     }
 

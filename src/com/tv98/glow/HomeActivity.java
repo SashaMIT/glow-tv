@@ -557,7 +557,8 @@ public class HomeActivity extends Activity {
     // ---- Intelligence: the world map, weather, prediction markets and one-click live cams ----
 
     /** Cams worth a place on Home (the rest are under Intelligence ▸ Live cams). */
-    private static final String[] HOME_CAMS = {"london", "new-york", "tokyo", "iss-earth", "paris", "sydney"};
+    private static final String[] HOME_CAMS = {"london", "new-york", "tokyo", "iss-earth", "paris", "sydney",
+            "jerusalem", "shanghai", "seoul", "nasa-live"}; // the first six still live
     private static Bitmap mapShot;
     private static long mapShotAt;
     private static String mapLine = "Earthquakes, disasters and news, live";
@@ -587,6 +588,9 @@ public class HomeActivity extends Activity {
         map.setOnClickListener(v -> openIntel(IntelActivity.MAP));
         intel.addView(map);
 
+        final Tile sportsTile = actionTile("●", "Sports now", "UFC, F1, football, NBA, NFL");
+        sportsTile.setOnClickListener(v -> openIntel(IntelActivity.SPORTS));
+        intel.addView(sportsTile);
         final Tile weatherTile = actionTile("☀", "Weather", Weather.cityName(this));
         weatherTile.setOnClickListener(v -> openIntel(IntelActivity.WEATHER));
         intel.addView(weatherTile);
@@ -594,9 +598,11 @@ public class HomeActivity extends Activity {
         odds.setOnClickListener(v -> openIntel(IntelActivity.PREDICTIONS));
         intel.addView(odds);
 
+        int camsShown = 0;
         for (String slot : HOME_CAMS) {
-            for (int i = 0; i < WmCams.CAMS.length; i++) {
-                if (!WmCams.CAMS[i][0].equals(slot)) continue;
+            for (int i = 0; i < WmCams.CAMS.length && camsShown < 6; i++) {
+                if (!WmCams.CAMS[i][0].equals(slot) || !Cams.live(this, i)) continue;
+                camsShown++;
                 final int idx = i;
                 Tile cam = IntelActivity.camTile(this, 176, 99);
                 IntelActivity.fillCam(this, cam, i);
@@ -604,7 +610,7 @@ public class HomeActivity extends Activity {
                 intel.addView(cam);
             }
         }
-        Tile all = actionTile("◉", "All live cams", WmCams.CAMS.length + " places, live now");
+        Tile all = actionTile("◉", "All live cams", Cams.liveCount(this) + " places, live now");
         all.setOnClickListener(v -> openIntel(IntelActivity.CAMS));
         intel.addView(all);
 
@@ -612,6 +618,8 @@ public class HomeActivity extends Activity {
         Net.IO.execute(() -> {
             Intel.Weather wx = Intel.weather(this);
             List<Intel.Market> m = Intel.markets(this);
+            List<Sports.Game> games = Sports.load(this);
+            Cams.checkIfDue(this);
             Bitmap shot = null;
             String line = null;
             if (mapShot == null || System.currentTimeMillis() - mapShotAt > 10 * 60_000L) {
@@ -642,6 +650,16 @@ public class HomeActivity extends Activity {
                     ((TextView) ((LinearLayout) weatherTile.card.getChildAt(0)).getChildAt(1)).setText(Math.round(wx.temp) + "°  " + wx.city);
                     ((TextView) ((LinearLayout) weatherTile.card.getChildAt(0)).getChildAt(2)).setText(
                             "H " + Math.round(wx.max) + "°  L " + Math.round(wx.min) + "°" + (wx.aqi >= 0 ? "  ·  air " + Intel.aqiBand(wx.aqi)[0] : ""));
+                }
+                if (!games.isEmpty()) {
+                    Sports.Game g = Sports.headline(games);
+                    LinearLayout box = (LinearLayout) sportsTile.card.getChildAt(0);
+                    TextView glyph = (TextView) box.getChildAt(0), sub2 = (TextView) box.getChildAt(2);
+                    if (g.state == Sports.LIVE) glyph.setTextColor(0xFFFF4D4D); // a red dot when something is live
+                    String what = g.teams()
+                            ? g.home + (g.state == Sports.PRE ? " v " : " " + g.homeScore + "–" + g.awayScore + " ") + g.away : g.title;
+                    sub2.setMaxLines(2);
+                    sub2.setText((g.state == Sports.LIVE ? "LIVE  " : g.status + "  ") + what);
                 }
                 if (!m.isEmpty()) {
                     Intel.Market top = m.get(0);

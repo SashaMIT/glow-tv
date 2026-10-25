@@ -14,13 +14,19 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 - [x] **Predictions**: Polymarket's most-traded open questions (sports and price bets left out)
 - [x] Live TV cards: white or black to suit each logo
 
-## Next: Intelligence, batch 2
+## Done: Intelligence, batch 2 (25 Oct 2026)
 
-- [ ] **Rain radar** on the Weather screen and World map ([RainViewer](https://www.rainviewer.com/api.html), free tiles, no key)
-- [ ] **Sports now**: today's fixtures and live scores for the Premier League, Champions League, UFC, F1, NBA, NFL
-      (ESPN's public scoreboard JSON, no key), with "watch" where a free legal channel carries it
-- [ ] **Cam health**: hide cams whose stream has ended (Miami's first stream is currently a dead frame); try the
-      next video id in World Monitor's list
+- [x] **Sports now** (Home card + page): UFC, F1, Premier League, Champions League, NBA, NFL from ESPN's public
+      scoreboards; live first, fight and motorsport on top, your time zone, free sports channels to watch underneath
+- [x] **Cam health**: ended or removed streams found from their thumbnails every 6 h; next stream used, dead cams last
+- [x] **Rain radar** page: last two hours around the weather city (RainViewer), over Natural Earth 1:50m land and borders
+
+## Next: Intelligence, batch 3
+
+- [ ] **Rain on the World map**: RainViewer at zoom 2 reprojected onto the map as a layer (16 tiles, ~150 KB)
+- [ ] **First start after an update is slow** (8–20 s once, then 2.2–2.5 s): find out where the time goes
+- [ ] **More sports**: La Liga, Serie A, Bundesliga, boxing, MotoGP, cricket if ESPN has them; pick leagues in Settings
+- [ ] **Goal and finish alerts**: a small banner over live TV when a favourite team scores or a fight ends
 - [ ] **Markets ticker**: indices, oil, gold, BTC, FX from free endpoints, on the Intelligence row
 - [ ] **Overview screen**: one page combining the counts, the top three events, weather and two markets
 - [ ] **Map detail**: zoom to a region (◀ ▶ while holding OK), country outlines, quake depth rings

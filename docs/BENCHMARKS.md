@@ -317,3 +317,41 @@ Fixed on the way: after Back, Home's rebuilt rows sent focus to the first app (N
 you left. The Intelligence menu jumped to Predictions when you came back from the map (a ListView picks the row
 nearest the panel's middle); it now stays on the section you were in. Live TV cards are white, or black for logos
 with white lettering (Bellator, FUEL TV), and keep that colour when focused.
+
+## Intelligence batch 2: Sports now, cam health, rain radar — 25 Oct 2026 (night)
+
+**Sports now** (ESPN's public scoreboards, no key): UFC, F1, Premier League, Champions League, NBA, NFL. Live first,
+then league by league with fight and motorsport on top; fixtures in the box's time, results from the last 30 hours,
+at most six per league (team games within 48 h). US broadcasters shown; OK plays a game only if a free channel in the
+guide carries it (never a pay re-stream), otherwise focus moves to the four top free sports channels underneath.
+
+| Metric | Before | After |
+|---|---|---|
+| Six scoreboards, first load | 3.3–3.7 s one after another | **0.6–1.2 s** in parallel (3 at a time); 0.2 s from cache |
+| Data | — | ~62 KB gzipped per refresh; every 3 min for a league with something on or about to start, else 30 min |
+| Team logos | 500 px PNG, ~80 KB each | ESPN's resizer, 80 px, **~7 KB** |
+| Sports list scrolling | ListView: 8–42 % late frames (p99 up to 42 ms); with row layers 83–100 % | **rows built once in a scroll view: 0–1.1 % late, p99 15–16 ms** |
+
+**Cam health**: every 6 h Glow downloads each cam's current thumbnail (22 × ~15 KB ≈ 330 KB, ~10 s in the
+background). No picture (404) or YouTube's grey placeholder = ended; from the second round, a picture identical to the
+last look (≥ 1 h earlier) = ended. Ended streams are skipped for a day and the cam's next stream is used; a cam with
+none left goes to the end of the grid, dimmed, marked OFFLINE, and leaves the map and Home. First round on the box:
+Medina (404) and Miami's first stream (placeholder) caught; Miami moved to its live second stream. Watch pages would
+have been exact but are 1.2 MB each (17 MB a round), so they weren't used.
+
+**Rain radar**: RainViewer's free tiles (the free service now sends one colour scheme whatever is asked), the last
+two hours in five 30-minute steps, looping, over land and borders drawn from Natural Earth 1:50m
+(`land_50m.bin` 247 KB, `borders_50m.bin` 81 KB; APK 951 KB → 1.23 MB). The map is laid out at web-map zoom 6; radar is
+fetched at zoom 5 and drawn twice the size: 9 tiles per frame instead of ~20.
+
+| Metric | Result |
+|---|---|
+| Five frames, one tile at a time | 8.1 s |
+| Four tiles at a time, newest frame first and shown at once | **newest frame instantly from cache; 4 new frames in 2.2 s**; 0.1 s fully cached |
+| Data | ~50 KB per frame; tiles never change, so they're kept on disk |
+| Animation | 0 % late frames |
+| Memory while open | ~3 MB (five half-size frames + an RGB_565 base), released when you leave the page |
+
+**Whole app** after this batch: Home scrolling 1.07 % late frames (p99 15–19 ms); Glow on Home settled 80 MB;
+cold start 2.2–2.4 s. The first start after installing an update took 8–20 s on several installs (batch 1's build too)
+while later cold starts were 2.2–2.5 s: noted on the roadmap to investigate.

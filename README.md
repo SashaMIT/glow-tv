@@ -4,7 +4,7 @@ A home screen and live TV app for cheap Android TV boxes. Glow turns a slow, clu
 something that feels like a proper set-top box: a clean home screen, a classic blue satellite-style TV guide
 with channel numbers, a player that keeps trying until a channel plays, a phone remote, and world headlines.
 
-It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. The whole app is 943 KB.
+It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. The whole app is 1.2 MB.
 
 ![The TV guide: numbered menu, Sports ranked with action and fight sports first, then FUEL TV playing](docs/glow-guide.gif)
 
@@ -39,7 +39,9 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
   D-pad, type searches and logins, open favourites. Home network only; switches itself off after 30 minutes.
 - **Intelligence** (Home row and screen): a live world map drawn by Glow (earthquakes, current disaster alerts,
   wildfires and storms, places in the news, webcams, the International Space Station, day and night), 22 live city
-  and space cams one click away, a weather page with air quality and 7 days, and what prediction markets expect.
+  and space cams one click away (ended streams are spotted and skipped), Sports now (live scores, fixtures and
+  results for UFC, F1, Premier League, Champions League, NBA and NFL, with free sports channels to watch), a weather
+  page with air quality and 7 days, a rain radar for the last two hours, and what prediction markets expect.
   OK on anything on the map tunes to a news channel covering that part of the world. All from free public sources.
 - **World**: top stories and alerts by region from [World Monitor](https://github.com/koala73/worldmonitor), with
   article pictures, a QR code to read the story on your phone, and OK to watch a news channel covering that region.
@@ -56,6 +58,7 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
 | ![Search](docs/screenshots/16_search.jpg) | ![World headlines](docs/screenshots/v2_after_world3.jpg) | ![Entertainment with listings and logos](docs/screenshots/v2_after_entertainment.jpg) |
 | ![Home with the Intelligence row](docs/screenshots/20_home_intelligence.jpg) | ![World map](docs/screenshots/21_intel_world_map.jpg) | ![Live cams](docs/screenshots/23_intel_live_cams.jpg) |
 | ![Disaster alerts](docs/screenshots/22_intel_alerts.jpg) | ![Weather](docs/screenshots/24_intel_weather.jpg) | ![Predictions](docs/screenshots/25_intel_predictions.jpg) |
+| ![Sports now](docs/screenshots/27_intel_sports_now.jpg) | ![Rain radar](docs/screenshots/28_intel_rain_radar.jpg) | ![Live TV cards](docs/screenshots/26_live_tv_cards.jpg) |
 
 ## Measured on the box
 
@@ -115,7 +118,7 @@ switched off.
 
 | Path | What's there |
 |---|---|
-| `src/com/tv98/glow/` | The app. `HomeActivity`, `ClassicGuideActivity` + `GuideGridView` (guide, drawn as one view), `GuideLineup` + `Genres` (numbers and ranking), `PlayerActivity` + `Sources` + `OfficialLive` (playback and fallbacks), `FreeTv` + `Health` (channel lists and link checks), `Guide` (listings), `Remote` (phone remote), `World`, `Weather`, `IntelActivity` + `Intel` + `WorldMapView` (Intelligence) |
+| `src/com/tv98/glow/` | The app. `HomeActivity`, `ClassicGuideActivity` + `GuideGridView` (guide, drawn as one view), `GuideLineup` + `Genres` (numbers and ranking), `PlayerActivity` + `Sources` + `OfficialLive` (playback and fallbacks), `FreeTv` + `Health` (channel lists and link checks), `Guide` (listings), `Remote` (phone remote), `World`, `Weather`, `IntelActivity` + `Intel` + `WorldMapView` + `Sports` + `Cams` + `RadarView` (Intelligence) |
 | `res/raw/remote.html` | The phone remote's web page |
 | `tools/` | Build helpers, install, benchmarks (`bench.sh`, `zapbench.sh`, `guidebench.sh`, `scrollbench.sh`), a mock IPTV server for testing logins, the screenshot tour and video scripts |
 | `box/` | Debloat, make-Home and undo scripts for the TV98 box |
@@ -131,7 +134,8 @@ switched off.
 - [epg.pw](https://epg.pw), [i.mjh.nz](https://github.com/matthuisman/i.mjh.nz) (Pluto TV) and [TrueID](https://tv.trueid.net): programme listings, fetched by the app
 - [Open-Meteo](https://open-meteo.com): weather and air quality (CC BY 4.0)
 - [USGS](https://earthquake.usgs.gov/earthquakes/feed/) earthquakes, [GDACS](https://www.gdacs.org) disaster alerts, [NASA EONET](https://eonet.gsfc.nasa.gov) natural events, [wheretheiss.at](https://wheretheiss.at) ISS position, [Polymarket](https://polymarket.com) odds: fetched by the app
-- [Natural Earth](https://www.naturalearthdata.com): world land outlines (public domain), in `res/raw/world_land.bin`
+- [Natural Earth](https://www.naturalearthdata.com): land and borders (public domain), in `res/raw/*.bin`
+- [ESPN](https://www.espn.com) public scoreboards (sports), [RainViewer](https://www.rainviewer.com) radar tiles: fetched by the app
 - World Monitor's webcam list, turned into `WmCams.java` at build time (not part of this repository)
 - [radio-browser.info](https://www.radio-browser.info): radio station directory
 

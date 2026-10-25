@@ -196,6 +196,16 @@ final class Net {
         }
     }
 
+    /** A picture through the storage cache only (not kept in memory here): for big one-off images like radar tiles. */
+    static Bitmap fileBitmap(android.content.Context c, String url) {
+        try {
+            byte[] data = logoBytes(c, url);
+            return BitmapFactory.decodeByteArray(data, 0, data.length);
+        } catch (Exception | OutOfMemoryError e) {
+            return null;
+        }
+    }
+
     static void image(final ImageView iv, final String url, final int maxPx, final Runnable onFail) {
         iv.setTag(url);
         if (url == null || url.isEmpty()) {
