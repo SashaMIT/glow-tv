@@ -33,3 +33,5 @@ adb -s $D shell cmd role add-role-holder android.app.role.HOME com.google.androi
 adb -s $D shell pm revoke com.tv98.glow android.permission.WRITE_SECURE_SETTINGS 2>/dev/null
 adb -s $D shell settings put secure screensaver_components com.android.dreams.web/com.android.dreams.web.Screensaver
 adb -s $D shell settings put system screen_off_timeout 2147483646
+# Glow banners over other apps (granted 26 Oct 2026 with the owner's OK): back to Android's default
+adb -s $D shell appops set com.tv98.glow SYSTEM_ALERT_WINDOW default

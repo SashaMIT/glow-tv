@@ -551,3 +551,30 @@ through the menu, item by item:
 Not done: 5 minutes of live TV held in memory: at 1080p that's ~190 MB on a 1 GB box; pause and rewind use each
 stream's own live window instead (often 30 s–2 min). Development builds are now numbered just above the latest release
 (1.0.0 → 10001 "1.0.0-dev"), so they install over a released copy.
+
+## Remote buttons, Quick settings, banners over other apps — 26 Oct 2026
+
+The box's IR remote maps through one of 14 `customer_ir_*.kl` files chosen by the remote's code, so Glow doesn't
+guess: **Settings ▸ Remote buttons** asks you to press a spare button and choose its jobs (press and hold): an app,
+TV Guide, Sports now, World map, Search, last channel, Quick settings. Buttons Glow needs (D-pad, OK, Back, Home,
+numbers, volume, channel, Menu, and blue, which the firmware takes) can't be reassigned. It works while Glow is on
+screen; in every app via the optional "Glow remote buttons" accessibility helper, which only reacts to the buttons set
+and never reads the screen (switched on by the owner in Settings ▸ Accessibility; not switched on here).
+
+| Test on the box | Result |
+|---|---|
+| Set red: press → Sports now, hold → Quick settings | saved as `press_183 = glow:sports`, `hold_183 = glow:quick` |
+| Red on Home | IntelActivity (Sports now) |
+| Hold red on Home | Quick settings panel over Home |
+| Quick settings during playback: Night sound off | applied on return (stats overlay dropped "night sound") |
+| Test mapping removed afterwards | red does nothing again |
+
+**Banners over other apps**: with the owner's OK, `appops set com.tv98.glow SYSTEM_ALERT_WINDOW allow` (undo line added
+to `box/undo.sh`). Android TV has no settings page for it, nor for notification access, so notification banners are
+built but **off** (notification access not granted, by choice). Score alerts check every minute only while another app
+is in front; a sample alert appeared over Android's Settings after 90 s.
+
+| Home (3 cold starts, 100 s settle) | Before | After |
+|---|---|---|
+| Time to first frame | 1.05–1.09 s | 1.05–1.07 s (one 1.9 s outlier) |
+| Glow on Home | 80–87 MB | 89–104 MB (median 91; the every-minute alert check now runs only when another app is in front) |

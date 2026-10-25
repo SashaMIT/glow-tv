@@ -32,7 +32,8 @@ public class GlowApp extends Application {
         @Override
         public void run() {
             Net.MAIN.postDelayed(this, 60_000);
-            if (!Overlay.allowed(GlowApp.this) || !ScoreAlerts.enabled(GlowApp.this) || front instanceof PlayerActivity) return;
+            // Only while another app is in front: Glow's player has its own banners, and Home needn't do the work.
+            if (front != null || !Overlay.allowed(GlowApp.this) || !ScoreAlerts.enabled(GlowApp.this)) return;
             Net.WORK.execute(() -> {
                 List<ScoreAlerts.Alert> found = ScoreAlerts.check(GlowApp.this);
                 Net.MAIN.post(() -> {

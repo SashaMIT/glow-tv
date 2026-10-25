@@ -28,7 +28,7 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 | Memory | ~~Listings' descriptions on disk, rows updated in place~~ ✅ (Home 118 → 81–100 MB); under 80 MB every time needs fewer layered cards / smaller banners | later |
 | TV Guide | Radio favourites + album art; F1 live timing (OpenF1); Trending (TMDB, free key) | later |
 | Home & box | ~~Photos to the screensaver from the phone~~ ✅; ~~settings backup~~ ✅ | done |
-| Home & box | Remote remapping + quick settings; notifications over TV; Thai menus; parental PIN / Kids mode; data usage + Wi-Fi; faster cold start | later |
+| Home & box | ~~Remote remapping + quick settings~~ ✅; ~~banners over other apps~~ ✅ (notification access off by choice); Thai menus; parental PIN / Kids mode; data usage + Wi-Fi | later |
 | Intelligence | Markets ticker (CoinGecko), overview page, tennis/golf, map zoom | later |
 | Smart home | Home Assistant card, doorbell pop-ups, AirPlay (test first) | later |
 | Privacy (owner's call) | Private DNS ad/tracker blocking; vendor-app audit | needs OK |

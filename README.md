@@ -58,6 +58,9 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
 - **My IPTV**: sign in with your own Xtream-style provider details to browse and play their channels.
 - **Screensaver**: after 15 minutes idle, a big clock, weather, world stories with their pictures and what's on your
   favourites, drifting slowly so nothing burns in.
+- **Remote buttons & Quick settings** (Settings): give spare remote buttons a job (an app, TV Guide, Sports now,
+  Quick settings…) for press and hold; Quick settings has night sound, subtitles, picture size, sleep timer, Wi-Fi.
+  Score alerts can show over other apps once "display over other apps" is allowed.
 - **Extra apps** (Settings): SmartTube, Jellyfin, Kodi and NewPipe from their developers' official releases,
   installed only when you pick one (Android confirms each install).
 - **Photos and settings backup** (phone remote ▸ More): send photos from your phone to the screensaver; download
