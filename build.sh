@@ -27,7 +27,7 @@ rm -rf build && mkdir -p build/gen build/classes
 [ -d libs ] || tools/fetch_libs.sh
 # WmCatalog.java is generated from World Monitor's channel catalogue (AGPL-3.0, github.com/koala73/worldmonitor),
 # so it isn't kept in this repo: it's downloaded and generated on the first build.
-[ -f src/com/tv98/glow/WmCatalog.java ] || python3 tools/gen_wm_catalog.py
+[ -f src/com/tv98/glow/WmCatalog.java ] && [ -f src/com/tv98/glow/WmCams.java ] || python3 tools/gen_wm_catalog.py
 LIBS=$(ls libs/*.jar | tr '\n' ':')
 
 "$JAVA_HOME/bin/javac" -nowarn -Xlint:-options --release 8 -encoding UTF-8 \

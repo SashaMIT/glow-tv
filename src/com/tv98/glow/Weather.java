@@ -27,6 +27,21 @@ final class Weather {
             {"Manchester", "53.48", "-2.24"}, {"Edinburgh", "55.95", "-3.19"}, {"New York", "40.71", "-74.01"},
             {"Los Angeles", "34.05", "-118.24"}, {"Sydney", "-33.87", "151.21"}};
 
+    /** The place Glow shows weather for: the city chosen in Settings, else one from the box's time zone. */
+    static double[] location(Context c) {
+        int city = c.getSharedPreferences("display", Context.MODE_PRIVATE).getInt("weather_city", 0);
+        return city > 0 && city < CITIES.length
+                ? new double[] {Double.parseDouble(CITIES[city][1]), Double.parseDouble(CITIES[city][2])}
+                : where(TimeZone.getDefault().getID());
+    }
+
+    static String cityName(Context c) {
+        int city = c.getSharedPreferences("display", Context.MODE_PRIVATE).getInt("weather_city", 0);
+        if (city > 0 && city < CITIES.length) return CITIES[city][0];
+        String tz = TimeZone.getDefault().getID();
+        return tz.contains("/") ? tz.substring(tz.lastIndexOf('/') + 1).replace('_', ' ') : tz;
+    }
+
     /** Forgets the saved reading so the next load fetches the chosen city. */
     static void reset(Context c) {
         c.getSharedPreferences("weather", Context.MODE_PRIVATE).edit().clear().apply();
@@ -38,10 +53,7 @@ final class Weather {
         if (cachedText != null) cb.onWeather(cachedText);
         if (System.currentTimeMillis() - p.getLong("at", 0) < FRESH_MS) return;
 
-        int city = c.getSharedPreferences("display", Context.MODE_PRIVATE).getInt("weather_city", 0);
-        final double[] ll = city > 0 && city < CITIES.length
-                ? new double[] {Double.parseDouble(CITIES[city][1]), Double.parseDouble(CITIES[city][2])}
-                : where(TimeZone.getDefault().getID());
+        final double[] ll = location(c);
         Net.IO.execute(() -> {
             try {
                 String url = String.format(Locale.US, "https://api.open-meteo.com/v1/forecast?latitude=%.2f"
@@ -70,7 +82,7 @@ final class Weather {
         }
     }
 
-    private static String symbol(int code) {
+    static String symbol(int code) {
         if (code == 0) return "☀";
         if (code <= 2) return "⛅";
         if (code == 3) return "☁";

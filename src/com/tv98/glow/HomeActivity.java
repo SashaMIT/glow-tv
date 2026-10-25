@@ -4,7 +4,9 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.SpannableString;
@@ -51,7 +53,7 @@ public class HomeActivity extends Activity {
             headline.postDelayed(this, 9000);
         }
     };
-    private LinearLayout apps, live, quick;
+    private LinearLayout apps, live, quick, intel;
     private final Runnable tick = new Runnable() {
         @Override
         public void run() {
@@ -95,6 +97,8 @@ public class HomeActivity extends Activity {
         col.addView(shelf(apps = row()));
         col.addView(Ui.label(this, "Live TV"));
         col.addView(shelf(live = row()));
+        col.addView(Ui.label(this, "Intelligence"));
+        col.addView(shelf(intel = row()));
 
         setContentView(root);
     }
@@ -109,19 +113,43 @@ public class HomeActivity extends Activity {
         Weather.load(this, t -> weather.setText(t));
         fillApps();
         fillLive();
+        fillIntel();
         fillQuick();
+        restoreFocus();
         headline.removeCallbacks(rotateHeadline);
         if (!headlines.isEmpty()) headline.postDelayed(rotateHeadline, 9000);
         loadHeadlines();
         if (getCurrentFocus() == null && apps.getChildCount() > 0) apps.getChildAt(0).requestFocus();
     }
 
+    // Where focus was when Home was left, so Back returns to the same card (the rows are rebuilt on resume).
+    private LinearLayout leftRow;
+    private int leftIndex = -1, pendingLive = -1;
+
+    private void restoreFocus() {
+        LinearLayout row = leftRow;
+        leftRow = null;
+        if (row == null || leftIndex < 0) return;
+        if (row == live && leftIndex >= sourceTiles) pendingLive = leftIndex; // channel tiles arrive a moment later
+        int i = Math.min(row == live ? Math.min(leftIndex, sourceTiles - 1) : leftIndex, row.getChildCount() - 1);
+        if (i >= 0) row.getChildAt(i).requestFocus();
+    }
+
     @Override
     protected void onPause() {
         super.onPause();
+        View f = getCurrentFocus();
+        leftRow = null;
+        for (LinearLayout row : new LinearLayout[] {apps, live, intel, quick}) {
+            if (f != null && row != null && f.getParent() == row) {
+                leftRow = row;
+                leftIndex = row.indexOfChild(f);
+            }
+        }
         // The tiles' GPU textures are only worth their memory while Home is on screen (rebuilt on resume).
         Tile.release(apps);
         Tile.release(live);
+        Tile.release(intel);
         Tile.release(quick);
         clock.removeCallbacks(tick);
         headline.removeCallbacks(rotateHeadline);
@@ -409,7 +437,12 @@ public class HomeActivity extends Activity {
             });
             live.addView(t);
         }
-        if (focusInRow && live.getChildCount() > 0) live.getChildAt(Math.min(sourceTiles, live.getChildCount() - 1)).requestFocus();
+        if (pendingLive >= 0 && live.getChildCount() > 0) {
+            live.getChildAt(Math.min(pendingLive, live.getChildCount() - 1)).requestFocus();
+            pendingLive = -1;
+        } else if (focusInRow && live.getChildCount() > 0) {
+            live.getChildAt(Math.min(sourceTiles, live.getChildCount() - 1)).requestFocus();
+        }
     }
 
     static void toastFavourite(Activity a, Channel ch, boolean on) {
@@ -427,6 +460,7 @@ public class HomeActivity extends Activity {
     /** Logo (or initials when there's no logo) over the channel name. */
     static void fillChannel(Activity a, FrameLayout card, Channel ch) {
         card.removeAllViews();
+        if (card.getParent() instanceof Tile) ((Tile) card.getParent()).setSolid(0); // until this logo says otherwise
         final FrameLayout art = new FrameLayout(a);
         FrameLayout.LayoutParams artLp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
@@ -440,8 +474,6 @@ public class HomeActivity extends Activity {
         final TextView initials = Ui.badge(a, ch.name, 26);
         initials.setVisibility(View.GONE);
         art.addView(initials);
-        Net.image(logo, ch.logo, Ui.dp(120), () -> initials.setVisibility(View.VISIBLE));
-
         TextView name = Ui.text(a, 12, Ui.TEXT, 400);
         int number = GuideLineup.numberOf(ch);
         String label = number > 0 ? number + "  " + ch.name : ch.name;
@@ -449,7 +481,7 @@ public class HomeActivity extends Activity {
         name.setSingleLine();
         name.setGravity(Gravity.CENTER);
         name.setPadding(Ui.dp(8), 0, Ui.dp(8), Ui.dp(now != null ? 3 : 9));
-        LinearLayout words = new LinearLayout(a);
+        final LinearLayout words = new LinearLayout(a);
         words.setOrientation(LinearLayout.VERTICAL);
         words.addView(name);
         if (now != null) { // what's on right now, under the channel name
@@ -461,6 +493,22 @@ public class HomeActivity extends Activity {
             on.setPadding(Ui.dp(10), 0, Ui.dp(10), Ui.dp(8));
             words.addView(on);
         }
+        logo.setTag(ch.logo);
+        Net.bitmap(a, ch.logo, Ui.dp(120), bm -> {
+            if (ch.logo == null || !ch.logo.equals(logo.getTag()) || logo.getParent() != art) return; // card reused
+            if (bm == null) {
+                initials.setVisibility(View.VISIBLE);
+                return;
+            }
+            logo.setImageBitmap(bm);
+            boolean dark = LogoTone.wantsDark(ch.logo, bm);
+            if (card.getParent() instanceof Tile) ((Tile) card.getParent()).setSolid(dark ? 0xFF0E0F14 : 0xFFF6F7FA);
+            for (int i = 0; i < words.getChildCount(); i++) {
+                TextView tv = (TextView) words.getChildAt(i);
+                tv.setTextColor(i == 0 ? (dark ? 0xFFFFFFFF : 0xFF14172A) : (dark ? 0xB3FFFFFF : 0x9914172A));
+            }
+        });
+
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM);
         card.addView(words, lp);
@@ -504,6 +552,109 @@ public class HomeActivity extends Activity {
             else if (quickLabel.getText().toString().equalsIgnoreCase(name)) quickLabel.setText("");
         });
         quick.addView(t);
+    }
+
+    // ---- Intelligence: the world map, weather, prediction markets and one-click live cams ----
+
+    /** Cams worth a place on Home (the rest are under Intelligence ▸ Live cams). */
+    private static final String[] HOME_CAMS = {"london", "new-york", "tokyo", "iss-earth", "paris", "sydney"};
+    private static Bitmap mapShot;
+    private static long mapShotAt;
+    private static String mapLine = "Earthquakes, disasters and news, live";
+
+    private void fillIntel() {
+        intel.removeAllViews();
+        Tile map = new Tile(this, 176, 99);
+        ImageView img = new ImageView(this);
+        img.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        img.setBackgroundColor(0xFF0B1226);
+        if (mapShot != null) img.setImageBitmap(mapShot);
+        map.card.addView(img, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        LinearLayout words = new LinearLayout(this);
+        words.setOrientation(LinearLayout.VERTICAL);
+        words.setPadding(Ui.dp(14), Ui.dp(16), Ui.dp(12), Ui.dp(9));
+        words.setBackground(new GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP, new int[] {0xE60B0E1C, 0x000B0E1C}));
+        TextView a = Ui.text(this, 15, Ui.TEXT, 600);
+        a.setText("World map");
+        final TextView sub = Ui.text(this, 11, Ui.TEXT_DIM, 400);
+        sub.setSingleLine();
+        sub.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        sub.setText(mapLine);
+        words.addView(a);
+        words.addView(sub);
+        map.card.addView(words, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM));
+        map.setContentDescription("World map");
+        map.setOnClickListener(v -> openIntel(IntelActivity.MAP));
+        intel.addView(map);
+
+        final Tile weatherTile = actionTile("☀", "Weather", Weather.cityName(this));
+        weatherTile.setOnClickListener(v -> openIntel(IntelActivity.WEATHER));
+        intel.addView(weatherTile);
+        final Tile odds = actionTile("%", "Predictions", "What the world expects");
+        odds.setOnClickListener(v -> openIntel(IntelActivity.PREDICTIONS));
+        intel.addView(odds);
+
+        for (String slot : HOME_CAMS) {
+            for (int i = 0; i < WmCams.CAMS.length; i++) {
+                if (!WmCams.CAMS[i][0].equals(slot)) continue;
+                final int idx = i;
+                Tile cam = IntelActivity.camTile(this, 176, 99);
+                IntelActivity.fillCam(this, cam, i);
+                cam.setOnClickListener(v -> IntelActivity.openCam(this, idx));
+                intel.addView(cam);
+            }
+        }
+        Tile all = actionTile("◉", "All live cams", WmCams.CAMS.length + " places, live now");
+        all.setOnClickListener(v -> openIntel(IntelActivity.CAMS));
+        intel.addView(all);
+
+        final int h = Ui.dp(99), w = h * 5 / 2; // the map's own shape; the card crops the far Pacific
+        Net.IO.execute(() -> {
+            Intel.Weather wx = Intel.weather(this);
+            List<Intel.Market> m = Intel.markets(this);
+            Bitmap shot = null;
+            String line = null;
+            if (mapShot == null || System.currentTimeMillis() - mapShotAt > 10 * 60_000L) {
+                List<Intel.Event> ev = new ArrayList<>();
+                List<Intel.Event> q = Intel.quakes(this), al = Intel.alerts(this), news = Intel.newsHotspots(this);
+                ev.addAll(q);
+                ev.addAll(al);
+                ev.addAll(news);
+                ev.addAll(Intel.natural(this));
+                shot = WorldMapView.snapshot(this, ev, w, h);
+                line = q.size() + " quakes · " + al.size() + " alerts · " + news.size() + " in the news";
+            }
+            final Bitmap fs = shot;
+            final String fl = line;
+            Net.MAIN.post(() -> {
+                if (isFinishing()) return;
+                if (fs != null) {
+                    mapShot = fs;
+                    mapShotAt = System.currentTimeMillis();
+                    mapLine = fl;
+                }
+                if (mapShot != null) { // also when another refresh made it first
+                    img.setImageBitmap(mapShot);
+                    sub.setText(mapLine);
+                }
+                if (wx.code >= 0) {
+                    ((TextView) ((LinearLayout) weatherTile.card.getChildAt(0)).getChildAt(0)).setText(Weather.symbol(wx.code));
+                    ((TextView) ((LinearLayout) weatherTile.card.getChildAt(0)).getChildAt(1)).setText(Math.round(wx.temp) + "°  " + wx.city);
+                    ((TextView) ((LinearLayout) weatherTile.card.getChildAt(0)).getChildAt(2)).setText(
+                            "H " + Math.round(wx.max) + "°  L " + Math.round(wx.min) + "°" + (wx.aqi >= 0 ? "  ·  air " + Intel.aqiBand(wx.aqi)[0] : ""));
+                }
+                if (!m.isEmpty()) {
+                    Intel.Market top = m.get(0);
+                    TextView s = (TextView) ((LinearLayout) odds.card.getChildAt(0)).getChildAt(2);
+                    s.setMaxLines(2);
+                    s.setText(Math.round(top.yes * 100) + "%  " + top.question);
+                }
+            });
+        });
+    }
+
+    private void openIntel(int section) {
+        startActivity(new Intent(this, IntelActivity.class).putExtra(IntelActivity.EXTRA_SECTION, section));
     }
 
     private Tile actionTile(String glyph, String title, String sub) {

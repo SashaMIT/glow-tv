@@ -338,7 +338,7 @@ final class World {
     static volatile String lastReason = "";
 
     /** Whole-word (or phrase) match, so "uk" doesn't match "ukraine" and "fed" doesn't match "federal". */
-    private static boolean hasWord(String text, String word) {
+    static boolean hasWord(String text, String word) {
         int at = 0;
         while ((at = text.indexOf(word, at)) >= 0) {
             boolean startOk = at == 0 || !Character.isLetterOrDigit(text.charAt(at - 1));

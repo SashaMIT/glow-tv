@@ -49,6 +49,7 @@
         <activity android:name=".SettingsActivity" />
         <activity android:name=".ClassicGuideActivity" />
         <activity android:name=".AppsActivity" />
+        <activity android:name=".IntelActivity" />
 
         <!-- Hears back from Android's installer when Glow installs an update from GitHub Releases. -->
         <receiver android:name=".Updates$Result" android:exported="false" />

@@ -37,6 +37,7 @@ class Tile extends FrameLayout {
     private float level;
     private boolean lit;
     private float lift = 1.05f;
+    private int solid; // a plain card colour (0 = glass)
 
     Tile(Context c, int widthDp, int heightDp) {
         super(c);
@@ -82,10 +83,23 @@ class Tile extends FrameLayout {
         setLit(gain);
     }
 
+    /** A plain white or black card (channel logos), kept through focus changes; the glow shows focus. */
+    void setSolid(int colour) {
+        solid = colour;
+        if (colour == 0) {
+            card.setBackground(Ui.glass(radius, lit));
+            return;
+        }
+        android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
+        g.setCornerRadius(radius);
+        g.setColor(colour);
+        card.setBackground(g);
+    }
+
     void setLit(boolean on) {
         if (lit == on) return;
         lit = on;
-        card.setBackground(Ui.glass(radius, on));
+        if (solid == 0) card.setBackground(Ui.glass(radius, on));
         // No elevation: a real-time shadow under every focused tile was the GPU's biggest per-frame cost,
         // and the glow already gives the lifted look.
         animate().scaleX(on ? lift : 1f).scaleY(on ? lift : 1f)

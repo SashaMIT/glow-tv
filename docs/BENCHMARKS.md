@@ -292,3 +292,28 @@ What works: a second, silent ExoPlayer prepares the channel above (▲) as soon 
 | CPU while watching | — | Glow 32 %, decoder 16 %; 77 °C (idle ~70 °C) |
 
 Trade-off: a channel reached through the prepared player can start up to 15 s behind live.
+
+## Intelligence: world map, live cams, weather, predictions — 25 Oct 2026 (night)
+
+A new Home row and screen built only on free, keyless sources: USGS earthquakes, GDACS alerts (current orange/red
+only; its list reaches back months), NASA EONET natural events, World Monitor stories placed on the map by country,
+Open-Meteo weather and air quality, Polymarket odds, wheretheiss.at, and Natural Earth land (public domain, 20 KB).
+The map is drawn by Glow (no map tiles or WebView).
+
+| Metric | Result | Notes |
+|---|---|---|
+| World map ready (OK on the Home card → pins drawn) | **795 ms** first time, **139–140 ms** after | parsed events kept for 5 min |
+| Browsing the map (25 × ▶, 5 filter changes) | **0–3 % late frames**, p99 17 ms | |
+| Live cams grid scrolling, first try (recycling GridView, layered cards) | 16–26 % late, p99 31–40 ms | layers redrawn on every reuse |
+| … without layers | 93–96 % late | |
+| … **all 22 cards built once in a scroll view** | **1.0–3.6 % late, p99 16–18 ms** | kept |
+| Home scrolling with the new row (`scrollbench.sh`) | 1.84 % late (was 1.0–1.8 %) | Intelligence row itself 1.0–1.9 % |
+| Glow on Home, settled | 68 MB → 77–79 MB | the row: six cam pictures, map snapshot, weather and odds |
+| Cam pictures | 480×360 letterboxed (~690 KB each) → **320×180 16:9 (~225 KB)** | `mqdefault_live.jpg`; refreshed every 30 min instead of cached forever |
+| Home + Intelligence open, settled after GC | 77–82 MB | one activity left after Back (no leak) |
+| Data per refresh | ~420 KB | USGS 22 KB, GDACS 124 KB, EONET 127 KB, Polymarket 140 KB, Open-Meteo ~10 KB; cached 10–60 min |
+
+Fixed on the way: after Back, Home's rebuilt rows sent focus to the first app (Netflix); Home now returns to the card
+you left. The Intelligence menu jumped to Predictions when you came back from the map (a ListView picks the row
+nearest the panel's middle); it now stays on the section you were in. Live TV cards are white, or black for logos
+with white lettering (Bellator, FUEL TV), and keep that colour when focused.

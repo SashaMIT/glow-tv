@@ -10,3 +10,5 @@ src/com/tv98/glow/WmCatalog.java
 bench/
 glow_tour.mp4
 .DS_Store
+# Generated at build time from World Monitor (AGPL-3.0)
+src/com/tv98/glow/WmCams.java

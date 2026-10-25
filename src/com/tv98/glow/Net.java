@@ -99,17 +99,26 @@ final class Net {
 
     private static byte[] logoBytes(android.content.Context c, String url) throws IOException {
         java.io.File f = new java.io.File(logoDir(c), Integer.toHexString(url.hashCode()) + "_" + url.length());
-        if (f.exists() && f.length() > 0) {
+        // A live stream's thumbnail is a recent frame: keep it for half an hour, not forever.
+        boolean live = url.contains("_live.jpg");
+        if (f.exists() && f.length() > 0 && (!live || System.currentTimeMillis() - f.lastModified() < 30 * 60_000L)) {
             byte[] b = new byte[(int) f.length()];
             try (java.io.FileInputStream in = new java.io.FileInputStream(f)) {
                 int off = 0, n;
                 while (off < b.length && (n = in.read(b, off, b.length - off)) > 0) off += n;
             }
-            f.setLastModified(System.currentTimeMillis());
+            if (!live) f.setLastModified(System.currentTimeMillis());
             android.util.Log.i("GlowPerf", "logo from disk: " + b.length + " bytes");
             return b;
         }
-        byte[] data = bytes(url, 3 * 1024 * 1024);
+        byte[] data;
+        try {
+            data = bytes(url, 3 * 1024 * 1024);
+        } catch (IOException e) {
+            if (!live || !f.exists() || f.length() == 0) throw e;
+            f.setLastModified(System.currentTimeMillis() - 25 * 60_000L); // offline: the older frame, retried in 5 min
+            return logoBytes(c, url);
+        }
         android.util.Log.i("GlowPerf", "logo from network: " + data.length + " bytes");
         java.io.File tmp = new java.io.File(f.getPath() + ".tmp");
         try (java.io.FileOutputStream out = new java.io.FileOutputStream(tmp)) {
