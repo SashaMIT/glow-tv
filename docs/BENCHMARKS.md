@@ -272,3 +272,23 @@ stream title, BBC Radio 5 Live; dim screen and wake on any key.
 | Tried and dropped | layers only while a row moves (released after 0.6 s / 8 s / 30 s) | 76 % / 13 % / 17 % late | rebuilding textures on the move costs more than it saves |
 | Ways into live TV | TV Guide, Free TV, Radio, My IPTV tiles | **one: TV Guide** (TV and radio) | Free TV/My IPTV channels are all in the guide (country lists and My IPTV under 0 More…) |
 | Radio | its own screen | **RADIO tab in the guide**: same numbered menu (10 sections, keys 1–9, 0), stations as guide rows numbered 0101…, logo + live song title in the info panel, keeps playing while you browse the guide, dims after 1 min | tested: News & talk → CNN on air, dim screen, back to the radio menu with "♫ CNN" |
+
+## Channel changes in a fifth of a second — 25 Oct 2026 (evening)
+
+Timeline logging (`setprop log.tag.GlowZap DEBUG`) showed where a change goes: Al Jazeera's server takes 0.5–0.9 s for
+each of three playlist requests (~2.5 s before any video), DW's CDN 2.5 s for its first chunk; CNA and France 24 play
+in 0.8–0.9 s. Starting each channel capped at 2.5 Mbps and playing after 1 s of buffer (was 1.5 s) made no measurable
+difference (2.45 → 2.54 s), so the cap stays only as a smaller first chunk.
+
+What works: a second, silent ExoPlayer prepares the channel above (▲) as soon as the current one shows a picture
+(playlists + first seconds, 4 s buffer at most). ▲ swaps it onto the screen; if it's older than 15 s it jumps to live first.
+
+| `tools/zapbench.sh` (TV Guide ▸ News, 20 × ▲) | Before | After |
+|---|---|---|
+| Median channel change | 2,454 ms | **221 ms** |
+| p75 / max | 2,840 / 8,900 ms | 242 / 3,448 ms |
+| Played / failed | 21 / 0 | 21 / 0 (20 of 20 ▲ used the prepared player) |
+| Glow memory while watching | — | ~98 MB with the standby loaded |
+| CPU while watching | — | Glow 32 %, decoder 16 %; 77 °C (idle ~70 °C) |
+
+Trade-off: a channel reached through the prepared player can start up to 15 s behind live.

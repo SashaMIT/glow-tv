@@ -1,14 +1,13 @@
 #!/bin/bash
-# Zap benchmark: opens Free TV > World news, plays the first channel, presses ▲ N times, reports start times.
+# Zap benchmark: opens the TV Guide > News, plays the first channel, presses ▲ N times, reports start times.
 # Usage: tools/zapbench.sh <label> [zaps]
 set -u
 cd "$(dirname "$0")/.."
 D=${GLOW_DEVICE:?set GLOW_DEVICE to your box, e.g. GLOW_DEVICE=192.168.1.50:5555}; N=${2:-20}; mkdir -p bench; OUT="bench/zap-$1.txt"
 a() { adb -s "$D" shell "$@" 2>/dev/null | tr -d '\r'; }
-sel() { a 'uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; cat /sdcard/ui.xml' | tr '>' '\n' | grep -oE 'text="[^"]*·[^"]*working[^"]*"' | head -1; }
-a input keyevent KEYCODE_HOME; sleep 4; a input keyevent KEYCODE_DPAD_DOWN; sleep 0.6; a input keyevent KEYCODE_DPAD_CENTER; sleep 5
-for i in 1 2 3 4 5 6; do sel | grep -q "World news" && break; a input keyevent KEYCODE_DPAD_DOWN; sleep 1.3; done
-a input keyevent KEYCODE_DPAD_RIGHT; sleep 0.8; a logcat -c
+a input keyevent KEYCODE_HOME; sleep 4
+a su 0 am start -n com.tv98.glow/.ClassicGuideActivity >/dev/null; sleep 3
+a su 0 input keyevent KEYCODE_7; sleep 3; a logcat -c
 a input keyevent KEYCODE_DPAD_CENTER; sleep 10
 for i in $(seq 1 "$N"); do a input keyevent KEYCODE_DPAD_UP; sleep 9; done
 a logcat -d -s GlowPlayer:I | grep -E "PLAYING|FAILED|handing" | sed 's/.*GlowPlayer: //' > "$OUT"

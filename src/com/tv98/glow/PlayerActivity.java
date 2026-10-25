@@ -51,6 +51,12 @@ public class PlayerActivity extends Activity {
     private FrameLayout root;
     private SurfaceView surface;
     private androidx.media3.exoplayer.upstream.DefaultBandwidthMeter meter;
+    private DefaultTrackSelector tracks;
+    /** Fast channel changes: each channel starts capped at 2.5 Mbps (a small first chunk), lifted after the picture appears. */
+    private static final int START_CAP_BPS = 2_500_000;
+    private final Runnable uncap = () -> {
+        if (tracks != null) tracks.setParameters(tracks.buildUponParameters().setMaxVideoBitrate(Integer.MAX_VALUE));
+    };
     private VideoView builtIn;
     private ExoPlayer exo;
     private View curtain;
@@ -175,6 +181,8 @@ public class PlayerActivity extends Activity {
         root.removeCallbacks(nextAttempt);
         if (builtIn != null) builtIn.stopPlayback();
         saveBandwidth();
+        root.removeCallbacks(prepareStandby);
+        releaseStandby();
         if (exo != null) {
             exo.release();
             exo = null;
@@ -199,20 +207,59 @@ public class PlayerActivity extends Activity {
                         25_000,  // step down only when the buffer is really at risk
                         25_000,
                         0.8f);   // use 80 % of the measured bandwidth (default 70 %)
-        DefaultTrackSelector tracks = new DefaultTrackSelector(this, adaptive);
-        tracks.setParameters(tracks.buildUponParameters().clearViewportSizeConstraints().setMaxVideoSize(1920, 1080));
-        // Smaller buffers than the default 50 s: live TV doesn't need them and the box has 1 GB of RAM.
-        DefaultLoadControl load = new DefaultLoadControl.Builder().setBufferDurationsMs(12_000, 30_000, 1_500, 3_000).build();
-        // Start each channel from the connection speed measured last time (kept between channels and restarts),
-        // at 60 % so the first segment still arrives quickly; ExoPlayer then steps up within seconds.
-        long known = getSharedPreferences("player", MODE_PRIVATE).getLong("bandwidth", 0);
-        long initial = known > 0 ? Math.max(1_500_000L, Math.min(12_000_000L, known * 6 / 10)) : 1_500_000L;
-        meter = new androidx.media3.exoplayer.upstream.DefaultBandwidthMeter.Builder(this).setInitialBitrateEstimate(initial).build();
-        exo = new ExoPlayer.Builder(this).setTrackSelector(tracks).setLoadControl(load).setBandwidthMeter(meter).build();
+        if (meter == null) {
+            // Start each channel from the connection speed measured last time (kept between channels and restarts),
+            // at 60 % so the first segment still arrives quickly; ExoPlayer then steps up within seconds.
+            long known = getSharedPreferences("player", MODE_PRIVATE).getLong("bandwidth", 0);
+            long initial = known > 0 ? Math.max(1_500_000L, Math.min(12_000_000L, known * 6 / 10)) : 1_500_000L;
+            meter = new androidx.media3.exoplayer.upstream.DefaultBandwidthMeter.Builder(this).setInitialBitrateEstimate(initial).build();
+        }
+        tracks = newSelector();
+        exo = buildPlayer(tracks, false);
+        attachMain(exo);
         exo.setVideoSurfaceView(surface);
         exo.setPlayWhenReady(true);
+    }
+
+    private DefaultTrackSelector newSelector() {
+        androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection.Factory adaptive =
+                new androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection.Factory(
+                        4_000,   // step up after 4 s of good throughput (default 10 s)
+                        25_000,  // step down only when the buffer is really at risk
+                        25_000,
+                        0.8f);   // use 80 % of the measured bandwidth (default 70 %)
+        DefaultTrackSelector sel = new DefaultTrackSelector(this, adaptive);
+        sel.setParameters(sel.buildUponParameters().clearViewportSizeConstraints().setMaxVideoSize(1920, 1080)
+                .setMaxVideoBitrate(START_CAP_BPS));
+        return sel;
+    }
+
+    /** The playing player keeps 12-30 s of live TV; a standby one just its first few seconds. */
+    private ExoPlayer buildPlayer(DefaultTrackSelector sel, boolean standbyPlayer) {
+        // Smaller buffers than the default 50 s: live TV doesn't need them and the box has 1 GB of RAM.
+        // Play once 1 s is buffered (was 1.5 s): the connection keeps ahead easily, and the first picture comes sooner.
+        DefaultLoadControl load = standbyPlayer
+                ? new DefaultLoadControl.Builder().setBufferDurationsMs(2_000, 4_000, 1_000, 2_000).build()
+                : new DefaultLoadControl.Builder().setBufferDurationsMs(12_000, 30_000, 1_000, 3_000).build();
+        return new ExoPlayer.Builder(this).setTrackSelector(sel).setLoadControl(load).setBandwidthMeter(meter).build();
+    }
+
+    /** Glow's own listeners (picture, errors, quality log), on whichever player is on screen. */
+    private void attachMain(ExoPlayer p) {
         // Quality log: what each channel offers and what's actually being played (GlowPlayer tag).
-        exo.addAnalyticsListener(new androidx.media3.exoplayer.analytics.AnalyticsListener() {
+        if (android.util.Log.isLoggable("GlowZap", android.util.Log.DEBUG)) { // adb shell setprop log.tag.GlowZap DEBUG
+            p.addAnalyticsListener(new androidx.media3.exoplayer.analytics.AnalyticsListener() {
+                @Override
+                public void onLoadCompleted(EventTime t, androidx.media3.exoplayer.source.LoadEventInfo info,
+                        androidx.media3.exoplayer.source.MediaLoadData data) {
+                    String kind = data.dataType == androidx.media3.common.C.DATA_TYPE_MANIFEST ? "playlist"
+                            : data.dataType == androidx.media3.common.C.DATA_TYPE_MEDIA ? "chunk" : "type" + data.dataType;
+                    android.util.Log.d("GlowZap", "+" + (android.os.SystemClock.elapsedRealtime() - playStart) + " ms  " + kind
+                            + " " + info.bytesLoaded / 1024 + " KB in " + info.loadDurationMs + " ms  " + info.uri.getHost());
+                }
+            });
+        }
+        p.addAnalyticsListener(new androidx.media3.exoplayer.analytics.AnalyticsListener() {
             @Override
             public void onVideoInputFormatChanged(EventTime t, androidx.media3.common.Format f,
                     androidx.media3.exoplayer.DecoderReuseEvaluation e) {
@@ -221,7 +268,7 @@ public class PlayerActivity extends Activity {
                         + " at +" + (android.os.SystemClock.elapsedRealtime() - playStart) + " ms");
             }
         });
-        exo.addListener(new Player.Listener() {
+        p.addListener(new Player.Listener() {
             @Override
             public void onRenderedFirstFrame() {
                 onPicture();
@@ -278,11 +325,93 @@ public class PlayerActivity extends Activity {
         });
     }
 
+    // ---- standby: the channel above, prepared silently so ▲ switches almost at once ----
+
+    private ExoPlayer standby;
+    private DefaultTrackSelector standbyTracks;
+    private int standbyIndex = -1, standbyAttempt;
+    private long standbyAt;
+    private List<Sources.Attempt> standbyList;
+    /** A standby younger than this plays from where it is (≤15 s behind live); older ones jump to live first. */
+    private static final long STANDBY_FRESH_MS = 15_000;
+    private final Runnable prepareStandby = this::prepareStandby;
+
+    /** Loads the next channel's playlists and first seconds in a second, silent player (4 s buffer at most). */
+    private void prepareStandby() {
+        if (exo == null || Xtream.playlist.size() < 2) return;
+        final int ni = (index + 1) % Xtream.playlist.size();
+        if (standby != null && standbyIndex == ni) return;
+        final Channel ch = Xtream.playlist.get(ni);
+        final int gen = generation;
+        Net.IO.execute(() -> {
+            List<Sources.Attempt> cached = warm.get(ch.key());
+            final List<Sources.Attempt> list = cached != null ? cached : Sources.forChannel(this, ch, acct);
+            Net.MAIN.post(() -> {
+                if (gen != generation || exo == null || isFinishing()) return;
+                int k = -1;
+                for (int i = 0; i < list.size() && k < 0; i++) {
+                    Sources.Attempt a = list.get(i);
+                    if (!a.builtIn && a.youtubeChannels == null && a.url != null) k = i;
+                }
+                if (k < 0) return;
+                releaseStandby();
+                standbyTracks = newSelector();
+                standby = buildPlayer(standbyTracks, true);
+                standby.setVolume(0f);
+                standby.setPlayWhenReady(false);
+                standby.setMediaSource(source(list.get(k)));
+                standby.prepare();
+                standbyIndex = ni;
+                standbyAttempt = k;
+                standbyList = list;
+                standbyAt = android.os.SystemClock.elapsedRealtime();
+                android.util.Log.i("GlowPlayer", "standby: " + ch.name + " prepared in the background");
+            });
+        });
+    }
+
+    private void releaseStandby() {
+        if (standby != null) standby.release();
+        standby = null;
+        standbyIndex = -1;
+    }
+
+    /** ▲ onto the prepared channel: swap the standby player onto the screen. False when there's nothing usable. */
+    private boolean useStandby(int target) {
+        if (standby == null || standbyIndex != target || standby.getPlayerError() != null
+                || standby.getPlaybackState() == Player.STATE_IDLE) {
+            releaseStandby();
+            return false;
+        }
+        long age = android.os.SystemClock.elapsedRealtime() - standbyAt;
+        ExoPlayer old = exo;
+        exo = standby;
+        tracks = standbyTracks;
+        standby = null;
+        standbyIndex = -1;
+        if (old != null) old.release(); // frees its decoder for the next standby
+        attachMain(exo);
+        exo.setVideoSurfaceView(surface);
+        exo.setVolume(1f);
+        if (age > STANDBY_FRESH_MS) exo.seekToDefaultPosition(); // it's been waiting a while: jump to live
+        exo.setPlayWhenReady(true);
+        attempts = standbyList;
+        attempt = standbyAttempt;
+        builtIn.setVisibility(View.GONE);
+        surface.setVisibility(View.VISIBLE);
+        extended = false;
+        root.postDelayed(nextAttempt, ATTEMPT_MS);
+        android.util.Log.i("GlowPlayer", current().name + ": switched to the prepared player (ready " + age + " ms ago)");
+        return true;
+    }
+
     private Channel current() {
         return Xtream.playlist.get(index);
     }
 
     private void play(int i, boolean zapped) {
+        root.removeCallbacks(uncap);
+        if (tracks != null) tracks.setParameters(tracks.buildUponParameters().setMaxVideoBitrate(START_CAP_BPS));
         int n = Xtream.playlist.size();
         int target = ((i % n) + n) % n;
         if (target != index) lastIndex = index;
@@ -317,8 +446,9 @@ public class PlayerActivity extends Activity {
             final List<Sources.Attempt> list = prepared != null ? prepared : Sources.forChannel(this, ch, acct);
             Net.MAIN.post(() -> {
                 if (gen != generation) return; // changed channel meanwhile
-                attempts = list;
                 probes.clear();
+                if (zapped && standbyIndex == index && useStandby(index)) return;
+                attempts = list;
                 Sources.probeAll(list, (k, ok) -> Net.MAIN.post(() -> {
                     if (gen != generation) return;
                     probes.put(k, ok);
@@ -452,6 +582,10 @@ public class PlayerActivity extends Activity {
 
     /** A picture is on screen: remember which link did it. */
     private void onPicture() {
+        root.removeCallbacks(prepareStandby);
+        root.postDelayed(prepareStandby, 1_000); // get the channel above ready while this one plays
+        root.removeCallbacks(uncap);
+        root.postDelayed(uncap, 1_500); // picture's up: let ABR climb to full quality
         root.postDelayed(this::saveBandwidth, 8_000);
         if (playing) return;
         playing = true;
