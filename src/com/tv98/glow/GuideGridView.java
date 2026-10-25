@@ -159,7 +159,16 @@ class GuideGridView extends View {
                 // Other rows are drawn once into a picture and reused, so each costs one draw call per frame.
                 android.graphics.Bitmap bm = rowCache.get(ch.key());
                 if (bm == null) {
-                    bm = android.graphics.Bitmap.createBitmap((int) w, (int) Math.ceil(rowH), android.graphics.Bitmap.Config.ARGB_8888);
+                    int bw = (int) w, bh = (int) Math.ceil(rowH);
+                    bm = null;
+                    while (!spare.isEmpty() && bm == null) {
+                        android.graphics.Bitmap s = spare.remove(spare.size() - 1);
+                        if (s.getWidth() == bw && s.getHeight() == bh) {
+                            s.eraseColor(0);
+                            bm = s;
+                        }
+                    }
+                    if (bm == null) bm = android.graphics.Bitmap.createBitmap(bw, bh, android.graphics.Bitmap.Config.ARGB_8888);
                     drawRow(new Canvas(bm), ch, 0, false, now);
                     rowCache.put(ch.key(), bm);
                 }
@@ -232,14 +241,21 @@ class GuideGridView extends View {
 
     // ---- cached row pictures ----
 
-    /** Pictures of unselected rows for the current time window (about 200 KB each; the most recent 18 kept). */
+    /**
+     * Pictures of unselected rows for the current time window (~180 KB each). 36 kept (was 18): with nightly listings
+     * most rows are full of programmes, so redrawing one on a miss costs a dropped frame, and a scroll down and back
+     * passes ~27 rows. Evicted pictures are reused rather than reallocated.
+     */
     private final java.util.LinkedHashMap<String, android.graphics.Bitmap> rowCache =
-            new java.util.LinkedHashMap<String, android.graphics.Bitmap>(24, 0.75f, true) {
+            new java.util.LinkedHashMap<String, android.graphics.Bitmap>(48, 0.75f, true) {
                 @Override
                 protected boolean removeEldestEntry(java.util.Map.Entry<String, android.graphics.Bitmap> e) {
-                    return size() > 18;
+                    if (size() <= 36) return false;
+                    if (spare.size() < 4) spare.add(e.getValue());
+                    return true;
                 }
             };
+    private final java.util.ArrayList<android.graphics.Bitmap> spare = new java.util.ArrayList<>();
     private long cachedWindow = -1;
     private int cachedWidth = -1;
 
@@ -268,7 +284,7 @@ class GuideGridView extends View {
                     if (logos.size() > 120) logos.clear(); // a screenful at a time is all that's drawn
                     // Empty border trimmed (logo files pad unevenly, which made them sit high), then scaled once to
                     // the size it's drawn at, so each frame copies a small texture as-is.
-                    android.graphics.Bitmap art = trim(loaded);
+                    android.graphics.Bitmap art = trimmed(ch.logo, loaded);
                     float k = Math.min(LOGO_W / (float) art.getWidth(), LOGO_H / (float) art.getHeight());
                     int w = Math.max(1, Math.round(art.getWidth() * k)), h = Math.max(1, Math.round(art.getHeight() * k));
                     logos.put(key, android.graphics.Bitmap.createScaledBitmap(art, w, h, true));
@@ -288,24 +304,47 @@ class GuideGridView extends View {
     private final float LOGO_W = Ui.dp(50), LOGO_H = Ui.dp(19);
 
     /** The bitmap without its fully transparent border (the box around pixels with any real opacity). */
+    /** Trimmed logos by address: the guide's info panel asked for the same few on every key press. */
+    private static final android.util.LruCache<String, android.graphics.Bitmap> TRIMMED = new android.util.LruCache<>(40);
+
+    static android.graphics.Bitmap trimmed(String url, android.graphics.Bitmap b) {
+        String key = url == null ? null : url + "#" + b.getWidth(); // rows and the info panel load different sizes
+        android.graphics.Bitmap t = key == null ? null : TRIMMED.get(key);
+        if (t != null && !t.isRecycled()) return t;
+        t = trim(b);
+        if (key != null) TRIMMED.put(key, t);
+        return t;
+    }
+
+    /**
+     * The logo without its empty border. Scans in from each edge and stops at the first solid pixel, one row or
+     * column at a time (reading every pixel of a 240 px logo was a fifth of the guide's main-thread time).
+     */
     static android.graphics.Bitmap trim(android.graphics.Bitmap b) {
         int w = b.getWidth(), h = b.getHeight();
-        int[] px = new int[w * h];
-        b.getPixels(px, 0, w, 0, 0, w, h);
-        int left = w, top = h, right = -1, bottom = -1;
-        for (int y = 0; y < h; y++) {
-            for (int x = 0; x < w; x++) {
-                if ((px[y * w + x] >>> 24) > 24) {
-                    if (x < left) left = x;
-                    if (x > right) right = x;
-                    if (y < top) top = y;
-                    if (y > bottom) bottom = y;
-                }
-            }
-        }
-        if (right < left || bottom < top) return b;
+        if (w < 3 || h < 3) return b;
+        int[] row = new int[Math.max(w, h)];
+        int top = 0, bottom = h - 1, left = 0, right = w - 1;
+        while (top < h && !solidRow(b, top, w, row)) top++;
+        if (top >= h) return b; // nothing visible
+        while (bottom > top && !solidRow(b, bottom, w, row)) bottom--;
+        while (left < w && !solidCol(b, left, top, bottom, row)) left++;
+        while (right > left && !solidCol(b, right, top, bottom, row)) right--;
         if (left == 0 && top == 0 && right == w - 1 && bottom == h - 1) return b;
         return android.graphics.Bitmap.createBitmap(b, left, top, right - left + 1, bottom - top + 1);
+    }
+
+    private static boolean solidRow(android.graphics.Bitmap b, int y, int w, int[] row) {
+        b.getPixels(row, 0, w, 0, y, w, 1);
+        for (int x = 0; x < w; x++) if ((row[x] >>> 24) > 24) return true;
+        return false;
+    }
+
+    private static boolean solidCol(android.graphics.Bitmap b, int x, int top, int bottom, int[] col) {
+        int n = bottom - top + 1;
+        b.getPixels(col, 0, 1, x, top, 1, n);
+        for (int i = 0; i < n; i++) if ((col[i] >>> 24) > 24) return true;
+        return false;
     }
 
     /** For channels with no published schedule: "Live now · Comedy · OK to watch" instead of a bare "No information". */

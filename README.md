@@ -29,12 +29,19 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
   about 2 s. Last channel, digits, now/next banner.
 - **Free TV**: about 2,300 working channels from the public [iptv-org](https://github.com/iptv-org/iptv) lists
   (Thailand, UK, US, world news, sports), link-checked every 12 hours so dead ones stay hidden.
-- **Programme listings**: UK/US from [epg.pw](https://epg.pw)'s daily XMLTV files, Pluto TV channels from their own
-  schedules ([i.mjh.nz](https://github.com/matthuisman/i.mjh.nz), matched on the Pluto id in the stream link), and
-  Thai channels from TrueID, fetched when they scroll into view. Channel logos in the guide.
+- **Programme listings**: about 1,000 channels. Every night a GitHub Actions job in this repo runs
+  [iptv-org/epg](https://github.com/iptv-org/epg)'s grabbers for the channels Glow lists and publishes one trimmed
+  file (~1.5 MB) to the `data` branch, matched on iptv-org ids; plus Pluto TV's own schedules
+  ([i.mjh.nz](https://github.com/matthuisman/i.mjh.nz)), UK/US from [epg.pw](https://epg.pw), and Thai channels from
+  TrueID. The same job writes channel facts from [iptv-org's database](https://github.com/iptv-org/api) (language,
+  closed, replaced, adult), so closed channels disappear and rankings use real languages.
 - **Radio** (the guide's RADIO tab): thousands of free stations from [radio-browser.info](https://www.radio-browser.info)
   in ten numbered sections (Thailand, Thai music, UK, US, top worldwide, news & talk, chill, jazz, classical, dance),
   listed like TV channels with logos and the song on air; the screen dims while you listen.
+- **Favourite teams, Resume, Cast, sleep timer**: pick teams in Settings (their games first, score banners for them
+  only if you like); the last channel watched is first in Live TV with a Resume badge; the Cast button opens the
+  box's Miracast receiver so a phone can mirror to "TV98"; ▶ while watching sets a sleep timer (30–120 min) that
+  stops TV and starts the screensaver.
 - **Phone remote**: open the box's address on your phone, enter the 4-digit code shown on the TV, then use a
   D-pad, type searches and logins, open favourites. Home network only; switches itself off after 30 minutes.
 - **Intelligence** (Home row and screen): a live world map drawn by Glow (earthquakes, current disaster alerts,
@@ -62,6 +69,7 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
 | ![Disaster alerts](docs/screenshots/22_intel_alerts.jpg) | ![Weather](docs/screenshots/24_intel_weather.jpg) | ![Predictions](docs/screenshots/25_intel_predictions.jpg) |
 | ![Sports now](docs/screenshots/27_intel_sports_now.jpg) | ![Rain radar](docs/screenshots/28_intel_rain_radar.jpg) | ![Live TV cards](docs/screenshots/26_live_tv_cards.jpg) |
 | ![Rain around the world](docs/screenshots/29_world_rain.jpg) | ![Sports leagues](docs/screenshots/30_sports_leagues.jpg) | ![Score banner over live TV](docs/screenshots/31_score_banner.jpg) |
+| ![News with nightly listings](docs/screenshots/32_guide_news_listings.jpg) | ![Favourite team first](docs/screenshots/33_favourite_team.jpg) | ![Cast button and Resume card](docs/screenshots/34_cast_and_resume.jpg) |
 
 ## Measured on the box
 
@@ -123,7 +131,8 @@ switched off.
 |---|---|
 | `src/com/tv98/glow/` | The app. `HomeActivity`, `ClassicGuideActivity` + `GuideGridView` (guide, drawn as one view), `GuideLineup` + `Genres` (numbers and ranking), `PlayerActivity` + `Sources` + `OfficialLive` (playback and fallbacks), `FreeTv` + `Health` (channel lists and link checks), `Guide` (listings), `Remote` (phone remote), `World`, `Weather`, `IntelActivity` + `Intel` + `WorldMapView` + `Sports` + `ScoreAlerts` + `Cams` + `RadarView` + `Rain` (Intelligence) |
 | `res/raw/remote.html` | The phone remote's web page |
-| `tools/` | Build helpers, install, benchmarks (`bench.sh`, `zapbench.sh`, `guidebench.sh`, `scrollbench.sh`), a mock IPTV server for testing logins, the screenshot tour and video scripts |
+| `.github/workflows/` | `release.yml` (signed releases), `guide.yml` (nightly listings + channel facts to the `data` branch) |
+| `tools/` | `build_guide_data.py` / `trim_guide.py` (nightly data), build helpers, install, benchmarks (`bench.sh`, `zapbench.sh`, `guidebench.sh`, `scrollbench.sh`), a mock IPTV server for testing logins, the screenshot tour and video scripts |
 | `box/` | Debloat, make-Home and undo scripts for the TV98 box |
 | `docs/` | Screenshots, tour video, benchmarks |
 | `ROADMAP.md` | What's next, top picks from GitHub, and what Glow won't do |

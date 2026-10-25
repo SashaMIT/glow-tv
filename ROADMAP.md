@@ -29,10 +29,23 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 - [ ] **First start after an update is slow** (8–20 s seen four times): not reproducible in five tries (1.4–2.2 s);
       likely Android's own work after an update. Re-check if it comes back.
 
+## Done: listings, facts and quick wins (25 Oct 2026)
+
+- [x] **Nightly listings** (GitHub Actions + iptv-org/epg, `data` branch): guide coverage 353 → 841+ channels
+      (News 20 → 270), incl. Al Jazeera English, DW, France 24, CNA, Bloomberg; second pass retries empty channels
+- [x] **Channel facts** from iptv-org's database: closed/replaced/adult/blocklisted channels hidden; real languages
+- [x] **Favourite teams** (first in Sports now and on Home; alerts "favourites only")
+- [x] **Resume** card, **Cast from phone** (box's Miracast receiver), **sleep timer** (▶ while watching)
+- [ ] ~~Samsung TV Plus / Plex / Roku channel lists~~: i.mjh.nz now publishes only their schedules, and iptv-org has
+      just 3 Samsung and 1 Roku stream: no legal keyless source for the channels themselves
+- [ ] ~~Continue watching (Watch Next)~~: reading other apps' entries needs a system permission
+      (ACCESS_ALL_EPG_DATA, signature|privileged), and on this box Netflix/YouTube publish nothing there anyway
+
 ## Next
 
-- [ ] **Favourite teams**: pick teams; their games first in Sports now, banners only for them if wanted
+- [ ] **Skip epg.pw for channels the nightly data covers** (saves part of the daily download)
 - [ ] **Tennis and golf**: leaderboards and live matches (ESPN tournaments)
+- [ ] **Instant ▼ and favourites** (second standby player), **Now & Next** list, **audio/subtitle** switching
 - [ ] **Markets ticker**: indices, oil, gold, BTC, FX from free endpoints, on the Intelligence row
 - [ ] **Overview screen**: one page combining the counts, the top three events, weather and two markets
 - [ ] **Map detail**: zoom to a region (◀ ▶ while holding OK), country outlines, quake depth rings

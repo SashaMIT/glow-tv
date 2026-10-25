@@ -388,3 +388,49 @@ switched back). First version used the glass style and was hard to read over bri
 | Glow memory | ~98 MB | 108 MB |
 | CPU (single `top` sample) | Glow 32 %, decoder 16 % | Glow 40 %, decoder 17 % |
 | Temperature | 77 °C | 72.6 °C |
+
+## Listings for ~1,000 channels, channel facts, favourite teams, Resume, Cast, sleep timer — 25 Oct 2026 (night)
+
+**Nightly listings** (`.github/workflows/guide.yml`, 01:30 UTC): iptv-org's database picks a listing source for each
+channel Glow lists (broadcaster's own site first, then large guide sites), iptv-org/epg's grabbers fetch two days on
+GitHub's servers, a second pass retries empty channels with their next source, and the result is trimmed to 36 hours
+and published to the `data` branch. Glow matches it on the full iptv-org id (new `Channel.feedId`).
+
+| | Before | After |
+|---|---|---|
+| Channels with listings in the nightly file | — | run 1: 749 · run 2 (+ retry pass): 1,004 · run 3 (+ Pluto streams Pluto's schedules miss): **1,050** |
+| Build time on GitHub | — | 7–13 min |
+| Guide coverage on the box (All Channels) | 353 / 2,344 | **841 / 2,328** (News 20 → 270, Sports 25 → 107, Entertainment 166 → 240) |
+| Key news channels with schedules | — | Al Jazeera English (aljazeera.com), DW English and France 24 English (tvpassport.com), CNA, Bloomberg |
+| Nightly file | — | 1.5 MB gzipped (11 MB XMLTV, 43,506 programmes), read in 2.4 s, index load +0.27 s at start |
+| epg.pw per-channel refresh | 215 channels | 109 (106 skipped: nightly data has them), 1.4 MB |
+| Matching | first attempt: 0 of 31,035 kept (Glow stored only the base id, e.g. `aljazeera.qa`) | full id with feed (`AlJazeera.qa@English`) |
+
+Not possible: Samsung TV Plus / Plex / Roku channels (i.mjh.nz now publishes only their schedules; iptv-org lists 3
+Samsung and 1 Roku stream). tvtv.us gave nothing from GitHub's servers (192 channels); the retry pass covers most.
+
+**Channel facts** (facts.tsv, weekly, 117 KB): 24 channels hidden (closed, replaced, adult or blocklisted); the
+ranking's English/Thai preference uses the database's languages when it has them.
+
+**TV Guide regression found and fixed**: with real listings on most rows, browsing went to 53–73 % late frames,
+"slow UI thread" 20–29 per pass. A bigger row cache (36 rows, reused bitmaps) didn't help (59–73 %). simpleperf on the
+main thread: ~20 % in `GuideGridView.trim` (scanning every pixel of the info panel's 240 px logo on every key press)
+plus the pixel conversions it triggers. Trimmed logos are now cached by address and size, and the trim scans in from
+the edges. Slow UI-thread frames 20–29 → **0**; ▲ ▼ browsing after the first pass **11–17 %, p90 16–17 ms** (first
+pass, drawing rows and fetching logos: 60 %). The full `guidebench.sh` (with ◀ ▶, which moves the time window and
+redraws every row): 50 %, p90 32–40 ms.
+
+**Favourite teams**: ESPN team lists (cached a week); ids follow a team across competitions (Arsenal 359 in the
+Premier League and Champions League). Tested with Liverpool: Liverpool v Brighton first in Sports now (★) and on the
+Home card; then cleared. **Score alerts**: all leagues / favourite teams only / off.
+
+**Continue watching (Watch Next)**: not possible: `ACCESS_ALL_EPG_DATA` is signature|privileged, and on this box
+Netflix and YouTube publish nothing to Watch Next (both queries empty, even as root). Replaced by a **Resume** badge on
+the last channel watched. **Cast from phone**: header button opens the box's Miracast receiver ("TV98 waiting for
+connection"). **Sleep timer**: ▶ while watching steps 30/60/90/120 min/off; tested end to end with
+`log.tag.GlowSleepTest` (seconds instead of minutes): TV stopped and Glow's screensaver started.
+
+| Whole app | Result |
+|---|---|
+| Home scrolling (`scrollbench.sh`) | 1.13 % late, p99 15–18 ms |
+| Glow on Home, settled | 93 MB (listings for ~840 more channels in memory) |

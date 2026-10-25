@@ -363,7 +363,13 @@ final class Guide {
         final java.util.concurrent.atomic.AtomicInteger failed = new java.util.concurrent.atomic.AtomicInteger();
         final java.util.concurrent.atomic.AtomicLong bytes = new java.util.concurrent.atomic.AtomicLong();
         java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(4);
+        int covered = 0;
         for (final Map.Entry<String, List<String>> e : map.entrySet()) {
+            // Channels the nightly listings already cover (exact ids) don't need epg.pw's copy too.
+            if (!glowKeys.isEmpty() && glowKeys.containsAll(e.getValue())) {
+                covered++;
+                continue;
+            }
             pool.execute(() -> {
                 try {
                     byte[] body = Net.bytes("https://epg.pw/api/epg.json?channel_id=" + e.getKey(), 512 * 1024);
@@ -392,9 +398,13 @@ final class Guide {
             pool.awaitTermination(5, java.util.concurrent.TimeUnit.MINUTES);
         } catch (InterruptedException ignored) {
         }
-        Log.i("GlowPerf", "guide epg.pw per channel: " + map.size() + " channels, " + failed.get() + " failed, "
-                + (bytes.get() / 1024) + " KB in " + (SystemClock.elapsedRealtime() - t0) + " ms");
-        if (fresh.isEmpty() || failed.get() * 3 > map.size()) return false;
+        Log.i("GlowPerf", "guide epg.pw per channel: " + map.size() + " channels (" + covered + " skipped, nightly listings have them), "
+                + failed.get() + " failed, " + (bytes.get() / 1024) + " KB in " + (SystemClock.elapsedRealtime() - t0) + " ms");
+        if (covered == map.size()) {
+            index(c).setLastModified(System.currentTimeMillis()); // all covered: nothing to fetch today
+            return true;
+        }
+        if (fresh.isEmpty() || failed.get() * 3 > map.size() - covered) return false;
         applyEpgPw(c, new HashMap<>(fresh));
         return true;
     }

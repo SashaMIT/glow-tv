@@ -605,7 +605,7 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
             Net.bitmap(this, want, Ui.dp(240), bm -> {
                 if (!want.equals(infoLogoUrl)) return;
                 if (bm == null) infoLogo.setImageDrawable(new SourceArt(Ui.initials(st.name), Ui.ACCENT, Ui.dp(10)));
-                else infoLogo.setImageBitmap(GuideGridView.trim(bm));
+                else infoLogo.setImageBitmap(GuideGridView.trimmed(want, bm));
             });
         }
     }
@@ -747,7 +747,7 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
             Net.bitmap(this, want, Ui.dp(240), bm -> {
                 if (!want.equals(infoLogoUrl)) return;
                 if (bm == null) infoLogo.setVisibility(View.INVISIBLE);
-                else infoLogo.setImageBitmap(GuideGridView.trim(bm));
+                else infoLogo.setImageBitmap(GuideGridView.trimmed(want, bm));
             });
         }
         CharSequence now = DateFormat.format(Ui.is24h(this) ? "HH:mm" : "h:mm a", System.currentTimeMillis());
