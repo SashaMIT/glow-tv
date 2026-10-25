@@ -165,7 +165,28 @@ final class Remote {
                 int colon = lines[i].indexOf(':');
                 if (colon > 0) headers.put(lines[i].substring(0, colon).trim().toLowerCase(Locale.ROOT), lines[i].substring(colon + 1).trim());
             }
-            int length = headers.containsKey("content-length") ? Math.min(Integer.parseInt(headers.get("content-length")), 16384) : 0;
+            int fullLength = headers.containsKey("content-length") ? Integer.parseInt(headers.get("content-length")) : 0;
+            String earlyPath = target.contains("?") ? target.substring(0, target.indexOf('?')) : target;
+            boolean paired = headers.get("x-glow-token") != null && tokens.contains(headers.get("x-glow-token"));
+            // Photos for the screensaver: streamed straight to a file (they're far bigger than a command).
+            if (method.equals("POST") && earlyPath.equals("/api/photo")) {
+                OutputStream o = c.getOutputStream();
+                if (!paired) {
+                    send(o, 401, "application/json", "{\"error\":\"pair first\"}".getBytes(StandardCharsets.UTF_8));
+                } else if (fullLength <= 0 || fullLength > Photos.MAX_UPLOAD) {
+                    send(o, 200, "application/json", "{\"ok\":false,\"error\":\"Photos up to 20 MB\"}".getBytes(StandardCharsets.UTF_8));
+                } else {
+                    c.setSoTimeout(60_000);
+                    boolean ok = Photos.save(app, in, fullLength);
+                    lastUse = System.currentTimeMillis();
+                    send(o, 200, "application/json", new JSONObject().put("ok", ok).put("count", Photos.all(app).length)
+                            .put("error", ok ? "" : "That doesn't look like a photo").toString().getBytes(StandardCharsets.UTF_8));
+                }
+                return;
+            }
+            // A settings backup being restored can be a few hundred KB; commands stay under 16 KB.
+            int cap = method.equals("POST") && earlyPath.equals("/api/restore") ? 1024 * 1024 : 16384;
+            int length = Math.min(fullLength, cap);
             byte[] raw = new byte[length];
             int off = 0, n;
             while (off < length && (n = in.read(raw, off, length - off)) > 0) off += n;
@@ -198,6 +219,9 @@ final class Remote {
                 case "/api/key": result = key(in2.optString("key")); break;
                 case "/api/type": result = type(in2.optString("text"), in2.optBoolean("submit")); break;
                 case "/api/fav": result = fav(in2.optString("key")); break;
+                case "/api/backup": result = Backup.export(app); break;
+                case "/api/restore": result = new JSONObject().put("ok", true).put("restored", Backup.restore(app, in2)); break;
+                case "/api/photos": result = new JSONObject().put("count", Photos.all(app).length); break;
                 default:
                     send(out, 404, "application/json", "{\"error\":\"not found\"}".getBytes(StandardCharsets.UTF_8));
                     return;

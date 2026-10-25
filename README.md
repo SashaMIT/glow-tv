@@ -6,9 +6,9 @@ with channel numbers, a player that keeps trying until a channel plays, a phone 
 
 It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. The whole app is 1.2 MB.
 
-![The TV guide: numbered menu, Sports ranked with action and fight sports first, then FUEL TV playing](docs/glow-guide.gif)
+![Glow in 20 seconds: Home with Intelligence, the live world map and rain, live sport, cams, rain radar, the TV guide with listings, Now & Next, subtitles and a score banner](docs/glow-tour.gif)
 
-**[Watch the 28-second tour (MP4)](docs/glow-promo.mp4)** · [All screenshots](docs/screenshots) · [Measured results](docs/BENCHMARKS.md)
+**[Watch the 28-second video (MP4)](docs/glow-promo.mp4)** · [The TV guide in motion (GIF)](docs/glow-guide.gif) · [All screenshots](docs/screenshots) · [Measured results](docs/BENCHMARKS.md) · [Roadmap](ROADMAP.md)
 
 ## What it does
 
@@ -57,6 +57,10 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
 - **My IPTV**: sign in with your own Xtream-style provider details to browse and play their channels.
 - **Screensaver**: after 15 minutes idle, a big clock, weather, world stories with their pictures and what's on your
   favourites, drifting slowly so nothing burns in.
+- **Extra apps** (Settings): SmartTube, Jellyfin, Kodi and NewPipe from their developers' official releases,
+  installed only when you pick one (Android confirms each install).
+- **Photos and settings backup** (phone remote ▸ More): send photos from your phone to the screensaver; download
+  your Glow settings to the phone and restore them later (never your IPTV sign-in).
 - **Settings**: developer access (ADB) off and on, offline channels, phone remote, screensaver, weather city,
   12/24-hour clock, Thai channels first, and which apps appear on Home and in what order.
 
@@ -99,6 +103,10 @@ The first build downloads the player libraries (Media3 ExoPlayer 1.11.1 and its 
 key (`glow.keystore`, kept out of git; set `GLOW_KS_PASS` to choose its password). The APK lands in `build/glow.apk`.
 
 ## Install on a box
+
+**Keep it updated:** Glow checks GitHub Releases weekly and offers updates in Settings. With
+[Obtainium](https://github.com/ImranR98/Obtainium) on the box you can also add `https://github.com/SashaMIT/glow-tv`
+and it will track releases for you (once signed releases are published).
 
 1. On the box, turn on developer options and USB/network debugging. Many cheap boxes expose ADB on port 5555 or
    8888 once it's on.

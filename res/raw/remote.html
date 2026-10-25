@@ -109,6 +109,21 @@
     <section id="tab-favs" hidden>
       <div class="card"><ul class="list" id="favs"><li class="empty">Loading…</li></ul></div>
     </section>
+    <section id="tab-more" hidden>
+      <div class="card">
+        <h3>Photos on the TV</h3>
+        <p class="sub">Send photos from this phone; the TV's screensaver shows them between the news pictures. The newest 30 are kept.</p>
+        <input type="file" id="photoPick" accept="image/*" multiple hidden>
+        <div class="row"><button class="primary" id="photoBtn">Send photos</button></div>
+        <div class="sub" id="photoState"></div>
+      </div>
+      <div class="card">
+        <h3>Settings backup</h3>
+        <p class="sub">Apps on Home, favourites, sports, languages, screensaver and reminders. Not your IPTV sign-in.</p>
+        <div class="row"><button id="backupBtn">Download backup</button><button id="restoreBtn">Restore from a file</button></div>
+        <input type="file" id="restorePick" accept="application/json,.json" hidden>
+      </div>
+    </section>
   </div>
 </main>
 
@@ -116,6 +131,7 @@
   <button data-tab="remote" class="on">Remote</button>
   <button data-tab="search">Search</button>
   <button data-tab="favs">Favourites</button>
+  <button data-tab="more">More</button>
 </nav>
 <div class="toast" id="toast"></div>
 
@@ -221,12 +237,48 @@ $('q').addEventListener('input', () => {
 
 document.querySelectorAll('nav button').forEach(b => b.onclick = async () => {
   document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
-  ['remote', 'search', 'favs'].forEach(t => $('tab-' + t).hidden = t !== b.dataset.tab);
+  ['remote', 'search', 'favs', 'more'].forEach(t => $('tab-' + t).hidden = t !== b.dataset.tab);
   if (b.dataset.tab === 'search') $('q').focus();
   if (b.dataset.tab === 'favs') renderList($('favs'), await api('/api/favs').catch(() => []), 'No favourites yet — tap ★ on a channel in Search, or hold OK on one on the TV.');
 });
 
 if (token) showApp(); else showPair();
+
+// ---- More: photos and settings backup ----
+$('photoBtn').onclick = () => $('photoPick').click();
+$('photoPick').onchange = async () => {
+  const files = [...$('photoPick').files];
+  let sent = 0;
+  for (const f of files) {
+    $('photoState').textContent = `Sending ${sent + 1} of ${files.length}…`;
+    try {
+      const res = await fetch('/api/photo', { method: 'POST', headers: { 'X-Glow-Token': token || '', 'Content-Type': 'application/octet-stream' }, body: f });
+      const r = await res.json();
+      if (r.ok) sent++; else toast(r.error || 'Not sent');
+    } catch (e) { toast('Not sent: ' + e.message); }
+  }
+  $('photoState').textContent = sent ? `Sent ${sent} photo${sent > 1 ? 's' : ''}. They'll show on the screensaver.` : '';
+  $('photoPick').value = '';
+};
+$('backupBtn').onclick = async () => {
+  try {
+    const data = await api('/api/backup');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }));
+    a.download = 'glow-settings-' + new Date().toISOString().slice(0, 10) + '.json';
+    a.click();
+    toast('Backup saved to this phone');
+  } catch (e) { toast('Backup failed'); }
+};
+$('restoreBtn').onclick = () => $('restorePick').click();
+$('restorePick').onchange = async () => {
+  const f = $('restorePick').files[0]; if (!f) return;
+  try {
+    const r = await api('/api/restore', JSON.parse(await f.text()));
+    toast(r.ok ? `Restored ${r.restored} settings` : (r.error || 'Not restored'));
+  } catch (e) { toast('That isn\'t a Glow backup'); }
+  $('restorePick').value = '';
+};
 </script>
 </body>
 </html>

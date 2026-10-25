@@ -96,9 +96,18 @@ final class Updates {
         Context c = ctx.getApplicationContext();
         String url = prefs(c).getString("url", null);
         if (url == null) return;
-        File apk = new File(c.getCacheDir(), "glow-update.apk");
+        installApk(c, url, "the update", c.getPackageName(), progress);
+    }
+
+    /**
+     * Downloads an APK and hands it to Android's installer, which shows its own confirmation. Used for Glow's updates
+     * and for Extra apps (Settings). {@code expectPackage} (or null) makes Android refuse a file for another app.
+     */
+    static void installApk(Context ctx, String url, String what, String expectPackage, Progress progress) {
+        Context c = ctx.getApplicationContext();
+        File apk = new File(c.getCacheDir(), "install.apk");
         try {
-            progress.say("Downloading the update…");
+            progress.say("Downloading " + what + "…");
             HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
             conn.setInstanceFollowRedirects(true);
             conn.setConnectTimeout(10_000);
@@ -109,7 +118,8 @@ final class Updates {
                 for (int n; (n = in.read(buf)) > 0; ) {
                     out.write(buf, 0, n);
                     total += n;
-                    if (total > 40L * 1024 * 1024) throw new java.io.IOException("unexpectedly large download");
+                    if (total > 150L * 1024 * 1024) throw new java.io.IOException("unexpectedly large download");
+                    if ((total & 0xFFFFF) < buf.length) progress.say("Downloading " + what + "…  " + (total >> 20) + " MB");
                 }
             } finally {
                 conn.disconnect();
@@ -117,7 +127,7 @@ final class Updates {
             progress.say("Opening the installer…");
             PackageInstaller pi = c.getPackageManager().getPackageInstaller();
             PackageInstaller.SessionParams params = new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);
-            params.setAppPackageName(c.getPackageName());
+            if (expectPackage != null) params.setAppPackageName(expectPackage);
             int id = pi.createSession(params);
             try (PackageInstaller.Session s = pi.openSession(id)) {
                 try (InputStream in = new FileInputStream(apk); OutputStream out = s.openWrite("glow.apk", 0, apk.length())) {
@@ -130,7 +140,9 @@ final class Updates {
                 s.commit(pending.getIntentSender());
             }
         } catch (Exception e) {
-            progress.say("Update failed: " + e.getMessage());
+            progress.say("Couldn't install " + what + ": " + e.getMessage());
+        } finally {
+            apk.delete(); // the installer has its own copy by now
         }
     }
 
@@ -143,7 +155,7 @@ final class Updates {
                 Intent confirm = i.getParcelableExtra(Intent.EXTRA_INTENT);
                 if (confirm != null) c.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             } else if (status != PackageInstaller.STATUS_SUCCESS) {
-                android.widget.Toast.makeText(c, "Update not installed: " + i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE),
+                android.widget.Toast.makeText(c, "Not installed: " + i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE),
                         android.widget.Toast.LENGTH_LONG).show();
             }
         }

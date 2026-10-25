@@ -190,6 +190,9 @@ public class SettingsActivity extends Activity {
                     focusRow("Score alerts");
                 });
 
+        row("Extra apps", "SmartTube, Jellyfin, Kodi, NewPipe: open-source apps from their official releases, installed only if you pick one.",
+                null, v -> startActivity(new Intent(this, ExtraAppsActivity.class)));
+
         row("Apps on Home", "Hide apps you don't use and choose their order on the shelf.", null,
                 v -> startActivity(new Intent(this, AppsActivity.class)));
 

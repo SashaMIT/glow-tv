@@ -27,12 +27,12 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 | TV Guide | ~~Now & Next~~ ✅; ~~Live sport now~~ ✅; smoother first pass (logos off the main thread ✅; rows still drawn on demand) | done / partly |
 | Memory | ~~Listings' descriptions on disk, rows updated in place~~ ✅ (Home 118 → 81–100 MB); under 80 MB every time needs fewer layered cards / smaller banners | later |
 | TV Guide | Radio favourites + album art; F1 live timing (OpenF1); Trending (TMDB, free key) | later |
-| Home & box | Photos to the screensaver from the phone; settings backup | next |
+| Home & box | ~~Photos to the screensaver from the phone~~ ✅; ~~settings backup~~ ✅ | done |
 | Home & box | Remote remapping + quick settings; notifications over TV; Thai menus; parental PIN / Kids mode; data usage + Wi-Fi; faster cold start | later |
 | Intelligence | Markets ticker (CoinGecko), overview page, tennis/golf, map zoom | later |
 | Smart home | Home Assistant card, doorbell pop-ups, AirPlay (test first) | later |
 | Privacy (owner's call) | Private DNS ad/tracker blocking; vendor-app audit | needs OK |
-| Sharing | Signed releases (key decision); Extra apps installer; Obtainium + awesome-list; promo video on the repo page | next |
+| Sharing | ~~Extra apps installer~~ ✅; ~~tour on the repo page~~ ✅ (GIF); Obtainium note ✅; signed releases (key decision) and awesome-list PR (owner's OK) | needs OK |
 | Sharing | Contributors' guide, translations | later |
 
 ### Ruled out

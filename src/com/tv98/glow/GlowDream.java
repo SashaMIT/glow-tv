@@ -140,7 +140,27 @@ public class GlowDream extends DreamService {
     }
 
     /** Next headline that has a picture (stories without one are skipped here; this screen is about the pictures). */
+    private int turn, photoIndex;
+
     private void showNextStory() {
+        // Photos sent from the phone take every other turn.
+        java.io.File[] photos = Photos.all(this);
+        if (photos.length > 0 && (turn++ % 2 == 1 || stories.isEmpty())) {
+            final java.io.File f = photos[photoIndex++ % photos.length];
+            Net.IO.execute(() -> {
+                android.graphics.Bitmap bm = Photos.decode(f, Ui.dp(470));
+                Net.MAIN.post(() -> {
+                    if (bm == null) return;
+                    storyImage.animate().alpha(0f).setDuration(400).withEndAction(() -> {
+                        storyImage.setImageBitmap(bm);
+                        storyTitle.setText("Your photos");
+                        storyMeta.setText("From your phone   ·   " + android.text.format.DateFormat.format("d MMM", f.lastModified()));
+                        storyImage.animate().alpha(1f).setDuration(600).start();
+                    }).start();
+                });
+            });
+            return;
+        }
         if (stories.isEmpty()) return;
         for (int tries = 0; tries < stories.size(); tries++) {
             storyIndex = (storyIndex + 1) % stories.size();

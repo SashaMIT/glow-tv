@@ -499,3 +499,24 @@ late). Next options: fewer cards with layers (e.g. hide system utilities from th
 **Guide ◀ ▶ (time window moves)**: at most one new row picture per frame; the other new rows are drawn directly until
 their turn. `guidebench.sh`: p90 by pass 36 / 31 / 24 → **26 / 21 / 23 ms**, p99 53 / 46 / 38 → **44 / 34 / 34 ms**;
 more (shorter) frames, so "late frames" stays ~50 %. Three pictures per frame was worse (p90 27–32 ms).
+
+## Share-ready: Extra apps, photos and backup from the phone, GIF tour — 25 Oct 2026 (late night)
+
+**Extra apps** (Settings): SmartTube (GitHub, armeabi-v7a), Jellyfin (GitHub release APK), Kodi (kodi.tv mirror,
+newest stable armeabi-v7a: 21.3 Omega), NewPipe (GitHub). The latest release is looked up when picked; the dialog shows
+version, size, source and licence; Glow downloads it and hands it to Android's installer (shared with Glow's own
+updates, `Updates.installApk`). Tested with NewPipe v0.29.1 up to Android's "Do you want to install this application?"
+screen, then cancelled: not installed. Kodi is detected as installed (19.3).
+
+**Phone remote ▸ More**: photos stream to the box (up to 20 MB each, shrunk to ≤1920 px JPEG, newest 30 kept) and show
+on the screensaver every other slide; settings backup/restore as JSON (apps, channels, display, dream, player, sports,
+reminders; never the IPTV sign-in). Tested from a computer on the LAN: unpaired upload → 401; photo saved; non-image
+rejected; backup of 90 settings with no credential keys; restore of the same file applied 90; the photo appeared on the
+screensaver ("Your photos · From your phone"); test photo deleted and the phone remote switched off afterwards.
+
+**Front page**: `docs/glow-tour.gif`, 10 frames of the newest screens, 720 px, 654 KB.
+
+| Home (3 cold starts) | Before this chunk | After |
+|---|---|---|
+| Time to first frame | 2.2–2.5 s | **1.05–1.09 s** (heavy start-up jobs one at a time; descriptions not decoded) |
+| Glow on Home, settled | 104–118 MB | **80–87 MB** |
