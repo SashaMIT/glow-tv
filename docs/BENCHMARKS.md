@@ -355,3 +355,36 @@ fetched at zoom 5 and drawn twice the size: 9 tiles per frame instead of ~20.
 **Whole app** after this batch: Home scrolling 1.07 % late frames (p99 15–19 ms); Glow on Home settled 80 MB;
 cold start 2.2–2.4 s. The first start after installing an update took 8–20 s on several installs (batch 1's build too)
 while later cold starts were 2.2–2.5 s: noted on the roadmap to investigate.
+
+## Intelligence batch 3: world rain, league picker, score banners — 25 Oct 2026 (night)
+
+**Slow first start after an update** (8–20 s seen four times last batch): tried five times this batch: right after an
+install, after a 60 s wait, and with YouTube open: **1.4–2.2 s every time**. Not reproducible; those slow starts
+coincided with Play services and the Play Store working after the update. Left open on the roadmap with this note.
+
+**Rain on the World map**: RainViewer's latest radar at web-map zoom 2 (16 tiles), redrawn row by row into the map's
+flat projection, under the pins; a new **Rain** filter (▲ ▼) shows it on its own.
+
+| Metric | Before | After |
+|---|---|---|
+| World rain, new radar frame | 4.4 s (one tile at a time) | **2.5 s** (four at a time, shared pool with the Rain radar page) |
+| Filter change (▼) on the map | ~50 ms a press, 40–44 % late frames (all 7 chips rebuilt; rain view re-baked) | **0–22 %, mostly 0, p99 12–13 ms** (chips made once and recoloured; both map variants baked) |
+| ◀ ▶ browsing, rain on vs off (same build, 3–4 passes of 25) | off: 3.6–10.7 % late | on: 3.6–20.7 % late: rain isn't the cost; the occasional slow frame is from before (batch 1's 0–3 % was a small sample) |
+| Map memory | — | +2 × 0.85 MB (RGB_565 baked map) + 1.7 MB rain picture |
+
+**Sports leagues** (Glow ▸ Settings ▸ Sports leagues, tick boxes): 19 competitions: UFC, PFL, F1, IndyCar, NASCAR,
+Premier League, Champions League, Europa League, La Liga, Serie A, Bundesliga, Ligue 1, MLS, NBA, WNBA, NFL, college
+football, NHL, MLB. On by default: UFC, PFL, F1, Premier League, Champions League, NBA, NFL. ESPN has no boxing or MotoGP
+scoreboards (HTTP 400). Tested on the box: ticking La Liga saved it and Sports now listed it; then reset to defaults.
+
+**Score banners over live TV** (Glow ▸ Settings ▸ Score alerts, on by default): a dark banner top-right for 8 s
+for a football goal (with the scorer and minute from ESPN's scoring plays), a kick-off, or a final result in the
+chosen leagues; NBA/NFL score changes are left out. Checked every minute while TV plays (scores refresh every 3 min
+when a league is live). `setprop log.tag.GlowAlertTest DEBUG` shows a sample banner (used for the screenshot, then
+switched back). First version used the glass style and was hard to read over bright studio pictures; now solid.
+
+| While playing Al Jazeera 2.5 min | Before (batch "zap") | After |
+|---|---|---|
+| Glow memory | ~98 MB | 108 MB |
+| CPU (single `top` sample) | Glow 32 %, decoder 16 % | Glow 40 %, decoder 17 % |
+| Temperature | 77 °C | 72.6 °C |

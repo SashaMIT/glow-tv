@@ -21,12 +21,18 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 - [x] **Cam health**: ended or removed streams found from their thumbnails every 6 h; next stream used, dead cams last
 - [x] **Rain radar** page: last two hours around the weather city (RainViewer), over Natural Earth 1:50m land and borders
 
-## Next: Intelligence, batch 3
+## Done: Intelligence, batch 3 (25 Oct 2026)
 
-- [ ] **Rain on the World map**: RainViewer at zoom 2 reprojected onto the map as a layer (16 tiles, ~150 KB)
-- [ ] **First start after an update is slow** (8–20 s once, then 2.2–2.5 s): find out where the time goes
-- [ ] **More sports**: La Liga, Serie A, Bundesliga, boxing, MotoGP, cricket if ESPN has them; pick leagues in Settings
-- [ ] **Goal and finish alerts**: a small banner over live TV when a favourite team scores or a fight ends
+- [x] **Rain on the World map** (under the pins, and a Rain filter), RainViewer zoom 2 reprojected
+- [x] **Sports leagues** picker in Settings: 19 competitions (no boxing/MotoGP on ESPN)
+- [x] **Score banners** over live TV: goals with scorer, kick-offs, final results; switch in Settings
+- [ ] **First start after an update is slow** (8–20 s seen four times): not reproducible in five tries (1.4–2.2 s);
+      likely Android's own work after an update. Re-check if it comes back.
+
+## Next
+
+- [ ] **Favourite teams**: pick teams; their games first in Sports now, banners only for them if wanted
+- [ ] **Tennis and golf**: leaderboards and live matches (ESPN tournaments)
 - [ ] **Markets ticker**: indices, oil, gold, BTC, FX from free endpoints, on the Intelligence row
 - [ ] **Overview screen**: one page combining the counts, the top three events, weather and two markets
 - [ ] **Map detail**: zoom to a region (◀ ▶ while holding OK), country outlines, quake depth rings

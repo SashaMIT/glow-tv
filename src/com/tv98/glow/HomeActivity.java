@@ -588,7 +588,7 @@ public class HomeActivity extends Activity {
         map.setOnClickListener(v -> openIntel(IntelActivity.MAP));
         intel.addView(map);
 
-        final Tile sportsTile = actionTile("●", "Sports now", "UFC, F1, football, NBA, NFL");
+        final Tile sportsTile = actionTile("●", "Sports now", Sports.chosenNames(this));
         sportsTile.setOnClickListener(v -> openIntel(IntelActivity.SPORTS));
         intel.addView(sportsTile);
         final Tile weatherTile = actionTile("☀", "Weather", Weather.cityName(this));

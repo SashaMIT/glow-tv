@@ -131,6 +131,30 @@ public class SettingsActivity extends Activity {
                     focusRow("Thai channels");
                 });
 
+        row("Sports leagues", Sports.chosenNames(this) + ". Press OK to choose which appear in Sports now.", null, v -> {
+            final boolean[] on = Sports.chosen(this);
+            String[] names = new String[Sports.LEAGUES.length];
+            for (int i = 0; i < names.length; i++) names[i] = Sports.LEAGUES[i][1];
+            new android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                    .setTitle("Sports leagues")
+                    .setMultiChoiceItems(names, on, (d, which, checked) -> on[which] = checked)
+                    .setPositiveButton("Done", (d, w) -> {
+                        Sports.choose(this, on);
+                        build();
+                        focusRow("Sports leagues");
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+        });
+
+        final boolean alerts = ScoreAlerts.enabled(this);
+        row(alerts ? "Score alerts: on" : "Score alerts: off",
+                "A small banner over live TV for goals, kick-offs and final results in your sports leagues.", alerts, v -> {
+                    ScoreAlerts.setEnabled(this, !alerts);
+                    build();
+                    focusRow("Score alerts");
+                });
+
         row("Apps on Home", "Hide apps you don't use and choose their order on the shelf.", null,
                 v -> startActivity(new Intent(this, AppsActivity.class)));
 

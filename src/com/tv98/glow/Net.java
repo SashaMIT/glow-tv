@@ -196,6 +196,15 @@ final class Net {
         }
     }
 
+    /** Bytes through the storage cache (network the first time), or null. */
+    static byte[] cachedBytes(android.content.Context c, String url) {
+        try {
+            return logoBytes(c, url);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     /** A picture through the storage cache only (not kept in memory here): for big one-off images like radar tiles. */
     static Bitmap fileBitmap(android.content.Context c, String url) {
         try {

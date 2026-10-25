@@ -18,15 +18,56 @@ import java.util.TimeZone;
  * gzipped for all six leagues). Fight and motorsport first, as on the TV Guide's Sports list.
  */
 final class Sports {
-    /** {ESPN path, short name, badge colour}. Order = priority when several are live. */
+    /**
+     * {ESPN path, short name, badge colour, on by default}. Order = priority: fights, motorsport, football, US sports.
+     * Chosen in Glow ▸ Settings ▸ Sports leagues. (ESPN has no boxing or MotoGP scoreboards; tennis and golf are
+     * whole tournaments rather than games.)
+     */
     static final String[][] LEAGUES = {
-            {"mma/ufc", "UFC", "D20A0A"},
-            {"racing/f1", "F1", "E10600"},
-            {"soccer/eng.1", "Premier League", "3D195B"},
-            {"soccer/uefa.champions", "Champions League", "0E1E5B"},
-            {"basketball/nba", "NBA", "1D428A"},
-            {"football/nfl", "NFL", "013369"},
+            {"mma/ufc", "UFC", "D20A0A", "1"},
+            {"mma/pfl", "PFL", "B8860B", "1"},
+            {"racing/f1", "F1", "E10600", "1"},
+            {"racing/irl", "IndyCar", "1E4D9B", ""},
+            {"racing/nascar-premier", "NASCAR", "E4002B", ""},
+            {"soccer/eng.1", "Premier League", "3D195B", "1"},
+            {"soccer/uefa.champions", "Champions League", "0E1E5B", "1"},
+            {"soccer/uefa.europa", "Europa League", "F68E00", ""},
+            {"soccer/esp.1", "La Liga", "EE2523", ""},
+            {"soccer/ita.1", "Serie A", "024494", ""},
+            {"soccer/ger.1", "Bundesliga", "D20515", ""},
+            {"soccer/fra.1", "Ligue 1", "091C3E", ""},
+            {"soccer/usa.1", "MLS", "001F5B", ""},
+            {"basketball/nba", "NBA", "1D428A", "1"},
+            {"basketball/wnba", "WNBA", "F26722", ""},
+            {"football/nfl", "NFL", "013369", "1"},
+            {"football/college-football", "College football", "4B2E83", ""},
+            {"hockey/nhl", "NHL", "111111", ""},
+            {"baseball/mlb", "MLB", "041E42", ""},
     };
+
+    /** Which leagues are on (by default the fights, F1, the Premier and Champions Leagues, NBA and NFL). */
+    static boolean[] chosen(Context c) {
+        String saved = c.getSharedPreferences("sports", Context.MODE_PRIVATE).getString("leagues", null);
+        boolean[] on = new boolean[LEAGUES.length];
+        for (int i = 0; i < LEAGUES.length; i++) {
+            on[i] = saved == null ? LEAGUES[i][3].equals("1") : ("," + saved + ",").contains("," + LEAGUES[i][0] + ",");
+        }
+        return on;
+    }
+
+    static void choose(Context c, boolean[] on) {
+        StringBuilder s = new StringBuilder();
+        for (int i = 0; i < LEAGUES.length; i++) if (on[i]) s.append(s.length() > 0 ? "," : "").append(LEAGUES[i][0]);
+        c.getSharedPreferences("sports", Context.MODE_PRIVATE).edit().putString("leagues", s.toString()).apply();
+    }
+
+    /** "UFC, PFL, F1, Premier League…" for headings. */
+    static String chosenNames(Context c) {
+        boolean[] on = chosen(c);
+        List<String> n = new ArrayList<>();
+        for (int i = 0; i < LEAGUES.length; i++) if (on[i]) n.add(LEAGUES[i][1]);
+        return n.isEmpty() ? "no leagues chosen" : android.text.TextUtils.join(", ", n);
+    }
     static final int PRE = 0, LIVE = 1, DONE = 2;
 
     static final class Game {
@@ -36,6 +77,7 @@ final class Sports {
         // Team games: two sides with scores and logos (empty for UFC cards and F1 weekends).
         String home = "", away = "", homeScore = "", awayScore = "", homeLogo = "", awayLogo = "";
         boolean homeWon, awayWon;
+        String scorer = ""; // football: the latest goal, e.g. "J. Zirkzee 90'+1'"
 
         boolean teams() {
             return !home.isEmpty();
@@ -51,7 +93,12 @@ final class Sports {
         long now = System.currentTimeMillis();
         // The six scoreboards in parallel (one after another took 3.7 s on the box).
         List<java.util.concurrent.Future<String>> feeds = new ArrayList<>();
+        boolean[] on = chosen(c);
         for (int i = 0; i < LEAGUES.length; i++) {
+            if (!on[i]) {
+                feeds.add(null);
+                continue;
+            }
             final int league = i;
             // Scores move: refresh every 3 min, but a league with nothing on today only every 30 min.
             final long fresh = liveHint[i] ? 3 * 60_000L : 30 * 60_000L;
@@ -59,6 +106,7 @@ final class Sports {
                     "https://site.api.espn.com/apis/site/v2/sports/" + LEAGUES[league][0] + "/scoreboard", fresh)));
         }
         for (int i = 0; i < LEAGUES.length; i++) {
+            if (feeds.get(i) == null) continue;
             String s;
             try {
                 s = feeds.get(i).get();
@@ -112,7 +160,11 @@ final class Sports {
     // Starts true so the first look after Glow starts is never older than that.
     private static final java.util.concurrent.ExecutorService FETCH = java.util.concurrent.Executors.newFixedThreadPool(3);
 
-    private static final boolean[] liveHint = {true, true, true, true, true, true};
+    private static final boolean[] liveHint = new boolean[LEAGUES.length];
+
+    static {
+        java.util.Arrays.fill(liveHint, true);
+    }
 
     private static boolean startsSoon(List<Game> games, long now) {
         for (Game g : games) if (g.state == PRE && g.start - now < 30 * 60_000L) return true;
@@ -167,6 +219,15 @@ final class Sports {
         JSONObject venue = comp.optJSONObject("venue");
         g.line2 = venue == null ? "" : venue.optString("fullName");
         g.tv = broadcasters(comp);
+        JSONArray details = comp.optJSONArray("details");
+        for (int d = 0; details != null && d < details.length(); d++) {
+            JSONObject x = details.optJSONObject(d);
+            if (x == null || !x.optBoolean("scoringPlay")) continue;
+            JSONArray who = x.optJSONArray("athletesInvolved");
+            String name = who != null && who.length() > 0 && who.optJSONObject(0) != null ? who.optJSONObject(0).optString("displayName") : "";
+            JSONObject clock = x.optJSONObject("clock");
+            g.scorer = (name + " " + (clock == null ? "" : clock.optString("displayValue"))).trim();
+        }
         return g;
     }
 

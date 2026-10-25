@@ -33,6 +33,13 @@ class WorldMapView extends View {
     private Intel.Event selected;
     private double[] iss;
     private boolean compact;
+    private Bitmap rain;
+    // Land + night + rain in one opaque picture, so a frame is one bitmap and the pins. Two of them (rain under the
+    // pins, rain on its own) so switching to the rain view is instant.
+    private final Bitmap[] baked = new Bitmap[2];
+    private boolean bakedStale = true;
+    private boolean rainOnly;
+    private final Paint rainPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
 
     WorldMapView(Context c) {
         super(c);
@@ -64,6 +71,19 @@ class WorldMapView extends View {
 
     void setSelected(Intel.Event e) {
         selected = e;
+        invalidate();
+    }
+
+    /** Today's rain (from Rain.world, same size and projection as the map); drawn under the pins. */
+    void setRain(Bitmap b) {
+        rain = b;
+        bakedStale = true;
+        invalidate();
+    }
+
+    /** Only the rain, strong; pins hidden by the caller. */
+    void setRainOnly(boolean on) {
+        rainOnly = on;
         invalidate();
     }
 
@@ -105,6 +125,7 @@ class WorldMapView extends View {
     @Override
     protected void onSizeChanged(int w, int h, int ow, int oh) {
         base = null;
+        baked[0] = baked[1] = null;
         nightAt = 0;
     }
 
@@ -156,6 +177,22 @@ class WorldMapView extends View {
         nightPath.close();
     }
 
+    /** Rebuilt when the rain arrives, the rain view toggles or the night line moves (once a minute). */
+    private void bake() {
+        for (int k = 0; k < (rain != null ? 2 : 1); k++) {
+            if (baked[k] == null) baked[k] = Bitmap.createBitmap(getWidth(), getHeight(), Bitmap.Config.RGB_565);
+            Canvas b = new Canvas(baked[k]);
+            b.drawColor(0xFF0B1226);
+            b.drawBitmap(base, 0, 0, null);
+            b.drawPath(nightPath, night);
+            if (rain != null && rain.getWidth() == getWidth()) {
+                rainPaint.setAlpha(k == 1 ? 255 : 150); // under the pins it's context, not the story
+                b.drawBitmap(rain, 0, 0, rainPaint);
+            }
+        }
+        bakedStale = false;
+    }
+
     static int colour(Intel.Event e) {
         switch (e.kind) {
             case Intel.QUAKE: return 0xFFFFA14A;
@@ -182,9 +219,17 @@ class WorldMapView extends View {
     protected void onDraw(Canvas c) {
         if (base == null) drawBase();
         if (base == null) return;
-        c.drawBitmap(base, 0, 0, null);
-        if (System.currentTimeMillis() - nightAt > 60_000) buildNight();
-        c.drawPath(nightPath, night);
+        if (System.currentTimeMillis() - nightAt > 60_000) {
+            buildNight();
+            bakedStale = true;
+        }
+        if (compact) { // Home's one-off snapshot: no need to keep a baked copy
+            c.drawBitmap(base, 0, 0, null);
+            c.drawPath(nightPath, night);
+        } else {
+            if (baked[0] == null || bakedStale) bake();
+            c.drawBitmap(baked[rainOnly && rain != null ? 1 : 0], 0, 0, null);
+        }
 
         for (Intel.Event e : events) {
             if (e == selected) continue;

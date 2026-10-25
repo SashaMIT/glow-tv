@@ -161,12 +161,87 @@ public class PlayerActivity extends Activity {
         olp.setMargins(Ui.dp(40), 0, 0, Ui.dp(36));
         root.addView(osd, olp);
 
+        scoreBanner = new LinearLayout(this);
+        scoreBanner.setGravity(Gravity.CENTER_VERTICAL);
+        scoreBanner.setPadding(Ui.dp(12), Ui.dp(10), Ui.dp(18), Ui.dp(10));
+        // Solid and dark: it sits on top of bright studio pictures, where glass was hard to read.
+        android.graphics.drawable.GradientDrawable sbg = new android.graphics.drawable.GradientDrawable();
+        sbg.setCornerRadius(Ui.dp(14));
+        sbg.setColor(0xEB0B0E1C);
+        sbg.setStroke(Math.max(1, Ui.dp(1)), 0x33FFFFFF);
+        scoreBanner.setBackground(sbg);
+        scoreBanner.setAlpha(0f);
+        FrameLayout.LayoutParams slp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.END);
+        slp.setMargins(0, Ui.dp(28), Ui.dp(32), 0);
+        root.addView(scoreBanner, slp);
+
         setContentView(root);
+    }
+
+    // ---- score banners (ScoreAlerts) ----
+
+    private LinearLayout scoreBanner;
+    private final java.util.ArrayDeque<ScoreAlerts.Alert> alertQueue = new java.util.ArrayDeque<>();
+    private boolean alertShowing;
+
+    /** While TV is on: look for goals and results every minute (the scores themselves refresh every 3 min when live). */
+    private final Runnable alertTick = new Runnable() {
+        @Override
+        public void run() {
+            if (ScoreAlerts.enabled(PlayerActivity.this)) {
+                Net.IO.execute(() -> {
+                    List<ScoreAlerts.Alert> found = ScoreAlerts.check(PlayerActivity.this);
+                    Net.MAIN.post(() -> {
+                        if (isFinishing()) return;
+                        alertQueue.addAll(found);
+                        nextAlert();
+                    });
+                });
+            }
+            root.postDelayed(this, 60_000);
+        }
+    };
+
+    private void nextAlert() {
+        if (alertShowing || alertQueue.isEmpty()) return;
+        ScoreAlerts.Alert a = alertQueue.poll();
+        alertShowing = true;
+        scoreBanner.removeAllViews();
+        TextView badge = Ui.text(this, 11, 0xFFFFFFFF, 600);
+        badge.setText(Sports.LEAGUES[a.league][1].toUpperCase(java.util.Locale.ROOT));
+        badge.setPadding(Ui.dp(8), Ui.dp(4), Ui.dp(8), Ui.dp(4));
+        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+        bg.setCornerRadius(Ui.dp(6));
+        bg.setColor(0xFF000000 | Integer.parseInt(Sports.LEAGUES[a.league][2], 16));
+        badge.setBackground(bg);
+        scoreBanner.addView(badge);
+        LinearLayout words = new LinearLayout(this);
+        words.setOrientation(LinearLayout.VERTICAL);
+        words.setPadding(Ui.dp(12), 0, 0, 0);
+        TextView h = Ui.text(this, 13, a.headline.equals("GOAL") ? 0xFF6BE3A0 : Ui.ACCENT, 600);
+        h.setText(a.headline);
+        h.setLetterSpacing(0.12f);
+        TextView l = Ui.text(this, 16, Ui.TEXT, 600);
+        l.setText(a.line);
+        l.setSingleLine();
+        l.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        l.setMaxWidth(Ui.dp(560));
+        words.addView(h);
+        words.addView(l);
+        scoreBanner.addView(words);
+        scoreBanner.setTranslationY(-Ui.dp(12));
+        scoreBanner.animate().alpha(1f).translationY(0).setDuration(250).start();
+        scoreBanner.postDelayed(() -> scoreBanner.animate().alpha(0f).setDuration(400).withEndAction(() -> {
+            alertShowing = false;
+            nextAlert();
+        }).start(), 8000);
     }
 
     @Override
     protected void onStart() {
         super.onStart();
+        root.removeCallbacks(alertTick);
+        root.postDelayed(alertTick, 5000);
         if (Xtream.playlist.isEmpty()) return;
         createExo();
         play(index, false);
@@ -175,6 +250,7 @@ public class PlayerActivity extends Activity {
     @Override
     protected void onStop() {
         super.onStop();
+        root.removeCallbacks(alertTick);
         nowPlaying = null;
         nowChannel = null;
         generation++;

@@ -3,6 +3,7 @@ package com.tv98.glow;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
@@ -38,8 +39,9 @@ public class IntelActivity extends Activity {
     static final String EXTRA_SECTION = "section";
     static final int MAP = 0, SPORTS = 1, CAMS = 2, WEATHER = 3, RADAR = 4, PREDICTIONS = 5;
     private static final String[] SECTIONS = {"World map", "Sports now", "Live cams", "Weather", "Rain radar", "Predictions"};
+    private static final String RAIN = "rain";
     private static final String[][] FILTERS = {{"All", ""}, {"Earthquakes", Intel.QUAKE}, {"Disaster alerts", Intel.ALERT},
-            {"Natural events", Intel.NATURAL}, {"News hotspots", Intel.NEWS}, {"Live cams", Intel.CAM}};
+            {"Natural events", Intel.NATURAL}, {"News hotspots", Intel.NEWS}, {"Live cams", Intel.CAM}, {"Rain", RAIN}};
 
     private ListView rail;
     private FrameLayout content;
@@ -228,24 +230,37 @@ public class IntelActivity extends Activity {
         return pane;
     }
 
+    private String chipCounts = "";
+
+    /** Chips are made once; a filter change only recolours two of them (rebuilding all seven cost ~50 ms a press). */
     private void drawChips() {
-        chips.removeAllViews();
-        for (int i = 0; i < FILTERS.length; i++) {
-            int n = count(FILTERS[i][1]);
-            TextView c = Ui.text(this, 12, i == filter ? 0xFF0B0E1C : Ui.TEXT, 600);
-            c.setText(FILTERS[i][0] + (all.isEmpty() ? "" : "  " + n));
-            c.setPadding(Ui.dp(12), Ui.dp(5), Ui.dp(12), Ui.dp(5));
-            GradientDrawable g = new GradientDrawable();
-            g.setCornerRadius(Ui.dp(12));
-            g.setColor(i == filter ? Ui.ACCENT : 0x22FFFFFF);
-            c.setBackground(g);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            lp.rightMargin = Ui.dp(8);
-            chips.addView(c, lp);
+        StringBuilder counts = new StringBuilder();
+        for (String[] f : FILTERS) counts.append(all.isEmpty() ? -2 : count(f[1])).append(',');
+        if (chips.getChildCount() != FILTERS.length || !counts.toString().equals(chipCounts)) {
+            chipCounts = counts.toString();
+            chips.removeAllViews();
+            for (int i = 0; i < FILTERS.length; i++) {
+                int n = count(FILTERS[i][1]);
+                TextView c = Ui.text(this, 12, Ui.TEXT, 600);
+                c.setText(FILTERS[i][0] + (all.isEmpty() || n < 0 ? "" : "  " + n));
+                c.setPadding(Ui.dp(12), Ui.dp(5), Ui.dp(12), Ui.dp(5));
+                GradientDrawable g = new GradientDrawable();
+                g.setCornerRadius(Ui.dp(12));
+                c.setBackground(g);
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                lp.rightMargin = Ui.dp(8);
+                chips.addView(c, lp);
+            }
+        }
+        for (int i = 0; i < chips.getChildCount(); i++) {
+            TextView c = (TextView) chips.getChildAt(i);
+            c.setTextColor(i == filter ? 0xFF0B0E1C : Ui.TEXT);
+            ((GradientDrawable) c.getBackground()).setColor(i == filter ? Ui.ACCENT : 0x22FFFFFF);
         }
     }
 
     private int count(String kind) {
+        if (kind.equals(RAIN)) return -1;
         if (kind.isEmpty()) return all.size();
         int n = 0;
         for (Intel.Event e : all) if (e.kind.equals(kind)) n++;
@@ -256,7 +271,28 @@ public class IntelActivity extends Activity {
     private static List<Intel.Event> recent;
     private static long recentAt;
 
+    private long rainAt;
+
+    /** The world's rain, once the map has its size (~150 KB of tiles, kept on disk). */
+    private void loadRain() {
+        map.post(() -> {
+            final int w = map.getWidth(), h = map.getHeight();
+            Net.IO.execute(() -> {
+                long t0 = android.os.SystemClock.uptimeMillis();
+                Bitmap r = Rain.world(this, w, h, WorldMapView.TOP, WorldMapView.BOTTOM);
+                android.util.Log.i("GlowPerf", "world rain in " + (android.os.SystemClock.uptimeMillis() - t0) + " ms");
+                Net.MAIN.post(() -> {
+                    if (isFinishing() || r == null) return;
+                    map.setRain(r);
+                    rainAt = System.currentTimeMillis();
+                    if (FILTERS[filter][1].equals(RAIN)) select();
+                });
+            });
+        });
+    }
+
     private void loadMap() {
+        loadRain();
         final long t0 = android.os.SystemClock.uptimeMillis();
         Net.IO.execute(() -> {
             List<Intel.Event> list;
@@ -299,13 +335,25 @@ public class IntelActivity extends Activity {
         String kind = FILTERS[filter][1];
         shown = new ArrayList<>();
         for (Intel.Event e : all) if (kind.isEmpty() || e.kind.equals(kind)) shown.add(e);
-        map.setEvents(kind.isEmpty() ? all : shown);
+        map.setEvents(kind.isEmpty() ? all : shown); // the rain view has no pins (shown is empty)
         pos = 0;
         drawChips();
         select();
     }
 
     private void select() {
+        boolean rainView = FILTERS[filter][1].equals(RAIN);
+        map.setRainOnly(rainView);
+        if (rainView) {
+            map.setSelected(null);
+            evTitle.setText(rainAt > 0 ? "Rain around the world" : "Loading the rain radar…");
+            evTitle.setTextColor(0xFF8FC8FF);
+            evDetail.setText("Beige is light rain, blue is rain, yellow to red is heavy. Where there's no radar there's no data.");
+            String fmt = Ui.is24h(this) ? "HH:mm" : "h:mm a";
+            evMeta.setText(rainAt > 0 ? "RainViewer   ·   radar at " + DateFormat.format(fmt, rainAt) : "RainViewer");
+            evHint.setText("▲ ▼ " + FILTERS[(filter + 1) % FILTERS.length][0].toLowerCase(Locale.ROOT) + "…   ·   Rain radar in the menu for a close-up");
+            return;
+        }
         if (shown.isEmpty()) {
             map.setSelected(null);
             evTitle.setText(all.isEmpty() ? "Loading the world…" : "Nothing in this view right now");
@@ -416,13 +464,13 @@ public class IntelActivity extends Activity {
         TextView h = Ui.text(this, 21, Ui.TEXT, 300);
         int live = 0;
         for (Sports.Game g : games) if (g.state == Sports.LIVE) live++;
-        h.setText("Sports now" + (live > 0 ? "   ·   " + live + " live" : "") + "   ·   UFC, F1, Premier League, Champions League, NBA, NFL");
+        h.setText("Sports now" + (live > 0 ? "   ·   " + live + " live" : "") + "   ·   " + Sports.chosenNames(this));
         h.setSingleLine();
         h.setEllipsize(TextUtils.TruncateAt.END);
         pane.addView(h);
         TextView note = Ui.text(this, 11.5f, Ui.TEXT_DIM, 400);
         note.setText("Live scores, fixtures in your time and results from the last day (ESPN). TV shows who broadcasts it in the US;"
-                + " OK plays it when a free channel here carries it, otherwise the free sports channels below.");
+                + " OK plays it when a free channel here carries it, otherwise the free sports channels below. Leagues: Glow ▸ Settings.");
         note.setPadding(0, Ui.dp(4), 0, Ui.dp(8));
         pane.addView(note);
 

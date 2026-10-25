@@ -41,7 +41,9 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
   wildfires and storms, places in the news, webcams, the International Space Station, day and night), 22 live city
   and space cams one click away (ended streams are spotted and skipped), Sports now (live scores, fixtures and
   results for UFC, F1, Premier League, Champions League, NBA and NFL, with free sports channels to watch), a weather
-  page with air quality and 7 days, a rain radar for the last two hours, and what prediction markets expect.
+  page with air quality and 7 days, a rain radar for the last two hours, rain across the world on the map, and what
+  prediction markets expect. While you watch TV, small banners show goals, kick-offs and results in your leagues
+  (19 to choose from in Settings).
   OK on anything on the map tunes to a news channel covering that part of the world. All from free public sources.
 - **World**: top stories and alerts by region from [World Monitor](https://github.com/koala73/worldmonitor), with
   article pictures, a QR code to read the story on your phone, and OK to watch a news channel covering that region.
@@ -59,6 +61,7 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
 | ![Home with the Intelligence row](docs/screenshots/20_home_intelligence.jpg) | ![World map](docs/screenshots/21_intel_world_map.jpg) | ![Live cams](docs/screenshots/23_intel_live_cams.jpg) |
 | ![Disaster alerts](docs/screenshots/22_intel_alerts.jpg) | ![Weather](docs/screenshots/24_intel_weather.jpg) | ![Predictions](docs/screenshots/25_intel_predictions.jpg) |
 | ![Sports now](docs/screenshots/27_intel_sports_now.jpg) | ![Rain radar](docs/screenshots/28_intel_rain_radar.jpg) | ![Live TV cards](docs/screenshots/26_live_tv_cards.jpg) |
+| ![Rain around the world](docs/screenshots/29_world_rain.jpg) | ![Sports leagues](docs/screenshots/30_sports_leagues.jpg) | ![Score banner over live TV](docs/screenshots/31_score_banner.jpg) |
 
 ## Measured on the box
 
@@ -118,7 +121,7 @@ switched off.
 
 | Path | What's there |
 |---|---|
-| `src/com/tv98/glow/` | The app. `HomeActivity`, `ClassicGuideActivity` + `GuideGridView` (guide, drawn as one view), `GuideLineup` + `Genres` (numbers and ranking), `PlayerActivity` + `Sources` + `OfficialLive` (playback and fallbacks), `FreeTv` + `Health` (channel lists and link checks), `Guide` (listings), `Remote` (phone remote), `World`, `Weather`, `IntelActivity` + `Intel` + `WorldMapView` + `Sports` + `Cams` + `RadarView` (Intelligence) |
+| `src/com/tv98/glow/` | The app. `HomeActivity`, `ClassicGuideActivity` + `GuideGridView` (guide, drawn as one view), `GuideLineup` + `Genres` (numbers and ranking), `PlayerActivity` + `Sources` + `OfficialLive` (playback and fallbacks), `FreeTv` + `Health` (channel lists and link checks), `Guide` (listings), `Remote` (phone remote), `World`, `Weather`, `IntelActivity` + `Intel` + `WorldMapView` + `Sports` + `ScoreAlerts` + `Cams` + `RadarView` + `Rain` (Intelligence) |
 | `res/raw/remote.html` | The phone remote's web page |
 | `tools/` | Build helpers, install, benchmarks (`bench.sh`, `zapbench.sh`, `guidebench.sh`, `scrollbench.sh`), a mock IPTV server for testing logins, the screenshot tour and video scripts |
 | `box/` | Debloat, make-Home and undo scripts for the TV98 box |

@@ -134,8 +134,6 @@ class RadarView extends View {
         return b;
     }
 
-    /** Tiles come in four at a time (each frame is ~9 small PNGs). */
-    private static final java.util.concurrent.ExecutorService TILES = java.util.concurrent.Executors.newFixedThreadPool(4);
 
     /**
      * Off the main thread: the frame list (cached 5 min), then the frames newest first, each shown as soon as it's
@@ -163,7 +161,7 @@ class RadarView extends View {
                     for (int ty = ty0; ty <= ty1; ty++) {
                         if (ty < 0 || ty >= 32) continue;
                         final String url = host + f.getString("path") + "/256/5/" + (((tx % 32) + 32) % 32) + "/" + ty + "/2/1_1.png";
-                        parts.add(TILES.submit(() -> Net.fileBitmap(getContext(), url)));
+                        parts.add(Rain.TILES.submit(() -> Net.fileBitmap(getContext(), url)));
                         where.add(new int[] {tx, ty});
                     }
                 }
