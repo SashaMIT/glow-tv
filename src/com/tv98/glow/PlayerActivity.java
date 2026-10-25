@@ -189,6 +189,277 @@ public class PlayerActivity extends Activity {
         setContentView(root);
     }
 
+    // ---- Player menu (hold OK): pause & rewind, picture size, night sound, stats, corner picture ----
+
+    private static final String[] PICTURE_MODES = {"Fit", "Fill", "Stretch", "Zoom"};
+    private int pictureMode, lastW, lastH, dropped;
+    private float lastRatio = 1f;
+    private boolean nightSound, showStats, settingsRead;
+    private android.media.audiofx.DynamicsProcessing night;
+    private TextView stats;
+
+    private void readPlayerSettings() {
+        if (settingsRead) return;
+        settingsRead = true;
+        android.content.SharedPreferences p = getSharedPreferences("player", MODE_PRIVATE);
+        pictureMode = p.getInt("picture_mode", 0);
+        nightSound = p.getBoolean("night_sound", false);
+        showStats = p.getBoolean("stats", false);
+    }
+
+    private void showPlayerMenu() {
+        readPlayerSettings();
+        final List<String> labels = new ArrayList<>();
+        final List<Runnable> actions = new ArrayList<>();
+        if (exo != null) {
+            boolean paused = !exo.getPlayWhenReady();
+            long behind = behindLive();
+            labels.add(paused ? "▶  Play" + (behind > 3_000 ? " (" + behind / 1000 + " s behind live)" : "") : "❚❚  Pause");
+            actions.add(this::togglePause);
+            labels.add("↺  Back 10 seconds");
+            actions.add(this::rewind);
+            if (behind > 5_000) {
+                labels.add("⇥  Back to live (" + behind / 1000 + " s behind)");
+                actions.add(() -> {
+                    exo.seekToDefaultPosition();
+                    exo.setPlayWhenReady(true);
+                    note("Live");
+                });
+            }
+        }
+        labels.add("▭  Picture: " + PICTURE_MODES[pictureMode] + "   (next: " + PICTURE_MODES[(pictureMode + 1) % PICTURE_MODES.length] + ")");
+        actions.add(() -> {
+            pictureMode = (pictureMode + 1) % PICTURE_MODES.length;
+            getSharedPreferences("player", MODE_PRIVATE).edit().putInt("picture_mode", pictureMode).apply();
+            fit(lastW, lastH, lastRatio);
+            note("Picture: " + PICTURE_MODES[pictureMode]);
+        });
+        labels.add("♪  Night sound: " + (nightSound ? "on" : "off") + "   (evens out loud and quiet, levels channels)");
+        actions.add(() -> {
+            nightSound = !nightSound;
+            getSharedPreferences("player", MODE_PRIVATE).edit().putBoolean("night_sound", nightSound).apply();
+            applyNight(exo);
+            if (nightSound && night == null) note("Night sound isn't available on this box");
+            else note("Night sound " + (nightSound ? "on" : "off"));
+        });
+        if (corner == null) {
+            labels.add("◳  Keep " + current().name + " in the corner");
+            actions.add(() -> startCorner(index));
+        } else {
+            labels.add("⇄  Swap: " + Xtream.playlist.get(cornerIndex).name + " to the big picture");
+            actions.add(this::swapCorner);
+            labels.add("✕  Close the corner picture");
+            actions.add(this::stopCorner);
+        }
+        labels.add("⓪  Audio & subtitles");
+        actions.add(this::chooseTracks);
+        labels.add("☾  Sleep timer");
+        actions.add(this::stepSleepTimer);
+        labels.add("ⓘ  Stats: " + (showStats ? "on" : "off"));
+        actions.add(() -> {
+            showStats = !showStats;
+            getSharedPreferences("player", MODE_PRIVATE).edit().putBoolean("stats", showStats).apply();
+            root.removeCallbacks(statsTick);
+            if (showStats) statsTick.run();
+            else if (stats != null) stats.setVisibility(View.GONE);
+        });
+        new android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(current().name)
+                .setItems(labels.toArray(new String[0]), (d, which) -> actions.get(which).run())
+                .show();
+    }
+
+    private void note(String text) {
+        osdNote.setText(text);
+        showOsd(3500);
+    }
+
+    /** How far behind live the picture is, in ms (0 when unknown or live). */
+    private long liveBaseline = -1;
+
+    private long behindLive() {
+        if (exo == null) return 0;
+        long off = exo.getCurrentLiveOffset();
+        if (off == androidx.media3.common.C.TIME_UNSET) return 0;
+        if (liveBaseline < 0) liveBaseline = off; // each stream's normal delay (8–30 s) counts as live
+        return Math.max(0, off - liveBaseline);
+    }
+
+    /** Pause live TV: it waits where you left it, as far back as the channel's own live window reaches. */
+    private void togglePause() {
+        if (exo == null) return;
+        boolean play = !exo.getPlayWhenReady();
+        exo.setPlayWhenReady(play);
+        long behind = behindLive();
+        note(play ? (behind > 3_000 ? "Playing  ·  " + behind / 1000 + " s behind live   ·   hold OK ▸ Back to live" : "Playing")
+                : "Paused  ·  hold OK for the menu");
+    }
+
+    /** Back 10 s, but never before the oldest part of the channel's live window that's safely still there. */
+    private void rewind() {
+        if (exo == null) return;
+        long pos = exo.getCurrentPosition(); // from the start of the live window
+        long earliest = 8_000; // the window's first segments may already be gone by the time they'd load
+        long target = Math.max(earliest, pos - 10_000);
+        if (target >= pos - 1_000) {
+            note("That's as far back as " + current().name + " keeps (" + Math.max(0, pos / 1000) + " s)");
+            return;
+        }
+        exo.seekTo(target);
+        exo.setPlayWhenReady(true);
+        root.postDelayed(() -> note("Back " + (pos - target) / 1000 + " s  ·  " + behindLive() / 1000 + " s behind live"), 600);
+    }
+
+    /** Night sound: a compressor and limiter on the audio (Android DynamicsProcessing): quiet lifted, loud held back. */
+    private void applyNight(ExoPlayer p) {
+        readPlayerSettings();
+        if (night != null) {
+            night.release();
+            night = null;
+        }
+        if (!nightSound || p == null) return;
+        try {
+            android.media.audiofx.DynamicsProcessing.Config cfg = new android.media.audiofx.DynamicsProcessing.Config.Builder(
+                    android.media.audiofx.DynamicsProcessing.VARIANT_FAVOR_FREQUENCY_RESOLUTION, 2,
+                    false, 0, true, 1, false, 0, true).build();
+            android.media.audiofx.DynamicsProcessing dp = new android.media.audiofx.DynamicsProcessing(0, p.getAudioSessionId(), cfg);
+            for (int ch = 0; ch < 2; ch++) {
+                android.media.audiofx.DynamicsProcessing.MbcBand band = dp.getMbcBandByChannelIndex(ch, 0);
+                band.setCutoffFrequency(20_000f);
+                band.setThreshold(-32f);
+                band.setRatio(4f);
+                band.setKneeWidth(6f);
+                band.setAttackTime(5f);
+                band.setReleaseTime(250f);
+                band.setPostGain(12f);
+                band.setEnabled(true);
+                dp.setMbcBandByChannelIndex(ch, 0, band);
+                android.media.audiofx.DynamicsProcessing.Limiter lim = dp.getLimiterByChannelIndex(ch);
+                lim.setThreshold(-3f);
+                lim.setRatio(10f);
+                lim.setEnabled(true);
+                dp.setLimiterByChannelIndex(ch, lim);
+            }
+            dp.setEnabled(true);
+            night = dp;
+            android.util.Log.i("GlowPlayer", "night sound on (session " + p.getAudioSessionId() + ")");
+        } catch (Throwable t) {
+            android.util.Log.i("GlowPlayer", "night sound unavailable: " + t);
+        }
+    }
+
+    private final Runnable statsTick = new Runnable() {
+        @Override
+        public void run() {
+            if (!showStats || exo == null) {
+                if (stats != null) stats.setVisibility(View.GONE);
+                return;
+            }
+            if (stats == null) {
+                stats = new TextView(PlayerActivity.this);
+                stats.setTextSize(12);
+                stats.setTextColor(0xFFFFFFFF);
+                stats.setBackgroundColor(0xB3000000);
+                stats.setTypeface(android.graphics.Typeface.MONOSPACE);
+                stats.setPadding(Ui.dp(10), Ui.dp(6), Ui.dp(10), Ui.dp(6));
+                FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.START);
+                lp.setMargins(Ui.dp(24), Ui.dp(24), 0, 0);
+                root.addView(stats, lp);
+            }
+            androidx.media3.common.Format f = exo.getVideoFormat();
+            StringBuilder b = new StringBuilder();
+            if (f != null) {
+                b.append(f.width).append('×').append(f.height);
+                if (f.frameRate > 0) b.append("  ").append(Math.round(f.frameRate)).append(" fps");
+                if (f.bitrate > 0) b.append("  ").append(f.bitrate / 1000).append(" kbps");
+                if (f.sampleMimeType != null) b.append("  ").append(f.sampleMimeType.replace("video/", ""));
+            } else {
+                b.append("no video yet");
+            }
+            b.append("\nbuffer ").append(String.format(java.util.Locale.ROOT, "%.1f", exo.getTotalBufferedDuration() / 1000f)).append(" s");
+            if (meter != null) b.append("   connection ").append(String.format(java.util.Locale.ROOT, "%.1f", meter.getBitrateEstimate() / 1e6)).append(" Mbps");
+            b.append("\ndropped frames ").append(dropped).append("   ").append(behindLive() / 1000).append(" s behind live");
+            if (night != null) b.append("   night sound");
+            stats.setText(b);
+            stats.setVisibility(View.VISIBLE);
+            root.postDelayed(this, 1000);
+        }
+    };
+
+    // ---- corner picture: one channel kept small in the top corner while you watch another ----
+
+    private ExoPlayer corner;
+    private SurfaceView cornerView;
+    private TextView cornerLabel;
+    private int cornerIndex = -1;
+
+    private void startCorner(final int idx) {
+        stopCorner();
+        releaseStandby(); // its decoder goes to the corner
+        root.removeCallbacks(prepareStandby);
+        final Channel ch = Xtream.playlist.get(idx);
+        final int gen = generation;
+        Net.IO.execute(() -> {
+            List<Sources.Attempt> list = idx == index && !attempts.isEmpty() ? attempts : Sources.forChannel(this, ch, acct);
+            Sources.Attempt use = null;
+            if (idx == index && attempt < list.size() && !list.get(attempt).builtIn && list.get(attempt).url != null) use = list.get(attempt);
+            for (int i = 0; i < list.size() && use == null; i++) {
+                Sources.Attempt a = list.get(i);
+                if (!a.builtIn && a.youtubeChannels == null && a.url != null) use = a;
+            }
+            final Sources.Attempt a = use;
+            Net.MAIN.post(() -> {
+                if (isFinishing() || gen != generation && idx != index) return;
+                if (a == null) {
+                    note(ch.name + " can't go in the corner (it plays through YouTube)");
+                    return;
+                }
+                int w = Math.round(root.getWidth() * 0.3f), h = w * 9 / 16;
+                cornerView = new SurfaceView(this);
+                cornerView.setZOrderMediaOverlay(true); // above the main picture
+                FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(w, h, Gravity.TOP | Gravity.END);
+                lp.setMargins(0, Ui.dp(28), Ui.dp(28), 0);
+                root.addView(cornerView, lp);
+                cornerLabel = Ui.text(this, 11, 0xFFFFFFFF, 600);
+                cornerLabel.setText(" " + ch.name + " ");
+                cornerLabel.setBackgroundColor(0xB3000000);
+                FrameLayout.LayoutParams llp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.END);
+                llp.setMargins(0, Ui.dp(28) + h + Ui.dp(4), Ui.dp(28), 0);
+                root.addView(cornerLabel, llp);
+                DefaultTrackSelector sel = newSelector();
+                sel.setParameters(sel.buildUponParameters().setMaxVideoSize(960, 540).setMaxVideoBitrate(2_500_000)); // small picture, small stream
+                corner = buildPlayer(sel, true);
+                corner.setVolume(0f);
+                corner.setVideoSurfaceView(cornerView);
+                corner.setMediaSource(source(a));
+                corner.prepare();
+                corner.setPlayWhenReady(true);
+                cornerIndex = idx;
+                android.util.Log.i("GlowPlayer", "corner: " + ch.name);
+                note(ch.name + " in the corner  ·  ▲ ▼ change the big picture   ·   hold OK to swap or close");
+            });
+        });
+    }
+
+    private void stopCorner() {
+        if (corner != null) corner.release();
+        corner = null;
+        if (cornerView != null) root.removeView(cornerView);
+        if (cornerLabel != null) root.removeView(cornerLabel);
+        cornerView = null;
+        cornerLabel = null;
+        boolean had = cornerIndex >= 0;
+        cornerIndex = -1;
+        if (had && exo != null) root.postDelayed(prepareStandby, 1_000); // standbys back
+    }
+
+    private void swapCorner() {
+        final int small = cornerIndex, big = index;
+        stopCorner();
+        play(small, true);
+        root.postDelayed(() -> { if (!isFinishing()) startCorner(big); }, 2_500); // once the new big picture has started
+    }
+
     // ---- audio & subtitles (◀ while watching) ----
 
     private TextView subtitles;
@@ -375,6 +646,8 @@ public class PlayerActivity extends Activity {
         super.onStart();
         root.removeCallbacks(alertTick);
         root.postDelayed(alertTick, 5000);
+        readPlayerSettings();
+        if (showStats) root.post(statsTick);
         root.removeCallbacks(sleepTick);
         if (sleepAt != 0) root.postDelayed(sleepTick, 1000);
         if (Xtream.playlist.isEmpty()) return;
@@ -387,6 +660,12 @@ public class PlayerActivity extends Activity {
         super.onStop();
         root.removeCallbacks(alertTick);
         root.removeCallbacks(sleepTick);
+        root.removeCallbacks(statsTick);
+        stopCorner();
+        if (night != null) {
+            night.release();
+            night = null;
+        }
         nowPlaying = null;
         nowChannel = null;
         generation++;
@@ -516,6 +795,7 @@ public class PlayerActivity extends Activity {
             public void onPlayerError(PlaybackException e) {
                 android.util.Log.i("GlowPlayer", current().name + ": error " + e.getErrorCodeName() + " " + e.getMessage());
                 if (e.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW && exo != null) {
+                    if (behindLive() > 5_000 || !exo.getPlayWhenReady()) note("Paused longer than " + current().name + " keeps: back to live");
                     exo.seekToDefaultPosition(); // fell behind a live stream: jump back to live, same link
                     exo.prepare();
                     return;
@@ -555,6 +835,14 @@ public class PlayerActivity extends Activity {
                 fit(v.width, v.height, v.pixelWidthHeightRatio);
             }
         });
+        p.addAnalyticsListener(new androidx.media3.exoplayer.analytics.AnalyticsListener() {
+            @Override
+            public void onDroppedVideoFrames(EventTime t, int count, long elapsedMs) {
+                if (p == exo) dropped += count;
+            }
+        });
+        dropped = 0;
+        applyNight(p);
     }
 
     // ---- standby: the channels above and below, prepared silently so ▲ and ▼ switch almost at once ----
@@ -585,7 +873,7 @@ public class PlayerActivity extends Activity {
      */
     private void prepareStandby() {
         int n = Xtream.playlist.size();
-        if (exo == null || n < 2) return;
+        if (exo == null || n < 2 || corner != null) return; // a corner picture uses the decoder a standby would
         int above = (index + 1) % n, below = (index - 1 + n) % n;
         if (up.index != above) {
             prepare(up, above);
@@ -667,6 +955,7 @@ public class PlayerActivity extends Activity {
     }
 
     private void play(int i, boolean zapped) {
+        liveBaseline = -1; // a new channel: its own normal delay will count as live (not reset by pausing or seeking)
         root.removeCallbacks(uncap);
         if (tracks != null) tracks.setParameters(tracks.buildUponParameters().setMaxVideoBitrate(START_CAP_BPS));
         int n = Xtream.playlist.size();
@@ -839,6 +1128,13 @@ public class PlayerActivity extends Activity {
 
     /** A picture is on screen: remember which link did it. */
     private void onPicture() {
+        // Night sound needs the stream's audio to exist on some boxes (this one says "Cannot initialize effect
+        // engine" if it's switched on before): (re)apply once the picture is up, and once more a bit later.
+        if (nightSound && night == null) {
+            applyNight(exo);
+            root.postDelayed(() -> { if (nightSound && night == null && exo != null) applyNight(exo); }, 2_000);
+        }
+        root.postDelayed(() -> { if (exo != null) behindLive(); }, 1_500); // a new channel's own delay, once settled
         root.removeCallbacks(prepareStandby);
         root.postDelayed(prepareStandby, 1_000); // get the channel above ready while this one plays
         root.removeCallbacks(uncap);
@@ -859,8 +1155,8 @@ public class PlayerActivity extends Activity {
         spinner.setVisibility(View.GONE);
         curtain.animate().alpha(0f).setDuration(250).start();
         prepareNeighbours();
-        osdNote.setText(attempt > 0 ? "Found a working source  ·  ▲ ▼ change channel   ·   OK info   ·   ◀ audio & subtitles   ·   ▶ sleep timer"
-                : "▲ ▼ change channel   ·   OK info   ·   ◀ audio & subtitles   ·   ▶ sleep timer");
+        osdNote.setText(attempt > 0 ? "Found a working source  ·  ▲ ▼ change channel   ·   OK info, hold for menu   ·   ◀ audio & subtitles   ·   ▶ sleep timer"
+                : "▲ ▼ change channel   ·   OK info, hold for menu   ·   ◀ audio & subtitles   ·   ▶ sleep timer");
         showOsd(4000);
     }
 
@@ -929,10 +1225,28 @@ public class PlayerActivity extends Activity {
     /** Letterbox the video inside the screen at its real shape. */
     private void fit(int w, int h, float pixelRatio) {
         if (w <= 0 || h <= 0 || root.getWidth() == 0) return;
+        lastW = w;
+        lastH = h;
+        lastRatio = pixelRatio;
         float video = w * pixelRatio / h, screen = (float) root.getWidth() / root.getHeight();
         int vw = root.getWidth(), vh = root.getHeight();
-        if (video > screen) vh = Math.round(vw / video);
-        else vw = Math.round(vh * video);
+        switch (pictureMode) {
+            case 1: // Fill: cover the screen, trimming the edges
+                if (video > screen) vw = Math.round(vh * video);
+                else vh = Math.round(vw / video);
+                break;
+            case 2: // Stretch to the screen
+                break;
+            case 3: // Zoom: a third bigger than Fit (4:3 shows inside a 16:9 frame, black bars round the picture)
+                if (video > screen) vh = Math.round(vw / video);
+                else vw = Math.round(vh * video);
+                vw = Math.round(vw * 1.33f);
+                vh = Math.round(vh * 1.33f);
+                break;
+            default: // Fit: the whole picture at its real shape
+                if (video > screen) vh = Math.round(vw / video);
+                else vw = Math.round(vh * video);
+        }
         surface.setLayoutParams(new FrameLayout.LayoutParams(vw, vh, Gravity.CENTER));
     }
 
@@ -950,6 +1264,28 @@ public class PlayerActivity extends Activity {
         osd.removeCallbacks(hideOsd);
         osd.animate().alpha(1f).setDuration(150).start();
         osd.postDelayed(hideOsd, ms);
+    }
+
+    private boolean okHandled;
+
+    @Override
+    public boolean onKeyLongPress(int code, KeyEvent e) {
+        if (code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER) {
+            okHandled = true;
+            showPlayerMenu();
+            return true;
+        }
+        return super.onKeyLongPress(code, e);
+    }
+
+    @Override
+    public boolean onKeyUp(int code, KeyEvent e) {
+        if (code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER) {
+            if (!okHandled && !e.isCanceled()) showOsd(5000);
+            okHandled = false;
+            return true;
+        }
+        return super.onKeyUp(code, e);
     }
 
     @Override
@@ -970,9 +1306,21 @@ public class PlayerActivity extends Activity {
             case KeyEvent.KEYCODE_ENTER:
                 if (pendingYoutube != null) {
                     handToYouTube(pendingYoutube);
+                    okHandled = true;
                     return true;
                 }
-                showOsd(5000);
+                if (e.getRepeatCount() == 0) {
+                    e.startTracking(); // a short press shows the info (on key up); holding opens the Player menu
+                    okHandled = false;
+                }
+                return true;
+            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+            case KeyEvent.KEYCODE_MEDIA_PAUSE:
+            case KeyEvent.KEYCODE_MEDIA_PLAY:
+                togglePause();
+                return true;
+            case KeyEvent.KEYCODE_MEDIA_REWIND:
+                rewind();
                 return true;
             case KeyEvent.KEYCODE_GUIDE:
             case KeyEvent.KEYCODE_MENU:

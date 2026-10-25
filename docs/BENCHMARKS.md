@@ -526,3 +526,28 @@ SHA-256 c2810927…ed6fd8, the same as the box's copy), APK published to GitHub 
 that would have attached a throwaway-key build is now a manual build check. On the box: the weekly check found
 "latest 1.0.0 (installed 1)", Settings showed "Update available: Glow 1.0.0", Android offered "an update to this
 existing application", and after Install the box runs versionName 1.0.0 / versionCode 10000 with its data intact.
+
+## Player extras: Player menu (hold OK), pause & rewind, picture size, night sound, stats, corner picture — 25 Oct 2026 (late night)
+
+Everything is in one **Player menu** (hold OK while watching; a short press still shows the info). Tested on the box
+through the menu, item by item:
+
+| Feature | Result on the box |
+|---|---|
+| Pause / Play | paused 8–20 s, resumed "13–25 s behind live"; "Back to live (18 s behind)" offered and works |
+| Back 10 seconds | works within the channel's own live window; never earlier than 8 s into it (Al Jazeera's window is short: a 10 s rewind after a 20 s pause went past it, `BEHIND_LIVE_WINDOW`, and the player jumped to live, so now it says "That's as far back as … keeps") |
+| "Behind live" | measured from each channel's own normal delay (Al Jazeera's is ~29 s), reset only when the channel changes |
+| Picture size | Fit / Fill / Stretch / Zoom (×1.33, for 4:3 shows inside a 16:9 frame), remembered |
+| Night sound | Android DynamicsProcessing on the player's audio session: compressor (−32 dB, 4:1, +12 dB) + limiter (−3 dB). This box refuses it before the stream's audio exists ("Cannot initialize effect engine", −3), so it's applied once the picture is up, with one retry: works |
+| Stats | 1920×1080 25 fps 6128 kbps avc · buffer 24.9 s · connection 20.3 Mbps · dropped frames · behind live · night sound |
+| Corner picture | Al Jazeera kept in the corner (≤960×540, ≤2.5 Mbps, muted) while ▲ changed the big picture to CNA in 1.6 s; Swap and Close work. Standbys are released while it's on (their decoder goes to the corner) |
+
+| One vs two pictures | One (standbys on) | Two (corner on) |
+|---|---|---|
+| Glow memory | 115 MB | 112 MB |
+| Temperature | 77.7 °C | 79.8 °C |
+| CPU (one `top` sample) | — | Glow 72 %, decoders 25 % + 23 % |
+
+Not done: 5 minutes of live TV held in memory: at 1080p that's ~190 MB on a 1 GB box; pause and rewind use each
+stream's own live window instead (often 30 s–2 min). Development builds are now numbered just above the latest release
+(1.0.0 → 10001 "1.0.0-dev"), so they install over a released copy.

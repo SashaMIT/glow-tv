@@ -23,7 +23,7 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 | Area | Feature | When |
 |---|---|---|
 | Player | ~~▼ as instant as ▲~~ ✅ (2,353 → 276 ms); ~~audio + subtitle switching~~ ✅ | done |
-| Player | Picture-in-picture / two channels; pause & rewind live; night-mode audio, dialogue boost, volume levelling; zoom/aspect, stats overlay | later |
+| Player | ~~Corner picture (PiP)~~ ✅; ~~pause & rewind (stream's window)~~ ✅; ~~night sound / levelling~~ ✅; ~~picture size, stats~~ ✅; dialogue boost; longer rewind (disk cache) | later |
 | TV Guide | ~~Now & Next~~ ✅; ~~Live sport now~~ ✅; smoother first pass (logos off the main thread ✅; rows still drawn on demand) | done / partly |
 | Memory | ~~Listings' descriptions on disk, rows updated in place~~ ✅ (Home 118 → 81–100 MB); under 80 MB every time needs fewer layered cards / smaller banners | later |
 | TV Guide | Radio favourites + album art; F1 live timing (OpenF1); Trending (TMDB, free key) | later |

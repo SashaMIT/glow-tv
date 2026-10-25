@@ -26,7 +26,8 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
   languages, with regional copies and local stations below the main channel. Numbers are saved, so they don't move.
 - **Player** (ExoPlayer): if a link is dead it tries the channel's other links, then the broadcaster's official
   stream, then its official YouTube live. The channels above and below are prepared silently, so ▲ and ▼ change
-  channel in about 0.3 s. ◀ for audio languages and subtitles (remembered), ▶ sleep timer, last channel, digits.
+  channel in about 0.3 s. Hold OK for the Player menu: pause and rewind, back to live, picture size, night sound
+  (evens out loud and quiet), a corner picture of another channel, stats. ◀ audio and subtitles, ▶ sleep timer.
 - **Free TV**: about 2,300 working channels from the public [iptv-org](https://github.com/iptv-org/iptv) lists
   (Thailand, UK, US, world news, sports), link-checked every 12 hours so dead ones stay hidden.
 - **Programme listings**: about 1,000 channels. Every night a GitHub Actions job in this repo runs

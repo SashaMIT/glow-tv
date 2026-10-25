@@ -12,8 +12,11 @@ SDK="${ANDROID_HOME:-$(brew --prefix 2>/dev/null)/share/android-commandlinetools
 BT="$SDK/build-tools/34.0.0"
 JAR="$SDK/platforms/android-35/android.jar"
 # Release builds (tools/release or the GitHub workflow) set these from the version tag, e.g. v1.4.0 -> 10400 / 1.4.0.
-VERSION_CODE="${VERSION_CODE:-1}"
-VERSION_NAME="${VERSION_NAME:-dev}"
+# Development builds: just above the newest release tag (v1.0.0 -> 10001), so they install over a released copy.
+LATEST_TAG=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || echo v0.0.0)
+IFS=. read -r _MA _MI _PA <<< "${LATEST_TAG#v}"
+VERSION_CODE="${VERSION_CODE:-$(( ${_MA:-0} * 10000 + ${_MI:-0} * 100 + ${_PA:-0} + 1 ))}"
+VERSION_NAME="${VERSION_NAME:-${LATEST_TAG#v}-dev}"
 # A signing key is created on the first build and stays on your machine (glow.keystore is git-ignored).
 KS_PASS="${GLOW_KS_PASS:-glowglow}"
 
