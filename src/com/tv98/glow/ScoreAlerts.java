@@ -32,23 +32,31 @@ final class ScoreAlerts {
 
     private ScoreAlerts() {}
 
-    static boolean enabled(Context c) {
-        return c.getSharedPreferences("sports", Context.MODE_PRIVATE).getBoolean("alerts", true);
+    static final int OFF = 0, ALL = 1, FAVOURITES = 2;
+
+    /** All games in my leagues (default), only my favourite teams' games, or off. */
+    static int mode(Context c) {
+        return c.getSharedPreferences("sports", Context.MODE_PRIVATE).getInt("alert_mode", ALL);
     }
 
-    static void setEnabled(Context c, boolean on) {
-        c.getSharedPreferences("sports", Context.MODE_PRIVATE).edit().putBoolean("alerts", on).apply();
+    static void setMode(Context c, int mode) {
+        c.getSharedPreferences("sports", Context.MODE_PRIVATE).edit().putInt("alert_mode", mode).apply();
+    }
+
+    static boolean enabled(Context c) {
+        return mode(c) != OFF;
     }
 
     /** Off the main thread. What changed since the last check. */
     static synchronized List<Alert> check(Context c) {
         List<Alert> out = new ArrayList<>();
         List<Sports.Game> games = Sports.load(c);
+        boolean favOnly = mode(c) == FAVOURITES;
         for (Sports.Game g : games) {
             String key = g.league + "|" + g.title;
             String now = g.state + "|" + g.homeScore + "|" + g.awayScore;
             String before = LAST.put(key, now);
-            if (!primed || before == null || before.equals(now)) continue;
+            if (!primed || before == null || before.equals(now) || (favOnly && !g.fav)) continue;
             int was = before.charAt(0) - '0';
             String path = Sports.LEAGUES[g.league][0];
             boolean football = path.startsWith("soccer/");

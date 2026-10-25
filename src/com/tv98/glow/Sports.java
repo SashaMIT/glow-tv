@@ -77,6 +77,8 @@ final class Sports {
         // Team games: two sides with scores and logos (empty for UFC cards and F1 weekends).
         String home = "", away = "", homeScore = "", awayScore = "", homeLogo = "", awayLogo = "";
         boolean homeWon, awayWon;
+        String homeId = "", awayId = "";
+        boolean fav, homeFav, awayFav; // one of my favourite teams plays
         String scorer = ""; // football: the latest goal, e.g. "J. Zirkzee 90'+1'"
 
         boolean teams() {
@@ -94,6 +96,7 @@ final class Sports {
         // The six scoreboards in parallel (one after another took 3.7 s on the box).
         List<java.util.concurrent.Future<String>> feeds = new ArrayList<>();
         boolean[] on = chosen(c);
+        java.util.Set<String> favs = favourites(c);
         for (int i = 0; i < LEAGUES.length; i++) {
             if (!on[i]) {
                 feeds.add(null);
@@ -128,11 +131,18 @@ final class Sports {
             long ahead = g0(games) ? 7 * 86_400_000L : 48 * 3_600_000L;
             Collections.sort(games, Sports::order);
             int shown = 0;
+            String sport = LEAGUES[i][0].substring(0, LEAGUES[i][0].indexOf('/'));
+            for (Game g : games) {
+                g.homeFav = favs.contains(sport + ":" + g.homeId);
+                g.awayFav = favs.contains(sport + ":" + g.awayId);
+                g.fav = g.homeFav || g.awayFav;
+            }
+            Collections.sort(games, Sports::order);
             for (Game g : games) {
                 if (g.state == LIVE) anyLive = true;
                 boolean wanted = g.state == LIVE || (g.state == PRE && g.start - now < ahead)
                         || (g.state == DONE && now - g.start < 30 * 3_600_000L);
-                if (wanted && (g.state == LIVE || shown < 6)) {
+                if (wanted && (g.state == LIVE || g.fav || shown < 6)) { // favourites never get cut
                     out.add(g);
                     shown++;
                 }
@@ -146,6 +156,7 @@ final class Sports {
 
     private static int order(Game a, Game b) {
         if ((a.state == LIVE) != (b.state == LIVE)) return a.state == LIVE ? -1 : 1;
+        if (a.fav != b.fav) return a.fav ? -1 : 1; // my teams first
         if (a.league != b.league) return a.league - b.league;
         if (a.state != b.state) return rank(a.state) - rank(b.state);
         return a.state == DONE ? Long.compare(b.start, a.start) : Long.compare(a.start, b.start);
@@ -205,11 +216,13 @@ final class Sports {
                 g.homeScore = side.optString("score");
                 g.homeLogo = team.optString("logo");
                 g.homeWon = side.optBoolean("winner");
+                g.homeId = team.optString("id");
             } else {
                 g.away = name;
                 g.awayScore = side.optString("score");
                 g.awayLogo = team.optString("logo");
                 g.awayWon = side.optBoolean("winner");
+                g.awayId = team.optString("id");
             }
         }
         g.title = g.home + " v " + g.away;
@@ -368,12 +381,55 @@ final class Sports {
 
     /** For a card: something live, else the next thing to start, else the latest result. */
     static Game headline(List<Game> games) {
-        Game next = null;
+        Game live = null, next = null, favNext = null;
+        long now = System.currentTimeMillis();
         for (Game g : games) {
-            if (g.state == LIVE) return g;
+            if (g.state == LIVE && (live == null || (g.fav && !live.fav))) live = g;
             if (g.state == PRE && (next == null || g.start < next.start)) next = g;
+            if (g.state == PRE && g.fav && g.start - now < 36 * 3_600_000L && (favNext == null || g.start < favNext.start)) favNext = g;
         }
+        if (live != null) return live;
+        if (favNext != null) return favNext; // my team plays today or tomorrow
         return next != null ? next : games.get(0);
+    }
+
+    // ---- favourite teams ----
+
+    /** Saved as "soccer:359" (ESPN team ids are shared across a sport's competitions: Arsenal is 359 everywhere). */
+    static java.util.Set<String> favourites(Context c) {
+        return new java.util.HashSet<>(c.getSharedPreferences("sports", Context.MODE_PRIVATE).getStringSet("teams", new java.util.HashSet<>()));
+    }
+
+    static void setFavourites(Context c, java.util.Set<String> keys) {
+        c.getSharedPreferences("sports", Context.MODE_PRIVATE).edit().putStringSet("teams", keys).apply();
+    }
+
+    /** Off the main thread. {key, team name, league} for every team in the chosen team-sport leagues (lists cached a week). */
+    static List<String[]> teams(Context c) {
+        List<String[]> out = new ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        boolean[] on = chosen(c);
+        for (int i = 0; i < LEAGUES.length; i++) {
+            String path = LEAGUES[i][0];
+            if (!on[i] || path.startsWith("mma/") || path.startsWith("racing/")) continue;
+            String s = Intel.cached(c, "espn-teams-" + path.replace('/', '-'),
+                    "https://site.api.espn.com/apis/site/v2/sports/" + path + "/teams", 7 * 86_400_000L);
+            if (s == null) continue;
+            String sport = path.substring(0, path.indexOf('/'));
+            try {
+                JSONArray t = new JSONObject(s).getJSONArray("sports").getJSONObject(0).getJSONArray("leagues").getJSONObject(0).getJSONArray("teams");
+                List<String[]> league = new ArrayList<>();
+                for (int k = 0; k < t.length(); k++) {
+                    JSONObject team = t.getJSONObject(k).getJSONObject("team");
+                    String key = sport + ":" + team.optString("id");
+                    if (seen.add(key)) league.add(new String[] {key, team.optString("displayName"), LEAGUES[i][1]});
+                }
+                Collections.sort(league, (x, y) -> x[1].compareToIgnoreCase(y[1]));
+                out.addAll(league);
+            } catch (Exception ignored) {
+            }
+        }
+        return out;
     }
 
     /** A free channel in the guide named like one of the broadcasters (never a pay-TV re-stream), or null. */

@@ -255,12 +255,15 @@ public class HomeActivity extends Activity {
         return hs;
     }
 
+    private static final String MIRACAST = "com.softwinner.miracastReceiver";
+
     private void fillApps() {
         PackageManager pm = getPackageManager();
         List<ResolveInfo> ordered = AppsActivity.ordered(this, false); // Glow ▸ Settings ▸ Apps on Home
 
         apps.removeAllViews();
         for (final ResolveInfo ri : ordered) {
+            if (ri.activityInfo.packageName.equals(MIRACAST)) continue; // it's the header's "Cast from phone" button
             Tile t = new Tile(this, 176, 99);
             Drawable banner = ri.activityInfo.loadBanner(pm);
             if (banner == null) banner = ri.activityInfo.applicationInfo.loadBanner(pm);
@@ -402,8 +405,13 @@ public class HomeActivity extends Activity {
             if (signedIn) all.addAll(Xtream.cached(this));
             List<Channel> pick = new ArrayList<>();
             java.util.Set<String> seen = new java.util.HashSet<>();
-            List<Channel> mine = new ArrayList<>(Picks.favourites(this, all));
-            mine.addAll(Channel.recent(this, all));
+            // The last channel watched comes first (a Resume card), then favourites, then other recents.
+            List<Channel> recent = Channel.recent(this, all);
+            List<Channel> mine = new ArrayList<>();
+            if (!recent.isEmpty()) mine.add(recent.get(0));
+            mine.addAll(Picks.favourites(this, all));
+            mine.addAll(recent);
+            final String resumeKey = recent.isEmpty() || Channel.isOffline(this, recent.get(0)) ? null : recent.get(0).key();
             for (Channel ch : mine) if (!Channel.isOffline(this, ch) && seen.add(ch.key())) pick.add(ch);
             if (pick.isEmpty()) {
                 for (Channel ch : Xtream.inCategory(free, FreeTv.LISTS[0][0])) {
@@ -412,7 +420,21 @@ public class HomeActivity extends Activity {
                 }
             }
             Net.MAIN.post(() -> {
-                if (!isFinishing()) renderChannels(pick);
+                if (isFinishing()) return;
+                renderChannels(pick);
+                if (resumeKey != null && !pick.isEmpty() && pick.get(0).key().equals(resumeKey) && live.getChildCount() > sourceTiles) {
+                    Tile t = (Tile) live.getChildAt(sourceTiles);
+                    TextView badge = Ui.text(this, 9.5f, 0xFF0B0E1C, 600);
+                    badge.setText(" ▶ RESUME ");
+                    android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+                    bg.setCornerRadius(Ui.dp(4));
+                    bg.setColor(Ui.ACCENT);
+                    badge.setBackground(bg);
+                    FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.START);
+                    lp.setMargins(Ui.dp(7), Ui.dp(7), 0, 0);
+                    t.card.addView(badge, lp);
+                    t.setContentDescription("Resume " + pick.get(0).name);
+                }
             });
         });
     }
@@ -519,6 +541,9 @@ public class HomeActivity extends Activity {
         quickButton(Icons.SEARCH, "Search", Ui.ACCENT, v -> startActivity(new Intent(this, SearchActivity.class)));
         quickButton(Icons.WORLD, "World news", Ui.ACCENT, v -> startActivity(new Intent(this, WorldActivity.class)));
         quickButton(Icons.PHONE, "Phone remote", Ui.ACCENT, v -> startActivity(new Intent(this, RemoteActivity.class)));
+        // The box's own Miracast receiver: a phone casts its screen to "TV98" (Android: Cast / Smart View / Screen mirroring).
+        final Intent cast = getPackageManager().getLeanbackLaunchIntentForPackage(MIRACAST);
+        if (cast != null) quickButton(Icons.CAST, "Cast from phone", Ui.ACCENT, v -> startActivity(cast));
         quickButton(Icons.IPTV, "My IPTV sign-in", Ui.ACCENT, v -> startActivity(new Intent(this, LoginActivity.class)));
         quickButton(Icons.SETTINGS, "Settings", Ui.ACCENT, v -> startActivity(new Intent(this, SettingsActivity.class)));
         // Developer access left on lets anyone on the Wi-Fi control the box: a red button that switches it off.

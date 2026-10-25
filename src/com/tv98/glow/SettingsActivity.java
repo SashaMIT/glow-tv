@@ -147,10 +147,45 @@ public class SettingsActivity extends Activity {
                     .show();
         });
 
-        final boolean alerts = ScoreAlerts.enabled(this);
-        row(alerts ? "Score alerts: on" : "Score alerts: off",
-                "A small banner over live TV for goals, kick-offs and final results in your sports leagues.", alerts, v -> {
-                    ScoreAlerts.setEnabled(this, !alerts);
+        final java.util.Set<String> favTeams = Sports.favourites(this);
+        row("Favourite teams" + (favTeams.isEmpty() ? "" : ": " + favTeams.size()),
+                "Their games go first in Sports now and on Home, and can be the only score alerts. Press OK to choose.", null, v -> {
+                    Toast.makeText(this, "Loading teams…", Toast.LENGTH_SHORT).show();
+                    Net.IO.execute(() -> {
+                        java.util.List<String[]> teams = Sports.teams(this);
+                        Net.MAIN.post(() -> {
+                            if (isFinishing() || teams.isEmpty()) return;
+                            String[] names = new String[teams.size()];
+                            boolean[] on = new boolean[teams.size()];
+                            for (int i = 0; i < names.length; i++) {
+                                names[i] = teams.get(i)[1] + "   ·   " + teams.get(i)[2];
+                                on[i] = favTeams.contains(teams.get(i)[0]);
+                            }
+                            new android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                                    .setTitle("Favourite teams")
+                                    .setMultiChoiceItems(names, on, (d, which, checked) -> on[which] = checked)
+                                    .setPositiveButton("Done", (d, w) -> {
+                                        java.util.Set<String> keep = new java.util.HashSet<>();
+                                        for (String k : favTeams) { // teams from leagues not shown stay chosen
+                                            boolean listed = false;
+                                            for (String[] t : teams) if (t[0].equals(k)) listed = true;
+                                            if (!listed) keep.add(k);
+                                        }
+                                        for (int i = 0; i < on.length; i++) if (on[i]) keep.add(teams.get(i)[0]);
+                                        Sports.setFavourites(this, keep);
+                                        build();
+                                        focusRow("Favourite teams");
+                                    })
+                                    .setNegativeButton("Cancel", null)
+                                    .show();
+                        });
+                    });
+                });
+
+        final int alertMode = ScoreAlerts.mode(this);
+        row(alertMode == ScoreAlerts.OFF ? "Score alerts: off" : alertMode == ScoreAlerts.FAVOURITES ? "Score alerts: favourite teams only" : "Score alerts: all my leagues",
+                "A small banner over live TV for goals, kick-offs and final results. Press OK to switch.", alertMode != ScoreAlerts.OFF, v -> {
+                    ScoreAlerts.setMode(this, alertMode == ScoreAlerts.ALL ? ScoreAlerts.FAVOURITES : alertMode == ScoreAlerts.FAVOURITES ? ScoreAlerts.OFF : ScoreAlerts.ALL);
                     build();
                     focusRow("Score alerts");
                 });

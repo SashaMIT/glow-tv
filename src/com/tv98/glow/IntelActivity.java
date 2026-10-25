@@ -567,8 +567,8 @@ public class IntelActivity extends Activity {
         LinearLayout mid = new LinearLayout(this);
         mid.setOrientation(LinearLayout.VERTICAL);
         if (g.teams()) {
-            mid.addView(side(g.home, g.homeScore, g.homeLogo, g.state != Sports.PRE, g.homeWon || (g.state == Sports.DONE && !g.awayWon && !g.homeWon)));
-            mid.addView(side(g.away, g.awayScore, g.awayLogo, g.state != Sports.PRE, g.awayWon || (g.state == Sports.DONE && !g.awayWon && !g.homeWon)));
+            mid.addView(side((g.homeFav ? "★ " : "") + g.home, g.homeScore, g.homeLogo, g.state != Sports.PRE, g.homeWon || (g.state == Sports.DONE && !g.awayWon && !g.homeWon)));
+            mid.addView(side((g.awayFav ? "★ " : "") + g.away, g.awayScore, g.awayLogo, g.state != Sports.PRE, g.awayWon || (g.state == Sports.DONE && !g.awayWon && !g.homeWon)));
         } else {
             TextView t = Ui.text(this, 14.5f, Ui.TEXT, 600);
             t.setText(g.title);
@@ -623,7 +623,13 @@ public class IntelActivity extends Activity {
         Net.image(iv, small, Ui.dp(22), null);
         l.addView(iv, new LinearLayout.LayoutParams(Ui.dp(20), Ui.dp(20)));
         TextView n = Ui.text(this, 14, strong || !showScore ? Ui.TEXT : 0xB3F2F4FF, strong ? 600 : 400);
-        n.setText(name);
+        if (name.startsWith("★ ")) { // a favourite team: gold star, as for favourite channels
+            android.text.SpannableString sp = new android.text.SpannableString(name);
+            sp.setSpan(new android.text.style.ForegroundColorSpan(0xFFFFC34A), 0, 1, 0);
+            n.setText(sp);
+        } else {
+            n.setText(name);
+        }
         n.setSingleLine();
         n.setEllipsize(TextUtils.TruncateAt.END);
         n.setPadding(Ui.dp(8), 0, Ui.dp(8), 0);

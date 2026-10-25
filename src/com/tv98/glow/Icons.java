@@ -10,7 +10,7 @@ import android.graphics.drawable.Drawable;
 
 /** Small line icons for the Home header, drawn as vectors so they stay crisp at any size. */
 final class Icons extends Drawable {
-    static final int SEARCH = 0, WORLD = 1, PHONE = 2, IPTV = 3, SETTINGS = 4, SHIELD = 5, GUIDE = 6;
+    static final int SEARCH = 0, WORLD = 1, PHONE = 2, IPTV = 3, SETTINGS = 4, SHIELD = 5, GUIDE = 6, CAST = 7;
 
     private final int kind;
     private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -88,6 +88,24 @@ final class Icons extends Drawable {
                 c.drawLine(3 * u, 9 * u, 21 * u, 9 * u, p);
                 c.drawLine(3 * u, 14.5f * u, 21 * u, 14.5f * u, p);
                 c.drawLine(9 * u, 4 * u, 9 * u, 20 * u, p);
+                break;
+            case CAST: // a screen with cast waves in its corner
+                path.reset();
+                path.moveTo(2.5f * u, 8 * u);
+                path.lineTo(2.5f * u, 6 * u);
+                path.quadTo(2.5f * u, 4 * u, 4.5f * u, 4 * u);
+                path.lineTo(19.5f * u, 4 * u);
+                path.quadTo(21.5f * u, 4 * u, 21.5f * u, 6 * u);
+                path.lineTo(21.5f * u, 18 * u);
+                path.quadTo(21.5f * u, 20 * u, 19.5f * u, 20 * u);
+                path.lineTo(14 * u, 20 * u);
+                c.drawPath(path, p);
+                r.set(-6 * u, 9.5f * u, 15 * u, 30.5f * u);
+                c.drawArc(r, 270, 90, false, p);
+                r.set(-2.5f * u, 13 * u, 8.5f * u, 24 * u);
+                c.drawArc(r, 270, 90, false, p);
+                p.setStyle(Paint.Style.FILL);
+                c.drawCircle(3 * u, 19.5f * u, 1.3f * u, p);
                 break;
             default:
                 break;

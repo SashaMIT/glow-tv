@@ -1,0 +1,54 @@
+# Nightly listings and channel facts for Glow, built on GitHub so the box downloads one small file.
+# Uses iptv-org's open database and guide grabbers (github.com/iptv-org/epg) for the channels Glow lists.
+# Output goes to the `data` branch (replaced each night, no history): guide.xml.gz, facts.tsv, report.txt.
+name: Guide data
+
+on:
+  schedule:
+    - cron: "30 1 * * *" # 01:30 UTC = 08:30 in Bangkok, 02:30 in London
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: guide-data
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Pick channels and their listing sources; write channel facts
+        run: python3 tools/build_guide_data.py out
+
+      - name: Fetch listings with iptv-org/epg
+        run: |
+          git clone --depth 1 https://github.com/iptv-org/epg.git epg
+          cd epg
+          npm ci --no-audit --no-fund
+          # Sites that fail or time out just leave their channels without listings; the rest still publish.
+          npm run grab --- --channels=../out/glow.channels.xml --output=../out/guide-full.xml \
+            --days=2 --maxConnections=8 --timeout=20000 || true
+
+      - name: Trim to the next 36 hours and pack
+        run: python3 tools/trim_guide.py out/guide-full.xml out/guide.xml.gz out/report.txt
+
+      - name: Publish to the data branch
+        run: |
+          cd out
+          rm -f guide-full.xml glow.channels.xml
+          git init -q -b data
+          git config user.name "glow-data"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Guide data $(date -u +%F)"
+          git push -q --force "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" data
+          cat report.txt
