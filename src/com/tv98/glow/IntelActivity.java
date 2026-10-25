@@ -511,18 +511,26 @@ public class IntelActivity extends Activity {
 
         // Always something to watch: the guide's top free sports channels (action and fight first), with what's on.
         TextView lab = Ui.text(this, 11, Ui.TEXT_DIM, 600);
-        lab.setText("FREE SPORTS\nCHANNELS");
+        lab.setText("ON FREE\nTV NOW");
         lab.setLetterSpacing(0.1f);
         lab.setPadding(0, 0, Ui.dp(10), 0);
         lab.setGravity(Gravity.CENTER_VERTICAL);
         freeRow.addView(lab, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, Ui.dp(70)));
         GuideLineup l = GuideLineup.current();
+        // Live sport now, from the listings: channels showing something live (a "LIVE" or "x v y" title) first,
+        // then ones with a programme on, then the rest, each group in the guide's order (fights and action first).
         final List<Channel> sports = new ArrayList<>();
         if (l != null) for (GuideLineup.Section sec : l.main) if (sec.name.equals("Sports")) {
+            List<Channel> onLive = new ArrayList<>(), listed = new ArrayList<>(), rest = new ArrayList<>();
             for (Channel ch : sec.channels) {
                 if (Channel.isOffline(this, ch) || Genres.neverPromote(ch)) continue;
-                sports.add(ch);
-                if (sports.size() == 4) break; // four fit across
+                Guide.Prog now = Guide.now(ch);
+                if (now == null) rest.add(ch);
+                else if (looksLive(now.title)) onLive.add(ch);
+                else listed.add(ch);
+            }
+            for (List<Channel> group : java.util.Arrays.asList(onLive, listed, rest)) {
+                for (Channel ch : group) if (sports.size() < 4) sports.add(ch); // four fit across
             }
         }
         for (Channel ch : sports) {
@@ -540,6 +548,13 @@ public class IntelActivity extends Activity {
         } else if (focused != null) {
             pane.requestFocus();
         }
+    }
+
+    /** A programme title that reads like live sport rather than a replay or magazine show. */
+    static boolean looksLive(String title) {
+        String t = " " + title.toLowerCase(Locale.ROOT) + " ";
+        if (t.contains("highlights") || t.contains("replay") || t.contains("classic") || t.contains("review")) return false;
+        return t.contains(" live") || t.contains(" vs ") || t.contains(" vs. ") || t.contains(" v ");
     }
 
     private View gameRow(Sports.Game g) {

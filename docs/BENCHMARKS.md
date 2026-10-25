@@ -434,3 +434,38 @@ connection"). **Sleep timer**: ▶ while watching steps 30/60/90/120 min/off; te
 |---|---|
 | Home scrolling (`scrollbench.sh`) | 1.13 % late, p99 15–18 ms |
 | Glow on Home, settled | 93 MB (listings for ~840 more channels in memory) |
+
+## Instant TV: ▼ as fast as ▲, audio & subtitles, Now & Next, live sport now — 25 Oct 2026 (late night)
+
+| Metric | Before | After |
+|---|---|---|
+| ▼ channel change (`ZAP_KEY=KEYCODE_DPAD_DOWN tools/zapbench.sh`, TV Guide ▸ News, 20 presses) | median **2,353 ms**, p75 3,107, max 5,165 (one standby, for ▲ only) | **276 ms**, p75 293, min 232 (second standby for the channel below) |
+| ▲ channel change | 221 ms (one standby) | 316 ms, p75 319 (two standbys share the connection) |
+| Played / failed | 21 / 0 | 21 / 0 both ways |
+| Memory while watching (three players) | 98–110 MB | 91–119 MB |
+| Temperature | 74 °C | 73 °C |
+
+The second standby is prepared 2.5 s after the first, so they don't compete for the connection while the picture
+starts. After a change, the standby two channels away is released and both are prepared again around the new channel.
+
+**Audio & subtitles (◀ while watching)**: lists the channel's audio languages (only when there's more than one) and
+subtitles/captions; choice remembered for every channel (Media3 preferred language), subtitles drawn by Glow from the
+player's cues (no media3-ui). Scan of 700 news/sports/UK streams: many carry subtitles or captions (NBC News NOW CC,
+NHK World's own stream, Al Araby in 4 languages, RTVE 24h in 5). Tested on NBC News NOW: captions on, remembered on
+the next start, off again ("no subtitle preference saved").
+
+**Now & Next** (guide tab, remembered): each row shows what's on (until when) and what's next; ◀ ▶ step between them,
+OK on Next sets a reminder. Footer hint follows the mode.
+
+**Live sport now**: Sports now's free-channel row is chosen from the listings: titles that read live ("LIVE", "x v y",
+not "highlights"/"replay") first, then channels with a listing, then the rest. On the box tonight it showed FIFA+
+("Live | FIFA U-17 Women's…"), NBC Sports NOW ("PFT Live") and Pluto's handball channel (EHF Champions League) next
+to 5 live ESPN games (Liverpool 2–0 Brighton, 56').
+
+**Guide**: logos now trimmed and scaled off the main thread; fixed: when the logo store emptied at 120 entries, those
+logos were never asked for again. `guidebench.sh` (with ◀ ▶ window changes): grid 50 % → **43 %**, p90 by pass
+36 / 31 / 24 ms; Now & Next mode **20 %**, p90 31 / 16 / 15 ms.
+
+**Listings on the box after the third nightly run**: **1,032 / 2,326 channels** (News 343, Sports 140); index loads
+in 0.42 s. **Home**: 2.2 % late frames when scrolling; settled 114 MB (93 MB before the third run's listings): the
+listings held in memory are now the biggest cost → next on the roadmap.

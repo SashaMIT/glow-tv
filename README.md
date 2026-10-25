@@ -25,8 +25,8 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
   English, CNA, DW, France 24, NBC News NOW and ABC News Live in News), then English and Thai feeds before other
   languages, with regional copies and local stations below the main channel. Numbers are saved, so they don't move.
 - **Player** (ExoPlayer): if a link is dead it tries the channel's other links, then the broadcaster's official
-  stream, then its official YouTube live. Neighbouring channels are prepared in advance, so changing channel takes
-  about 2 s. Last channel, digits, now/next banner.
+  stream, then its official YouTube live. The channels above and below are prepared silently, so ▲ and ▼ change
+  channel in about 0.3 s. ◀ for audio languages and subtitles (remembered), ▶ sleep timer, last channel, digits.
 - **Free TV**: about 2,300 working channels from the public [iptv-org](https://github.com/iptv-org/iptv) lists
   (Thailand, UK, US, world news, sports), link-checked every 12 hours so dead ones stay hidden.
 - **Programme listings**: about 1,000 channels. Every night a GitHub Actions job in this repo runs

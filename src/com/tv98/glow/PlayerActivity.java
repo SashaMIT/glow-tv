@@ -161,6 +161,17 @@ public class PlayerActivity extends Activity {
         olp.setMargins(Ui.dp(40), 0, 0, Ui.dp(36));
         root.addView(osd, olp);
 
+        subtitles = new TextView(this);
+        subtitles.setTextSize(22);
+        subtitles.setTextColor(0xFFFFFFFF);
+        subtitles.setGravity(Gravity.CENTER);
+        subtitles.setBackgroundColor(0xB3000000);
+        subtitles.setPadding(Ui.dp(12), Ui.dp(4), Ui.dp(12), Ui.dp(6));
+        subtitles.setVisibility(View.GONE);
+        FrameLayout.LayoutParams sublp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        sublp.bottomMargin = Ui.dp(48);
+        root.addView(subtitles, sublp);
+
         scoreBanner = new LinearLayout(this);
         scoreBanner.setGravity(Gravity.CENTER_VERTICAL);
         scoreBanner.setPadding(Ui.dp(12), Ui.dp(10), Ui.dp(18), Ui.dp(10));
@@ -176,6 +187,79 @@ public class PlayerActivity extends Activity {
         root.addView(scoreBanner, slp);
 
         setContentView(root);
+    }
+
+    // ---- audio & subtitles (◀ while watching) ----
+
+    private TextView subtitles;
+
+    /** Audio languages and subtitles this channel offers; the choice is remembered for other channels too. */
+    private void chooseTracks() {
+        if (exo == null) {
+            showOsd(5000);
+            return;
+        }
+        final List<String> labels = new ArrayList<>();
+        final List<Runnable> actions = new ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        boolean anyText = false, textOn = false;
+        int audioChoices = 0;
+        final List<String> audioLabels = new ArrayList<>();
+        final List<Runnable> audioActions = new ArrayList<>();
+        for (final androidx.media3.common.Tracks.Group g : exo.getCurrentTracks().getGroups()) {
+            int type = g.getType();
+            if (type != androidx.media3.common.C.TRACK_TYPE_AUDIO && type != androidx.media3.common.C.TRACK_TYPE_TEXT) continue;
+            for (int i = 0; i < g.length; i++) {
+                if (!g.isTrackSupported(i)) continue;
+                final androidx.media3.common.Format f = g.getTrackFormat(i);
+                final boolean audio = type == androidx.media3.common.C.TRACK_TYPE_AUDIO;
+                String name = language(f);
+                if (audio && f.channelCount > 2) name += "  5.1";
+                if (!seen.add((audio ? "a:" : "t:") + name)) continue; // the same language at several bitrates
+                if (audio) audioChoices++;
+                else anyText = true;
+                if (!audio && g.isTrackSelected(i)) textOn = true;
+                final int track = i;
+                (audio ? audioLabels : labels).add((audio ? "Audio: " : "Subtitles: ") + name + (g.isTrackSelected(i) ? "   ✓" : ""));
+                (audio ? audioActions : actions).add(() -> {
+                    tracks.setParameters(tracks.buildUponParameters()
+                            .setTrackTypeDisabled(type, false)
+                            .setOverrideForType(new androidx.media3.common.TrackSelectionOverride(g.getMediaTrackGroup(), track)));
+                    getSharedPreferences("player", MODE_PRIVATE).edit().putString(audio ? "audio_lang" : "subs_lang", f.language).apply();
+                });
+            }
+        }
+        if (audioChoices > 1) { // one audio track isn't a choice
+            labels.addAll(0, audioLabels);
+            actions.addAll(0, audioActions);
+        }
+        if (anyText) {
+            labels.add(audioChoices > 1 ? audioLabels.size() : 0, "Subtitles: off" + (textOn ? "" : "   ✓"));
+            actions.add(audioChoices > 1 ? audioLabels.size() : 0, () -> {
+                tracks.setParameters(tracks.buildUponParameters().setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_TEXT, true));
+                getSharedPreferences("player", MODE_PRIVATE).edit().remove("subs_lang").apply();
+                subtitles.setVisibility(View.GONE);
+            });
+        }
+        if (audioChoices <= 1 && !anyText) {
+            osdNote.setText("This channel has one audio track and no subtitles");
+            showOsd(4000);
+            return;
+        }
+        new android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle("Audio & subtitles")
+                .setItems(labels.toArray(new String[0]), (d, which) -> actions.get(which).run())
+                .show();
+    }
+
+    private static String language(androidx.media3.common.Format f) {
+        String label = f.label == null ? "" : f.label.trim();
+        java.util.regex.Matcher cc = java.util.regex.Pattern.compile("(?i)(?:cc|caption)[ _-]?(\\d+)").matcher(label);
+        if (cc.matches()) return "Captions " + cc.group(1); // "caption_2" from the stream
+        if (!label.isEmpty()) return Character.toUpperCase(label.charAt(0)) + label.substring(1);
+        if (f.language == null || f.language.equals("und")) return "Unknown";
+        String name = new java.util.Locale(f.language).getDisplayLanguage(java.util.Locale.ENGLISH);
+        return name.isEmpty() ? f.language : name;
     }
 
     // ---- sleep timer (▶ while watching) ----
@@ -357,8 +441,14 @@ public class PlayerActivity extends Activity {
                         25_000,
                         0.8f);   // use 80 % of the measured bandwidth (default 70 %)
         DefaultTrackSelector sel = new DefaultTrackSelector(this, adaptive);
-        sel.setParameters(sel.buildUponParameters().clearViewportSizeConstraints().setMaxVideoSize(1920, 1080)
-                .setMaxVideoBitrate(START_CAP_BPS));
+        android.content.SharedPreferences prefs = getSharedPreferences("player", MODE_PRIVATE);
+        String audio = prefs.getString("audio_lang", null), subs = prefs.getString("subs_lang", null);
+        DefaultTrackSelector.Parameters.Builder b = sel.buildUponParameters().clearViewportSizeConstraints()
+                .setMaxVideoSize(1920, 1080).setMaxVideoBitrate(START_CAP_BPS);
+        if (audio != null) b.setPreferredAudioLanguage(audio); // the language chosen last time with ◀
+        if (subs != null) b.setPreferredTextLanguage(subs).setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_TEXT, false);
+        else b.setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_TEXT, true); // subtitles only when asked for
+        sel.setParameters(b);
         return sel;
     }
 
@@ -394,6 +484,20 @@ public class PlayerActivity extends Activity {
                 android.util.Log.i("GlowPlayer", current().name + ": playing " + f.width + "x" + f.height
                         + (f.bitrate > 0 ? " " + f.bitrate / 1000 + " kbps" : "") + (f.frameRate > 0 ? " " + Math.round(f.frameRate) + " fps" : "")
                         + " at +" + (android.os.SystemClock.elapsedRealtime() - playStart) + " ms");
+            }
+        });
+        p.addListener(new Player.Listener() {
+            @Override
+            public void onCues(androidx.media3.common.text.CueGroup cues) {
+                if (p != exo) return;
+                StringBuilder t = new StringBuilder();
+                for (androidx.media3.common.text.Cue c : cues.cues) {
+                    if (c.text == null) continue;
+                    if (t.length() > 0) t.append('\n');
+                    t.append(c.text);
+                }
+                subtitles.setText(t);
+                subtitles.setVisibility(t.length() > 0 ? View.VISIBLE : View.GONE);
             }
         });
         p.addListener(new Player.Listener() {
@@ -453,22 +557,45 @@ public class PlayerActivity extends Activity {
         });
     }
 
-    // ---- standby: the channel above, prepared silently so ▲ switches almost at once ----
+    // ---- standby: the channels above and below, prepared silently so ▲ and ▼ switch almost at once ----
 
-    private ExoPlayer standby;
-    private DefaultTrackSelector standbyTracks;
-    private int standbyIndex = -1, standbyAttempt;
-    private long standbyAt;
-    private List<Sources.Attempt> standbyList;
+    /** One silently prepared channel. */
+    private static final class Standby {
+        ExoPlayer player;
+        DefaultTrackSelector tracks;
+        int index = -1, attempt;
+        long at;
+        List<Sources.Attempt> list;
+
+        void release() {
+            if (player != null) player.release();
+            player = null;
+            index = -1;
+        }
+    }
+
+    private final Standby up = new Standby(), down = new Standby();
     /** A standby younger than this plays from where it is (≤15 s behind live); older ones jump to live first. */
     private static final long STANDBY_FRESH_MS = 15_000;
     private final Runnable prepareStandby = this::prepareStandby;
 
-    /** Loads the next channel's playlists and first seconds in a second, silent player (4 s buffer at most). */
+    /**
+     * Loads the next channel's playlists and first seconds in a silent player (4 s buffer at most): the one above
+     * first, then (2.5 s later, so they don't compete for the connection) the one below.
+     */
     private void prepareStandby() {
-        if (exo == null || Xtream.playlist.size() < 2) return;
-        final int ni = (index + 1) % Xtream.playlist.size();
-        if (standby != null && standbyIndex == ni) return;
+        int n = Xtream.playlist.size();
+        if (exo == null || n < 2) return;
+        int above = (index + 1) % n, below = (index - 1 + n) % n;
+        if (up.index != above) {
+            prepare(up, above);
+            if (n >= 3) root.postDelayed(prepareStandby, 2_500);
+        } else if (n >= 3 && down.index != below) {
+            prepare(down, below);
+        }
+    }
+
+    private void prepare(final Standby slot, final int ni) {
         final Channel ch = Xtream.playlist.get(ni);
         final int gen = generation;
         Net.IO.execute(() -> {
@@ -482,49 +609,51 @@ public class PlayerActivity extends Activity {
                     if (!a.builtIn && a.youtubeChannels == null && a.url != null) k = i;
                 }
                 if (k < 0) return;
-                releaseStandby();
-                standbyTracks = newSelector();
-                standby = buildPlayer(standbyTracks, true);
-                standby.setVolume(0f);
-                standby.setPlayWhenReady(false);
-                standby.setMediaSource(source(list.get(k)));
-                standby.prepare();
-                standbyIndex = ni;
-                standbyAttempt = k;
-                standbyList = list;
-                standbyAt = android.os.SystemClock.elapsedRealtime();
-                android.util.Log.i("GlowPlayer", "standby: " + ch.name + " prepared in the background");
+                slot.release();
+                slot.tracks = newSelector();
+                slot.player = buildPlayer(slot.tracks, true);
+                slot.player.setVolume(0f);
+                slot.player.setPlayWhenReady(false);
+                slot.player.setMediaSource(source(list.get(k)));
+                slot.player.prepare();
+                slot.index = ni;
+                slot.attempt = k;
+                slot.list = list;
+                slot.at = android.os.SystemClock.elapsedRealtime();
+                android.util.Log.i("GlowPlayer", "standby " + (slot == up ? "▲" : "▼") + ": " + ch.name + " prepared in the background");
             });
         });
     }
 
     private void releaseStandby() {
-        if (standby != null) standby.release();
-        standby = null;
-        standbyIndex = -1;
+        up.release();
+        down.release();
     }
 
-    /** ▲ onto the prepared channel: swap the standby player onto the screen. False when there's nothing usable. */
+    /** ▲ or ▼ onto a prepared channel: swap its player onto the screen. False when there's nothing usable. */
     private boolean useStandby(int target) {
-        if (standby == null || standbyIndex != target || standby.getPlayerError() != null
-                || standby.getPlaybackState() == Player.STATE_IDLE) {
-            releaseStandby();
+        Standby slot = up.index == target ? up : down.index == target ? down : null;
+        if (slot == null) return false;
+        if (slot.player == null || slot.player.getPlayerError() != null || slot.player.getPlaybackState() == Player.STATE_IDLE) {
+            slot.release();
             return false;
         }
-        long age = android.os.SystemClock.elapsedRealtime() - standbyAt;
+        long age = android.os.SystemClock.elapsedRealtime() - slot.at;
         ExoPlayer old = exo;
-        exo = standby;
-        tracks = standbyTracks;
-        standby = null;
-        standbyIndex = -1;
+        exo = slot.player;
+        tracks = slot.tracks;
+        slot.player = null;
+        slot.index = -1;
         if (old != null) old.release(); // frees its decoder for the next standby
+        // The other standby is now two channels away: let it go; both get prepared again around the new channel.
+        (slot == up ? down : up).release();
         attachMain(exo);
         exo.setVideoSurfaceView(surface);
         exo.setVolume(1f);
         if (age > STANDBY_FRESH_MS) exo.seekToDefaultPosition(); // it's been waiting a while: jump to live
         exo.setPlayWhenReady(true);
-        attempts = standbyList;
-        attempt = standbyAttempt;
+        attempts = slot.list;
+        attempt = slot.attempt;
         builtIn.setVisibility(View.GONE);
         surface.setVisibility(View.VISIBLE);
         extended = false;
@@ -575,7 +704,7 @@ public class PlayerActivity extends Activity {
             Net.MAIN.post(() -> {
                 if (gen != generation) return; // changed channel meanwhile
                 probes.clear();
-                if (zapped && standbyIndex == index && useStandby(index)) return;
+                if (zapped && useStandby(index)) return;
                 attempts = list;
                 Sources.probeAll(list, (k, ok) -> Net.MAIN.post(() -> {
                     if (gen != generation) return;
@@ -730,8 +859,8 @@ public class PlayerActivity extends Activity {
         spinner.setVisibility(View.GONE);
         curtain.animate().alpha(0f).setDuration(250).start();
         prepareNeighbours();
-        osdNote.setText(attempt > 0 ? "Found a working source  ·  ▲ ▼ change channel   ·   OK info   ·   ▶ sleep timer"
-                : "▲ ▼ change channel   ·   OK info   ·   ▶ sleep timer   ·   BACK exit");
+        osdNote.setText(attempt > 0 ? "Found a working source  ·  ▲ ▼ change channel   ·   OK info   ·   ◀ audio & subtitles   ·   ▶ sleep timer"
+                : "▲ ▼ change channel   ·   OK info   ·   ◀ audio & subtitles   ·   ▶ sleep timer");
         showOsd(4000);
     }
 
@@ -852,8 +981,11 @@ public class PlayerActivity extends Activity {
             case KeyEvent.KEYCODE_DPAD_RIGHT:
                 stepSleepTimer();
                 return true;
-            case KeyEvent.KEYCODE_INFO:
             case KeyEvent.KEYCODE_DPAD_LEFT:
+            case KeyEvent.KEYCODE_CAPTIONS:
+                chooseTracks();
+                return true;
+            case KeyEvent.KEYCODE_INFO:
                 showOsd(5000);
                 return true;
             default:

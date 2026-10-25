@@ -175,6 +175,7 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
         col.addView(middle, mlp);
         grid = new GuideGridView(this);
         grid.setListener(this);
+        grid.setNowNext(getSharedPreferences("display", MODE_PRIVATE).getBoolean("now_next", false));
         middle.addView(grid, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         radioList = new RadioListView(this);
         radioList.setVisibility(View.GONE);
@@ -186,7 +187,7 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
 
         // Bottom: the key legend, like the coloured-button bar of the old guides.
         legend = plain(13, 0xFFFFFFFF);
-        legend.setText("▲▼ Channels     ◀▶ Time     0–9 Channel number     OK Watch / ⏰ Remind (later shows)     ■ Blue: ★ favourite     BACK Menu");
+        legend.setText(guideLegend());
         legend.setGravity(Gravity.CENTER);
         GradientDrawable lb = new GradientDrawable();
         lb.setColor(0x55102A6E);
@@ -304,6 +305,16 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
         radio.setId(View.generateViewId());
         currentTabId = radioMode ? radio.getId() : tv.getId();
         tabs.addView(tv);
+        // Now & Next: rows show what's on and what's next instead of the half-hour grid (remembered).
+        final boolean nn = getSharedPreferences("display", MODE_PRIVATE).getBoolean("now_next", false);
+        View nowNextTab = tab("≡", nn ? "NOW & NEXT ✓" : "NOW & NEXT", false, () -> {
+            boolean on = !getSharedPreferences("display", MODE_PRIVATE).getBoolean("now_next", false);
+            getSharedPreferences("display", MODE_PRIVATE).edit().putBoolean("now_next", on).apply();
+            grid.setNowNext(on);
+            buildTabs();
+            if (lineup != null) showMenu(false, 0);
+        });
+        tabs.addView(nowNextTab);
         tabs.addView(radio);
         tabs.addView(tab("⌕", "SEARCH", false, () -> startActivity(new Intent(this, SearchActivity.class))));
         tabs.addView(tab("◍", "WORLD NEWS", false, () -> startActivity(new Intent(this, WorldActivity.class))));
@@ -525,7 +536,7 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
         radioList.setVisibility(View.GONE);
         radioArt.setVisibility(View.GONE);
         grid.setVisibility(View.VISIBLE);
-        legend.setText("▲▼ Channels     ◀▶ Time     0–9 Channel number     OK Watch / ⏰ Remind (later shows)     ■ Blue: ★ favourite     BACK Menu");
+        legend.setText(guideLegend());
     }
 
     /** The RADIO tab: the same numbered menu, listing radio sections (1–9, 0). */
@@ -781,6 +792,11 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
     private void setTime(String t) {
         infoTime.setText(t);
         infoTime.setVisibility(t.isEmpty() ? View.GONE : View.VISIBLE);
+    }
+
+    private String guideLegend() {
+        return "▲▼ Channels     " + (grid != null && grid.nowNext() ? "◀▶ Now / Next" : "◀▶ Time")
+                + "     0–9 Channel number     OK Watch / ⏰ Remind (later shows)     ■ Blue: ★ favourite     BACK Menu";
     }
 
     private String time(long t) {

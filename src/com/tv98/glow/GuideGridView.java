@@ -137,7 +137,10 @@ class GuideGridView extends View {
         // Time header: "Today" over the channels, then the three half-hour marks.
         header.setColor(0xFFFFFFFF);
         c.drawText(DateFormat.format("EEE d MMM", windowStart).toString(), pad, headH - Ui.dp(9), header);
-        for (int k = 0; k < 3; k++) {
+        if (nowNext) {
+            c.drawText("Now", gridX + Ui.dp(4), headH - Ui.dp(9), header);
+            c.drawText("Next", gridX + gridW / 2f + Ui.dp(4), headH - Ui.dp(9), header);
+        } else for (int k = 0; k < 3; k++) {
             long t = windowStart + k * SLOT;
             c.drawText(time(t), gridX + gridW * k / 3f + Ui.dp(4), headH - Ui.dp(9), header);
         }
@@ -202,6 +205,10 @@ class GuideGridView extends View {
         float logoW = drawLogo(c, ch, y);
         drawClipped(c, ch.name, pad + numW, y + rowH - Ui.dp(9), chanW - pad * 2 - numW - logoW, text);
 
+        if (nowNext) {
+            drawNowNext(c, ch, y, selected, now);
+            return;
+        }
         // Programme blocks.
         List<Guide.Prog> progs = Guide.between(ch, windowStart, windowEnd);
         if (progs.isEmpty()) {
@@ -279,17 +286,28 @@ class GuideGridView extends View {
         if (bm == null) {
             if (asked.add(ch.key())) {
                 final String key = ch.key();
-                Net.bitmap(getContext(), ch.logo, Ui.dp(96), loaded -> {
+                final String url = ch.logo;
+                Net.bitmap(getContext(), url, Ui.dp(96), loaded -> {
                     if (loaded == null) return;
-                    if (logos.size() > 120) logos.clear(); // a screenful at a time is all that's drawn
                     // Empty border trimmed (logo files pad unevenly, which made them sit high), then scaled once to
-                    // the size it's drawn at, so each frame copies a small texture as-is.
-                    android.graphics.Bitmap art = trimmed(ch.logo, loaded);
-                    float k = Math.min(LOGO_W / (float) art.getWidth(), LOGO_H / (float) art.getHeight());
-                    int w = Math.max(1, Math.round(art.getWidth() * k)), h = Math.max(1, Math.round(art.getHeight() * k));
-                    logos.put(key, android.graphics.Bitmap.createScaledBitmap(art, w, h, true));
-                    rowCache.remove(key); // that row's picture was drawn without its logo
-                    invalidate();
+                    // the size it's drawn at, so each frame copies a small texture as-is. Done off the main thread:
+                    // it's per-pixel work, and a first scroll through a section meets a new logo on most rows.
+                    Net.IO.execute(() -> {
+                        android.graphics.Bitmap art = trimmed(url, loaded);
+                        float k = Math.min(LOGO_W / (float) art.getWidth(), LOGO_H / (float) art.getHeight());
+                        int w = Math.max(1, Math.round(art.getWidth() * k)), h = Math.max(1, Math.round(art.getHeight() * k));
+                        final android.graphics.Bitmap scaled = android.graphics.Bitmap.createScaledBitmap(art, w, h, true);
+                        post(() -> {
+                            if (logos.size() > 120) { // a screenful at a time is all that's drawn
+                                logos.clear();
+                                asked.clear(); // (they'd never be asked for again otherwise)
+                                asked.add(key);
+                            }
+                            logos.put(key, scaled);
+                            rowCache.remove(key); // that row's picture was drawn without its logo
+                            invalidate();
+                        });
+                    });
                 });
             }
             return 0;
@@ -485,8 +503,72 @@ class GuideGridView extends View {
     }
 
     /** Next/previous programme on the selected row; past the window edge the window shifts half an hour. */
+    // ---- Now & Next: each row shows what's on and what's next instead of the half-hour grid ----
+
+    private boolean nowNext;
+
+    void setNowNext(boolean on) {
+        if (nowNext == on) return;
+        nowNext = on;
+        long now = System.currentTimeMillis();
+        cursor = now;
+        windowStart = now - now % SLOT;
+        rowCache.clear();
+        changed();
+    }
+
+    boolean nowNext() {
+        return nowNext;
+    }
+
+    /** The programme on now and the one after it (either may be null). */
+    private static Guide.Prog[] nowAndNext(Channel ch, long now) {
+        Guide.Prog cur = null, next = null;
+        for (Guide.Prog p : Guide.between(ch, now, now + 12 * 60 * 60 * 1000L)) {
+            if (cur == null && p.start <= now && now < p.stop) cur = p;
+            else if (p.start >= now && next == null) next = p;
+            if (cur != null && next != null && next.start >= cur.stop) break;
+        }
+        if (cur != null && next != null && next.start < cur.stop) next = null;
+        return new Guide.Prog[] {cur, next};
+    }
+
+    private void drawNowNext(Canvas c, Channel ch, float y, boolean selected, long now) {
+        float w = getWidth(), gridX = chanW + gap, half = (w - gridX) / 2f;
+        Guide.Prog[] nn = nowAndNext(ch, now);
+        if (nn[0] == null && nn[1] == null) {
+            r.set(gridX, y, w, y + rowH);
+            drawCell(c, selected);
+            text.setColor(selected ? HILITE_TEXT : DIM_TEXT);
+            drawClipped(c, liveLabel(ch), gridX + pad, y + rowH - Ui.dp(9), w - gridX - pad * 2, text);
+            return;
+        }
+        for (int k = 0; k < 2; k++) {
+            Guide.Prog p = nn[k];
+            float x1 = gridX + k * half, x2 = x1 + half - (k == 0 ? gap : 0);
+            r.set(x1, y, x2, y + rowH);
+            boolean hl = selected && p != null && p.start <= cursor && cursor < p.stop;
+            drawCell(c, hl);
+            text.setColor(hl ? HILITE_TEXT : p == null ? DIM_TEXT : CELL_TEXT);
+            String label = p == null ? (k == 0 ? "No listing now" : "")
+                    : (k == 0 ? "until " + time(p.stop) + "   " : time(p.start) + "   ") + p.title;
+            float tx = x1 + pad;
+            if (k == 1 && p != null && p.start > now && Reminders.has(getContext(), ch, p)) {
+                drawBell(c, tx + Ui.dp(5), y + rowH / 2 + Ui.dp(1), hl);
+                tx += Ui.dp(16);
+            }
+            drawClipped(c, label, tx, y + rowH - Ui.dp(9), x2 - tx - Ui.dp(6), text);
+        }
+    }
+
     private void moveTime(boolean forward) {
         long now = System.currentTimeMillis();
+        if (nowNext) { // ◀ ▶ step between Now and Next
+            Guide.Prog[] nn = nowAndNext(rows.get(sel), now);
+            cursor = forward && nn[1] != null ? nn[1].start : now;
+            changed();
+            return;
+        }
         long earliest = now - now % SLOT;
         Channel ch = rows.get(sel);
         List<Guide.Prog> progs = Guide.between(ch, cursor - 26 * 60 * 60 * 1000L, cursor + 26 * 60 * 60 * 1000L);
