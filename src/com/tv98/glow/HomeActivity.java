@@ -330,6 +330,9 @@ public class HomeActivity extends Activity {
         free.setOnClickListener(v -> startActivity(new Intent(this, ChannelsActivity.class)
                 .putExtra(ChannelsActivity.EXTRA_SOURCE, ChannelsActivity.SOURCE_FREE)));
         live.addView(free);
+        Tile radio = actionTile("♫", "Radio", "Thousands of free stations");
+        radio.setOnClickListener(v -> startActivity(new Intent(this, RadioActivity.class)));
+        live.addView(radio);
 
         final Xtream.Account acct = Xtream.load(this);
         if (acct != null) {
@@ -352,6 +355,7 @@ public class HomeActivity extends Activity {
             GuideLineup.build(this); // ready before the TV Guide is opened (kept 30 min)
             if (fresh) Net.MAIN.post(() -> { if (!isFinishing()) showChannels(); }); // tiles now show guide numbers
             Health.priorityIfDue(this);
+            Updates.checkIfDue(this); // weekly: is there a newer Glow on GitHub Releases?
             Guide.ensure(this, null);
         });
         if (acct != null) {

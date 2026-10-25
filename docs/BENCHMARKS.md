@@ -223,3 +223,42 @@ What's left of the US time is mostly downloading and unzipping 30 MB. epg.pw als
 | Screensaver | box's web screensaver, never started (timeout "never") | **Glow ambient after 15 min idle**: clock, weather, world stories with pictures, "on now" for favourites, burn-in drift | Glow ▸ Settings switch; off restores the box's own values; any key wakes |
 | Settings | developer access, offline channels, phone remote, refresh | **+ screensaver, weather city (17), clock 12/24/auto, Thai channels first, apps on Home (hide, reorder)** | all tested on the box, then reset to defaults |
 | APK | 840 KB | 852 KB | |
+
+## Picture quality, news → channel matching, releases — 25 Oct 2026 (late afternoon)
+
+**Why channels looked soft.** The box sends **3840×2160 @ 60 Hz** to the monitor (`/sys/class/disp/disp/attr/sys`)
+and video has its own hardware layer, but Android reports the screen as 1280×720 (only the menus are drawn at that
+size). ExoPlayer caps video to the reported screen size by default, so 1080p channels were held at 720p or below.
+The cap is now cleared (up to 1080p), ABR steps up after 4 s instead of 10 s and uses 80 % of measured bandwidth,
+and each channel starts from the connection speed measured last time (box measured ~42 Mbps).
+
+`tools/qualitybench.sh 6 8 25` (Sports, 8 channels, 25 s each; "offers" = best variant in the stream):
+
+| Channel (offers) | Before: first → after 25 s | After: first → after 25 s |
+|---|---|---|
+| Red Bull TV (1080p) | 640×360 → 1024×576 (+21 s) | 640×360 → **1920×1080, 6.3 Mbps (+14 s)** (first channel of the run, no speed known yet) |
+| FUEL TV (1080p) | 1280×720 → 1280×720 | **1920×1080, 4.7 Mbps from the first frame** |
+| Swerve Combat (1080p) | 1280×720 → 1280×720 | **1920×1080, 4.9 Mbps from the first frame** |
+| FightBox / FightBox HD / Fast&FunBox (single 1080p) | 1920×1080 | 1920×1080 |
+| DAZN Combat (sizes not in playlist) | 1216×684 | 1216×684 (its top variant) |
+| First picture | 2.3–5.0 s | 2.2–3.4 s |
+
+**News → channel.** "Watch live" from a World story now picks: the outlet's own channel (BBC → BBC News, Bloomberg/FT/WSJ
+→ Bloomberg TV, CBS → CBS News 24/7, Al Jazeera, France 24, DW, NHK, CNA, Reuters…), else the place named most in the
+headline (Japan → NHK World, Korea → Arirang, India/Pakistan → WION, Thailand → Thai PBS, Israel/Gaza/Iran/Saudi → Al
+Jazeera English, Ukraine/Russia → DW, France → France 24, UK → BBC News/Sky News, White House/Congress → ABC/NBC/CBS…),
+else the story's region. Reviewed against all 50 top stories on the box; e.g. "Pakistan ratifies Mecca pact as Saudi
+Arabia … Israel …" now goes to Al Jazeera English (2 Middle East places vs 1 South Asia), FT stories to Bloomberg TV.
+
+**Releases.** `.github/workflows/release.yml` builds a signed APK for each `v*` tag and attaches it to a GitHub
+release; Glow checks GitHub weekly and offers the update in Settings (download, then Android's own install prompt).
+
+**Slow-starting channels no longer marked offline.** Pluto TV's ad-stitched streams take 2.3–8 s for the first picture
+(measured 4× each way on Bellator MMA, with and without the remembered connection speed: server-side variation, not
+the quality change). The player gave each link 7 s, so a slow start counted as a dead link and hid the channel. Once a
+stream has answered with its renditions it now gets 8 s more: Bellator MMA played 3 of 3 (7.2–8.2 s).
+
+**Radio.** Home ▸ Radio: 11 sections from radio-browser.info (Popular in Thailand, Top worldwide, UK, US, News & talk,
+Chill, Jazz, Classical, Dance, Rock, Thai), up to 80 stations each with logos (initials when there's none), song
+titles from the stream, screen dims after 30 s with clock and station. Tested: Cool Fahrenheit (Thailand) with its
+stream title, BBC Radio 5 Live; dim screen and wake on any key.

@@ -50,6 +50,7 @@ public class PlayerActivity extends Activity {
 
     private FrameLayout root;
     private SurfaceView surface;
+    private androidx.media3.exoplayer.upstream.DefaultBandwidthMeter meter;
     private VideoView builtIn;
     private ExoPlayer exo;
     private View curtain;
@@ -63,6 +64,8 @@ public class PlayerActivity extends Activity {
     private int attempt;
     private int generation;
     private boolean playing;
+    /** This attempt already got its extra time (its stream answered, so it's alive, just slow to show a picture). */
+    private boolean extended;
     /** True when this channel was reached with ▲▼ / digits: don't jump out to YouTube uninvited. */
     private boolean zapping;
     private String pendingYoutube;
@@ -171,24 +174,53 @@ public class PlayerActivity extends Activity {
         generation++;
         root.removeCallbacks(nextAttempt);
         if (builtIn != null) builtIn.stopPlayback();
+        saveBandwidth();
         if (exo != null) {
             exo.release();
             exo = null;
         }
     }
 
+    /** Remembers the connection speed ExoPlayer measured, so the next channel can start at a fitting quality. */
+    private void saveBandwidth() {
+        if (meter == null) return;
+        long est = meter.getBitrateEstimate();
+        if (est > 500_000) getSharedPreferences("player", MODE_PRIVATE).edit().putLong("bandwidth", est).apply();
+    }
+
     private void createExo() {
-        DefaultTrackSelector tracks = new DefaultTrackSelector(this);
-        // 1080p is plenty for the 720p UI and keeps decoding and memory comfortable on this chip.
-        tracks.setParameters(tracks.buildUponParameters().setMaxVideoSize(1920, 1080));
+        // Picture quality: Android reports this box's screen as 1280x720 (only the menus are drawn at that size; the
+        // HDMI output is 3840x2160 and video has its own hardware layer), and ExoPlayer by default caps video to the
+        // reported screen size, which held 1080p channels at 720p or below. Clear that cap; allow up to 1080p
+        // (enough for every free stream here and comfortable for the decoder and 1 GB of memory).
+        androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection.Factory adaptive =
+                new androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection.Factory(
+                        4_000,   // step up after 4 s of good throughput (default 10 s)
+                        25_000,  // step down only when the buffer is really at risk
+                        25_000,
+                        0.8f);   // use 80 % of the measured bandwidth (default 70 %)
+        DefaultTrackSelector tracks = new DefaultTrackSelector(this, adaptive);
+        tracks.setParameters(tracks.buildUponParameters().clearViewportSizeConstraints().setMaxVideoSize(1920, 1080));
         // Smaller buffers than the default 50 s: live TV doesn't need them and the box has 1 GB of RAM.
         DefaultLoadControl load = new DefaultLoadControl.Builder().setBufferDurationsMs(12_000, 30_000, 1_500, 3_000).build();
-        // Start from a modest bitrate so the first picture comes sooner; ExoPlayer steps up as it measures.
-        androidx.media3.exoplayer.upstream.DefaultBandwidthMeter meter =
-                new androidx.media3.exoplayer.upstream.DefaultBandwidthMeter.Builder(this).setInitialBitrateEstimate(1_500_000).build();
+        // Start each channel from the connection speed measured last time (kept between channels and restarts),
+        // at 60 % so the first segment still arrives quickly; ExoPlayer then steps up within seconds.
+        long known = getSharedPreferences("player", MODE_PRIVATE).getLong("bandwidth", 0);
+        long initial = known > 0 ? Math.max(1_500_000L, Math.min(12_000_000L, known * 6 / 10)) : 1_500_000L;
+        meter = new androidx.media3.exoplayer.upstream.DefaultBandwidthMeter.Builder(this).setInitialBitrateEstimate(initial).build();
         exo = new ExoPlayer.Builder(this).setTrackSelector(tracks).setLoadControl(load).setBandwidthMeter(meter).build();
         exo.setVideoSurfaceView(surface);
         exo.setPlayWhenReady(true);
+        // Quality log: what each channel offers and what's actually being played (GlowPlayer tag).
+        exo.addAnalyticsListener(new androidx.media3.exoplayer.analytics.AnalyticsListener() {
+            @Override
+            public void onVideoInputFormatChanged(EventTime t, androidx.media3.common.Format f,
+                    androidx.media3.exoplayer.DecoderReuseEvaluation e) {
+                android.util.Log.i("GlowPlayer", current().name + ": playing " + f.width + "x" + f.height
+                        + (f.bitrate > 0 ? " " + f.bitrate / 1000 + " kbps" : "") + (f.frameRate > 0 ? " " + Math.round(f.frameRate) + " fps" : "")
+                        + " at +" + (android.os.SystemClock.elapsedRealtime() - playStart) + " ms");
+            }
+        });
         exo.addListener(new Player.Listener() {
             @Override
             public void onRenderedFirstFrame() {
@@ -215,6 +247,27 @@ public class PlayerActivity extends Activity {
                     tryAttempt(0);
                 } else {
                     next();
+                }
+            }
+
+            @Override
+            public void onTracksChanged(androidx.media3.common.Tracks tracks) {
+                int best = 0, bestW = 0, n = 0;
+                for (androidx.media3.common.Tracks.Group g : tracks.getGroups()) {
+                    if (g.getType() != androidx.media3.common.C.TRACK_TYPE_VIDEO) continue;
+                    for (int i = 0; i < g.length; i++) {
+                        androidx.media3.common.Format f = g.getTrackFormat(i);
+                        n++;
+                        if (f.height > best) { best = f.height; bestW = f.width; }
+                    }
+                }
+                if (n > 0) android.util.Log.i("GlowPlayer", current().name + ": offers " + n + " video variants, best " + bestW + "x" + best);
+                // The stream answered with its renditions, so it's alive: give it 8 s more for the first picture
+                // before moving on (Pluto's ad-stitched streams can take ~10 s), once per attempt.
+                if (n > 0 && !playing && !extended) {
+                    extended = true;
+                    root.removeCallbacks(nextAttempt);
+                    root.postDelayed(nextAttempt, 8_000);
                 }
             }
 
@@ -323,6 +376,7 @@ public class PlayerActivity extends Activity {
             exo.setMediaSource(source(a));
             exo.prepare();
         }
+        extended = false;
         root.postDelayed(nextAttempt, ATTEMPT_MS);
     }
 
@@ -398,6 +452,7 @@ public class PlayerActivity extends Activity {
 
     /** A picture is on screen: remember which link did it. */
     private void onPicture() {
+        root.postDelayed(this::saveBandwidth, 8_000);
         if (playing) return;
         playing = true;
         root.removeCallbacks(nextAttempt);

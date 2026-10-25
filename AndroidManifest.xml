@@ -10,6 +10,8 @@
 
     <!-- Glow Settings ▸ Screensaver sets the idle time before the screensaver starts. -->
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
+    <!-- Glow Settings ▸ Update installs a newer Glow from GitHub Releases (Android asks the viewer to confirm). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:name=".GlowApp"
@@ -47,7 +49,12 @@
         <activity android:name=".SettingsActivity" />
         <activity android:name=".ClassicGuideActivity" />
         <activity android:name=".AppsActivity" />
-            <!-- Ambient screensaver (clock, weather, headlines with pictures, what's on now). -->
+        <activity android:name=".RadioActivity" />
+
+        <!-- Hears back from Android's installer when Glow installs an update from GitHub Releases. -->
+        <receiver android:name=".Updates$Result" android:exported="false" />
+
+        <!-- Ambient screensaver (clock, weather, headlines with pictures, what's on now). -->
         <service android:name=".GlowDream" android:exported="true" android:label="Glow ambient"
             android:permission="android.permission.BIND_DREAM_SERVICE">
             <intent-filter>

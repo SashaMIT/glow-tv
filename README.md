@@ -32,6 +32,9 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
 - **Programme listings**: UK/US from [epg.pw](https://epg.pw)'s daily XMLTV files, Pluto TV channels from their own
   schedules ([i.mjh.nz](https://github.com/matthuisman/i.mjh.nz), matched on the Pluto id in the stream link), and
   Thai channels from TrueID, fetched when they scroll into view. Channel logos in the guide.
+- **Radio**: thousands of free stations from [radio-browser.info](https://www.radio-browser.info) in sections
+  (Thailand, UK, US, news & talk, chill, jazz, classical, dance, rock…), with song titles and a dimmed screen while
+  you listen.
 - **Phone remote**: open the box's address on your phone, enter the 4-digit code shown on the TV, then use a
   D-pad, type searches and logins, open favourites. Home network only; switches itself off after 30 minutes.
 - **World**: top stories and alerts by region from [World Monitor](https://github.com/koala73/worldmonitor), with
@@ -120,6 +123,7 @@ switched off.
 - [World Monitor](https://github.com/koala73/worldmonitor): headlines and the news-channel catalogue (AGPL-3.0); the catalogue is downloaded and turned into `WmCatalog.java` at build time and is not part of this repository
 - [epg.pw](https://epg.pw), [i.mjh.nz](https://github.com/matthuisman/i.mjh.nz) (Pluto TV) and [TrueID](https://tv.trueid.net): programme listings, fetched by the app
 - [Open-Meteo](https://open-meteo.com): weather (CC BY 4.0)
+- [radio-browser.info](https://www.radio-browser.info): radio station directory
 
 Built with [Claude Code](https://claude.com/claude-code).
 

@@ -50,6 +50,16 @@ public class SettingsActivity extends Activity {
         title.setPadding(Ui.dp(6), 0, 0, Ui.dp(14));
         list.addView(title);
 
+        final String update = Updates.available(this);
+        if (update != null) {
+            row("Update available: Glow " + update, "Press OK to download it; Android then asks you to confirm the install.",
+                    null, v -> {
+                        Toast.makeText(this, "Downloading Glow " + update + "…", Toast.LENGTH_SHORT).show();
+                        Net.IO.execute(() -> Updates.install(this,
+                                msg -> Net.MAIN.post(() -> Toast.makeText(this, msg, Toast.LENGTH_SHORT).show())));
+                    });
+        }
+
         boolean adb = adbOn(this);
         row(adb ? "Developer access: ON" : "Developer access: off",
                 adb ? "Anyone on your Wi-Fi can fully control this box while it's on. Turn it off unless you're working on the box."
@@ -138,6 +148,16 @@ public class SettingsActivity extends Activity {
 
         row("Android settings", "Wi-Fi, display, sound, apps and everything else.", null,
                 v -> startActivity(new Intent(Settings.ACTION_SETTINGS)));
+
+        TextView version = Ui.text(this, 12, Ui.TEXT_DIM, 400);
+        String name = "";
+        try {
+            name = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (Exception ignored) {
+        }
+        version.setText("Glow " + name + "   ·   github.com/" + Updates.REPO);
+        version.setPadding(Ui.dp(8), Ui.dp(6), 0, 0);
+        list.addView(version);
 
         if (list.getChildCount() > 1) list.getChildAt(1).requestFocus();
     }

@@ -1,15 +1,19 @@
 #!/bin/bash
 # Builds Glow into build/glow.apk with the plain Android SDK tools (no Gradle).
-# Needs: brew openjdk@17 and android-commandlinetools (build-tools 34, platform android-35).
+# Needs: JDK 17 and the Android SDK (build-tools 34, platform android-35). On macOS: brew openjdk@17 and
+# android-commandlinetools; elsewhere (e.g. GitHub Actions) set JAVA_HOME and ANDROID_HOME.
 set -euo pipefail
 cd "$(dirname "$0")"
 
-export JAVA_HOME="$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home"
-SDK="$(brew --prefix)/share/android-commandlinetools"
+if [ -z "${JAVA_HOME:-}" ] && command -v brew >/dev/null; then
+    export JAVA_HOME="$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home"
+fi
+SDK="${ANDROID_HOME:-$(brew --prefix 2>/dev/null)/share/android-commandlinetools}"
 BT="$SDK/build-tools/34.0.0"
 JAR="$SDK/platforms/android-35/android.jar"
+# Release builds (tools/release or the GitHub workflow) set these from the version tag, e.g. v1.4.0 -> 10400 / 1.4.0.
 VERSION_CODE="${VERSION_CODE:-1}"
-VERSION_NAME="${VERSION_NAME:-1.0}"
+VERSION_NAME="${VERSION_NAME:-dev}"
 # A signing key is created on the first build and stays on your machine (glow.keystore is git-ignored).
 KS_PASS="${GLOW_KS_PASS:-glowglow}"
 

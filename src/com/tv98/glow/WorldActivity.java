@@ -210,6 +210,15 @@ public class WorldActivity extends Activity {
 
     private void show(List<World.Story> stories) {
         all = stories;
+        if (android.util.Log.isLoggable("GlowRank", android.util.Log.DEBUG)) { // adb shell setprop log.tag.GlowRank DEBUG
+            final List<World.Story> top = World.section(stories, "__top");
+            Net.IO.execute(() -> {
+                for (World.Story s : top) {
+                    Channel ch = World.liveFor(this, s);
+                    android.util.Log.d("GlowRank", (ch == null ? "-" : ch.name) + "  <=  [" + World.lastReason + "]  " + s.source + ": " + s.title);
+                }
+            });
+        }
         long newest = 0;
         for (World.Story s : stories) newest = Math.max(newest, s.at);
         updated.setText(stories.size() + " headlines from " + countSources(stories) + " sources   ·   latest " + World.ago(newest));

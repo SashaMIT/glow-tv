@@ -251,15 +251,109 @@ final class World {
             {"*", "al jazeera english", "dw english", "france 24 english", "nbc news now"},
     };
 
-    /** A working news channel for this story, or null. Call off the main thread (reads the channel lists). */
+    /** Stories from an outlet that has its own free channel go to that channel. {source contains, channels…} */
+    private static final String[][] BY_SOURCE = {
+            {"bbc", "bbc news", "bbc news uk hd"}, {"al jazeera", "al jazeera english", "al jazeera english hd"},
+            {"france 24", "france 24 english"}, {"dw", "dw english"}, {"deutsche welle", "dw english"},
+            {"cna", "cna international"}, {"channel newsasia", "cna international"}, {"nhk", "nhk world-japan"},
+            {"bloomberg", "bloomberg tv"}, {"cbs", "cbs news 24/7"}, {"nbc", "nbc news now"}, {"abc news", "abc news live"},
+            {"sky news", "sky news"}, {"euronews", "euronews english"}, {"fox", "livenow from fox"}, {"reuters", "reuters tv"},
+            {"trt", "trt world"}, {"wion", "wion"}, {"arirang", "arirang tv"}, {"i24", "i24news english"},
+            {"gb news", "gb news"}, {"thai pbs", "thai pbs"}, {"bangkok post", "thai pbs"}, {"thairath", "thairath tv"},
+            {"financial times", "bloomberg tv"}, {"wall street journal", "bloomberg tv"}, {"cnbc", "bloomberg tv"},
+            {"marketwatch", "bloomberg tv"}, {"yahoo finance", "bloomberg tv"}, {"economist", "bloomberg tv"},
+    };
+
+    /** Places named in the headline: {words…, "|", channels…}. The row naming the most places wins; ties go to the earlier row. */
+    private static final String[][] BY_PLACE = {
+            {"thailand", "thai", "bangkok", "|", "thai pbs", "thairath tv", "cna international"},
+            {"japan", "japanese", "tokyo", "|", "nhk world-japan", "cna international"},
+            {"korea", "korean", "seoul", "pyongyang", "|", "arirang tv", "nhk world-japan", "cna international"},
+            {"singapore", "malaysia", "indonesia", "philippines", "vietnam", "myanmar", "cambodia", "laos", "asean",
+                    "china", "chinese", "beijing", "taiwan", "hong kong", "|", "cna international", "nhk world-japan"},
+            {"india", "indian", "delhi", "modi", "pakistan", "bangladesh", "sri lanka", "|", "wion", "cna international"},
+            {"israel", "israeli", "gaza", "hamas", "hezbollah", "lebanon", "iran", "iranian", "tehran", "syria", "yemen",
+                    "saudi", "qatar", "iraq", "jordan", "egypt", "|", "al jazeera english", "i24news english", "france 24 english"},
+            {"turkey", "turkish", "erdogan", "ankara", "istanbul", "|", "trt world", "dw english"},
+            {"ukraine", "ukrainian", "kyiv", "russia", "russian", "moscow", "kremlin", "putin", "zelensky", "|",
+                    "dw english", "france 24 english", "euronews english", "bbc news"},
+            {"france", "french", "paris", "macron", "|", "france 24 english", "euronews english"},
+            {"germany", "german", "berlin", "merz", "|", "dw english", "euronews english"},
+            {"britain", "british", "uk", "london", "england", "scotland", "starmer", "westminster", "|",
+                    "bbc news", "sky news", "gb news"},
+            {"trump", "white house", "congress", "senate", "washington", "biden", "pentagon", "fbi", "|",
+                    "abc news live", "nbc news now", "cbs news 24/7", "livenow from fox"},
+            {"africa", "african", "nigeria", "kenya", "ethiopia", "sudan", "congo", "somalia", "sahel", "|",
+                    "al jazeera english", "france 24 english", "dw english"},
+            {"brazil", "mexico", "argentina", "venezuela", "colombia", "chile", "peru", "cuba", "|",
+                    "france 24 english", "dw english", "al jazeera english"},
+            {"market", "markets", "stocks", "fed", "inflation", "oil price", "earnings", "|", "bloomberg tv", "cheddar news"},
+    };
+
+    /**
+     * A working news channel for this story, or null: the outlet's own channel, else one covering the place in
+     * the headline, else one for the story's region. Call off the main thread (reads the channel lists).
+     */
     static Channel liveFor(Context c, Story s) {
         List<Channel> all = FreeTv.cached(c);
+        String src = s.source == null ? "" : s.source.toLowerCase(java.util.Locale.ROOT);
+        for (String[] row : BY_SOURCE) {
+            if (hasWord(src, row[0])) {
+                Channel ch = firstWorking(c, all, row, 1);
+                if (ch != null) { lastReason = "outlet"; return ch; }
+            }
+        }
+        String title = " " + (s.title == null ? "" : s.title.toLowerCase(java.util.Locale.ROOT)) + " ";
+        String[] best = null;
+        int bestHits = 0;
+        String bestWord = "";
+        for (String[] row : BY_PLACE) {
+            int bar = java.util.Arrays.asList(row).indexOf("|"), hits = 0;
+            String first = "";
+            for (int i = 0; i < bar; i++) {
+                if (hasWord(title, row[i])) {
+                    if (hits == 0) first = row[i];
+                    hits++;
+                }
+            }
+            if (hits > bestHits && firstWorking(c, all, row, bar + 1) != null) {
+                best = row;
+                bestHits = hits;
+                bestWord = first;
+            }
+        }
+        if (best != null) {
+            lastReason = "place: " + bestWord + (bestHits > 1 ? " +" + (bestHits - 1) : "");
+            return firstWorking(c, all, best, java.util.Arrays.asList(best).indexOf("|") + 1);
+        }
         for (String[] row : LIVE) {
             if (!row[0].equals(s.category) && !row[0].equals("*")) continue;
-            for (int i = 1; i < row.length; i++) {
-                for (Channel ch : all) {
-                    if (ch.name.toLowerCase(java.util.Locale.ROOT).equals(row[i]) && !Channel.isOffline(c, ch)) return ch;
-                }
+            Channel ch = firstWorking(c, all, row, 1);
+            if (ch != null) { lastReason = "region: " + row[0]; return ch; }
+        }
+        return null;
+    }
+
+    /** Why the last liveFor() picked its channel (for the debug log). */
+    static volatile String lastReason = "";
+
+    /** Whole-word (or phrase) match, so "uk" doesn't match "ukraine" and "fed" doesn't match "federal". */
+    private static boolean hasWord(String text, String word) {
+        int at = 0;
+        while ((at = text.indexOf(word, at)) >= 0) {
+            boolean startOk = at == 0 || !Character.isLetterOrDigit(text.charAt(at - 1));
+            int end = at + word.length();
+            boolean endOk = end >= text.length() || !Character.isLetterOrDigit(text.charAt(end));
+            if (startOk && endOk) return true;
+            at = end;
+        }
+        return false;
+    }
+
+    private static Channel firstWorking(Context c, List<Channel> all, String[] names, int from) {
+        for (int i = from; i < names.length; i++) {
+            for (Channel ch : all) {
+                if (ch.name.toLowerCase(java.util.Locale.ROOT).equals(names[i]) && !Channel.isOffline(c, ch)) return ch;
             }
         }
         return null;
