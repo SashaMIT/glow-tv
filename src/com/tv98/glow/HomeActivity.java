@@ -119,6 +119,10 @@ public class HomeActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
+        // The tiles' GPU textures are only worth their memory while Home is on screen (rebuilt on resume).
+        Tile.release(apps);
+        Tile.release(live);
+        Tile.release(quick);
         clock.removeCallbacks(tick);
         headline.removeCallbacks(rotateHeadline);
     }
@@ -323,23 +327,12 @@ public class HomeActivity extends Activity {
 
     private void fillLive() {
         live.removeAllViews();
-        Tile guide = actionTile("▤", "TV Guide", "What's on, channel by channel");
+        // One way in: the TV Guide has every channel (free and My IPTV), radio, and the country lists under More.
+        Tile guide = actionTile("▤", "TV Guide", "TV and radio, channel by channel");
         guide.setOnClickListener(v -> startActivity(new Intent(this, ClassicGuideActivity.class)));
         live.addView(guide);
-        Tile free = actionTile("📡", "Free TV", "2,500+ free channels");
-        free.setOnClickListener(v -> startActivity(new Intent(this, ChannelsActivity.class)
-                .putExtra(ChannelsActivity.EXTRA_SOURCE, ChannelsActivity.SOURCE_FREE)));
-        live.addView(free);
-        Tile radio = actionTile("♫", "Radio", "Thousands of free stations");
-        radio.setOnClickListener(v -> startActivity(new Intent(this, RadioActivity.class)));
-        live.addView(radio);
 
         final Xtream.Account acct = Xtream.load(this);
-        if (acct != null) {
-            Tile mine = actionTile("▦", "My IPTV", "Your provider's channels");
-            mine.setOnClickListener(v -> startActivity(new Intent(this, ChannelsActivity.class)));
-            live.addView(mine);
-        }
         sourceTiles = live.getChildCount();
         showChannels();
 

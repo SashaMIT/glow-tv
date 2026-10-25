@@ -13,8 +13,8 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
 ## What it does
 
 - **Home screen**: clock, local weather, a rolling world headline, icon buttons (search, world, phone, IPTV,
-  settings, and a red shield while developer access is on), your apps as full-colour cards, and live TV
-  (guide, free channels, favourites) with channel numbers.
+  settings, and a red shield while developer access is on), your apps as full-colour cards, and live TV: the TV
+  Guide (TV and radio) followed by your favourites, with channel numbers.
 - **TV guide**: a numbered menu (All Channels, Favourites, Entertainment, Lifestyle & Culture, Movies, Sports,
   News, Documentaries, Kids, 0 More…), then channels against half-hour columns with a muted live preview.
   Type a number to jump; ◀ ▶ moves through the day; OK on a later programme sets a reminder; channel logos and
@@ -32,9 +32,9 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
 - **Programme listings**: UK/US from [epg.pw](https://epg.pw)'s daily XMLTV files, Pluto TV channels from their own
   schedules ([i.mjh.nz](https://github.com/matthuisman/i.mjh.nz), matched on the Pluto id in the stream link), and
   Thai channels from TrueID, fetched when they scroll into view. Channel logos in the guide.
-- **Radio**: thousands of free stations from [radio-browser.info](https://www.radio-browser.info) in sections
-  (Thailand, UK, US, news & talk, chill, jazz, classical, dance, rock…), with song titles and a dimmed screen while
-  you listen.
+- **Radio** (the guide's RADIO tab): thousands of free stations from [radio-browser.info](https://www.radio-browser.info)
+  in ten numbered sections (Thailand, Thai music, UK, US, top worldwide, news & talk, chill, jazz, classical, dance),
+  listed like TV channels with logos and the song on air; the screen dims while you listen.
 - **Phone remote**: open the box's address on your phone, enter the 4-digit code shown on the TV, then use a
   D-pad, type searches and logins, open favourites. Home network only; switches itself off after 30 minutes.
 - **World**: top stories and alerts by region from [World Monitor](https://github.com/koala73/worldmonitor), with

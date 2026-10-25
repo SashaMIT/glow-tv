@@ -41,6 +41,22 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
     private LinearLayout menuScreen, menuList, tabs, gridScreen;
     private TextView menuClock, menuTitle;
     private boolean inMore;
+    // Radio, inside the guide: the RADIO tab shows its numbered menu, then a station list in the guide's style.
+    private RadioListView radioList;
+    private android.widget.ImageView radioArt;
+    private TextView legend;
+    private boolean radioMode;
+    /** ▲ from the top of the menu goes to the tab you're in, not whichever tab sits above it. */
+    private int currentTabId = View.NO_ID;
+    private int radioSection = -1;
+    private ExoPlayer radioExo;
+    private Radio.Station radioPlaying;
+    private String radioSong;
+    private int radioGen;
+    private FrameLayout radioDim;
+    private TextView radioDimClock, radioDimName, radioDimSong;
+    private static final long RADIO_DIM_MS = 60_000;
+    private final Runnable radioDimNow = this::showRadioDim;
     private GuideGridView grid;
     private android.widget.ImageView infoLogo;
     private String infoLogoUrl;
@@ -144,6 +160,12 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
         previewNote.setBackgroundColor(0xFF0B1E4F); // covers the last frame whenever there's no live picture
         previewNote.setPadding(Ui.dp(12), 0, Ui.dp(12), 0);
         preview.addView(previewNote, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        radioArt = new android.widget.ImageView(this);
+        radioArt.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        radioArt.setBackgroundColor(0xFF0B1E4F);
+        radioArt.setPadding(Ui.dp(40), Ui.dp(24), Ui.dp(40), Ui.dp(24));
+        radioArt.setVisibility(View.GONE);
+        preview.addView(radioArt, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         top.addView(preview, new LinearLayout.LayoutParams(Ui.dp(320), Ui.dp(180)));
 
         // Middle: the menu or the grid (one at a time).
@@ -154,9 +176,16 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
         grid = new GuideGridView(this);
         grid.setListener(this);
         middle.addView(grid, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        radioList = new RadioListView(this);
+        radioList.setVisibility(View.GONE);
+        radioList.setListener(new RadioListView.Listener() {
+            @Override public void onSelect(Radio.Station st, int number) { showRadioInfo(st, number); }
+            @Override public void onPlay(Radio.Station st, int number) { toggleRadio(st, number); }
+        });
+        middle.addView(radioList, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         // Bottom: the key legend, like the coloured-button bar of the old guides.
-        TextView legend = plain(13, 0xFFFFFFFF);
+        legend = plain(13, 0xFFFFFFFF);
         legend.setText("▲▼ Channels     ◀▶ Time     0–9 Channel number     OK Watch / ⏰ Remind (later shows)     ■ Blue: ★ favourite     BACK Menu");
         legend.setGravity(Gravity.CENTER);
         GradientDrawable lb = new GradientDrawable();
@@ -170,6 +199,7 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
 
         gridScreen.setVisibility(View.GONE);
         buildMenuScreen(root);
+        buildRadioDim(root);
         setContentView(root);
         menuTitle.setText("Loading the guide…");
 
@@ -234,10 +264,7 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
         logo.addView(guide);
         head.addView(logo, new LinearLayout.LayoutParams(Ui.dp(150), ViewGroup.LayoutParams.WRAP_CONTENT));
         tabs = new LinearLayout(this);
-        tabs.addView(tab("▤", "TV GUIDE", true, null));
-        tabs.addView(tab("⌕", "SEARCH", false, SearchActivity.class));
-        tabs.addView(tab("◍", "WORLD NEWS", false, WorldActivity.class));
-        tabs.addView(tab("⚙", "SETTINGS", false, SettingsActivity.class));
+        buildTabs();
         head.addView(tabs, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         menuClock = bold(22);
         head.addView(menuClock);
@@ -268,7 +295,22 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
         menuScreen.addView(keys, klp);
     }
 
-    private View tab(String glyph, String label, boolean current, final Class<?> opens) {
+    /** TV GUIDE and RADIO switch the menu in place; the others open their screens. */
+    private void buildTabs() {
+        tabs.removeAllViews();
+        View tv = tab("▤", "TV GUIDE", !radioMode, () -> { if (lineup != null) showMenu(false, 0); });
+        View radio = tab("♫", "RADIO", radioMode, () -> showRadioMenu(0));
+        tv.setId(View.generateViewId());
+        radio.setId(View.generateViewId());
+        currentTabId = radioMode ? radio.getId() : tv.getId();
+        tabs.addView(tv);
+        tabs.addView(radio);
+        tabs.addView(tab("⌕", "SEARCH", false, () -> startActivity(new Intent(this, SearchActivity.class))));
+        tabs.addView(tab("◍", "WORLD NEWS", false, () -> startActivity(new Intent(this, WorldActivity.class))));
+        tabs.addView(tab("⚙", "SETTINGS", false, () -> startActivity(new Intent(this, SettingsActivity.class))));
+    }
+
+    private View tab(String glyph, String label, boolean current, final Runnable action) {
         LinearLayout t = new LinearLayout(this);
         t.setOrientation(LinearLayout.VERTICAL);
         t.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -294,10 +336,7 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
                 new int[][] {{android.R.attr.state_focused}, {}}, new int[] {GuideGridView.HILITE, 0xFFFFFFFF}));
         name.setShadowLayer(Ui.dp(2), 0, Ui.dp(1), 0x66000000);
         t.addView(name, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        t.setOnClickListener(v -> {
-            if (opens != null) startActivity(new Intent(this, opens));
-            else if (menuList.getChildCount() > 0) menuList.getChildAt(0).requestFocus();
-        });
+        t.setOnClickListener(v -> action.run());
         return t;
     }
 
@@ -328,6 +367,11 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
     private void showMenu(boolean more, int focus) {
         section = null;
         inMore = more;
+        if (radioMode) {
+            radioMode = false;
+            radioSection = -1;
+            buildTabs();
+        }
         gridScreen.setVisibility(View.GONE);
         menuScreen.setVisibility(View.VISIBLE);
         stopPreview("");
@@ -341,6 +385,7 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
             menuList.addView(menuRow(String.valueOf(i + 1), s.name, s.channels.size(), v -> openSection(s, null)));
         }
         if (!more) menuList.addView(menuRow("0", "More…", -1, v -> showMenu(true, 0)));
+        if (menuList.getChildCount() > 0) menuList.getChildAt(0).setNextFocusUpId(currentTabId);
         menuList.getChildAt(Math.max(0, Math.min(focus, menuList.getChildCount() - 1))).requestFocus();
     }
 
@@ -417,6 +462,7 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
         heading.setText("TV Guide  ·  " + s.name);
         menuScreen.setVisibility(View.GONE);
         gridScreen.setVisibility(View.VISIBLE);
+        showTvParts();
         int select = 0;
         if (selectKey != null) {
             for (int i = 0; i < s.channels.size(); i++) if (s.channels.get(i).key().equals(selectKey)) select = i;
@@ -471,6 +517,198 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
             default:
                 return false;
         }
+    }
+
+    // ---- radio ----
+
+    private void showTvParts() {
+        radioList.setVisibility(View.GONE);
+        radioArt.setVisibility(View.GONE);
+        grid.setVisibility(View.VISIBLE);
+        legend.setText("▲▼ Channels     ◀▶ Time     0–9 Channel number     OK Watch / ⏰ Remind (later shows)     ■ Blue: ★ favourite     BACK Menu");
+    }
+
+    /** The RADIO tab: the same numbered menu, listing radio sections (1–9, 0). */
+    private void showRadioMenu(int focus) {
+        section = null;
+        inMore = false;
+        radioSection = -1;
+        if (!radioMode) {
+            radioMode = true;
+            buildTabs();
+        }
+        gridScreen.setVisibility(View.GONE);
+        menuScreen.setVisibility(View.VISIBLE);
+        stopPreview("");
+        menuTitle.setText("RADIO   ·   FREE STATIONS FROM AROUND THE WORLD" + (radioPlaying != null ? "   ·   ♫ " + radioPlaying.name : ""));
+        menuList.removeAllViews();
+        for (int i = 0; i < Radio.SECTIONS.length; i++) {
+            final int idx = i;
+            menuList.addView(menuRow(String.valueOf((i + 1) % 10), Radio.SECTIONS[i][0], -1, v -> openRadio(idx)));
+        }
+        menuList.getChildAt(0).setNextFocusUpId(currentTabId);
+        menuList.getChildAt(Math.max(0, Math.min(focus, menuList.getChildCount() - 1))).requestFocus();
+    }
+
+    /** A radio section as a guide-style list; stations numbered 0101… for section 1, 0201… for section 2. */
+    private void openRadio(final int idx) {
+        radioSection = idx;
+        menuScreen.setVisibility(View.GONE);
+        gridScreen.setVisibility(View.VISIBLE);
+        grid.setVisibility(View.GONE);
+        radioList.setVisibility(View.VISIBLE);
+        stopPreview("");
+        previewNote.setVisibility(View.GONE);
+        radioArt.setVisibility(View.VISIBLE);
+        heading.setText("Radio  ·  " + Radio.SECTIONS[idx][0]);
+        legend.setText("▲▼ Stations     CH± Page     0–9 Station number     OK Listen / stop     BACK Radio menu");
+        setTime("RADIO");
+        infoTitle.setText("Loading stations…");
+        infoChannel.setText("");
+        infoDesc.setVisibility(View.GONE);
+        infoNext.setText("");
+        final int gen = ++radioGen;
+        Net.IO.execute(() -> {
+            final List<Radio.Station> list = Radio.section(this, idx);
+            Net.MAIN.post(() -> {
+                if (gen != radioGen || isFinishing() || radioSection != idx) return;
+                if (list.isEmpty()) {
+                    infoTitle.setText("Couldn't load stations");
+                    infoChannel.setText("Check the internet connection and try again.");
+                    return;
+                }
+                radioList.setStations(list, (idx + 1) * 100);
+                radioList.setPlaying(radioPlaying == null ? null : radioPlaying.uuid, radioSong);
+                radioList.requestFocus();
+            });
+        });
+    }
+
+    private void showRadioInfo(Radio.Station st, int number) {
+        boolean on = radioPlaying != null && radioPlaying.uuid.equals(st.uuid);
+        setTime("RADIO  ·  " + RadioListView.label(number) + (on ? "   ·   ♫ ON AIR" : ""));
+        infoTitle.setText(st.name);
+        infoChannel.setText(Radio.describe(st));
+        boolean song = on && radioSong != null && !radioSong.isEmpty();
+        infoDesc.setText(song ? radioSong : "");
+        infoDesc.setVisibility(song ? View.VISIBLE : View.GONE);
+        infoNext.setText(on ? "OK to stop" : "OK to listen" + (radioPlaying != null ? "   ·   now playing: " + radioPlaying.name : ""));
+        if (st.logo == null || st.logo.isEmpty()) {
+            infoLogoUrl = null;
+            infoLogo.setImageDrawable(new SourceArt(Ui.initials(st.name), Ui.ACCENT, Ui.dp(10)));
+            infoLogo.setVisibility(View.VISIBLE);
+        } else if (!st.logo.equals(infoLogoUrl)) {
+            infoLogoUrl = st.logo;
+            infoLogo.setVisibility(View.VISIBLE);
+            final String want = st.logo;
+            infoLogo.setImageDrawable(null);
+            Net.bitmap(this, want, Ui.dp(240), bm -> {
+                if (!want.equals(infoLogoUrl)) return;
+                if (bm == null) infoLogo.setImageDrawable(new SourceArt(Ui.initials(st.name), Ui.ACCENT, Ui.dp(10)));
+                else infoLogo.setImageBitmap(GuideGridView.trim(bm));
+            });
+        }
+    }
+
+    private void toggleRadio(Radio.Station st, int number) {
+        if (radioPlaying != null && radioPlaying.uuid.equals(st.uuid)) {
+            stopRadio();
+        } else {
+            radioPlaying = st;
+            radioSong = null;
+            if (radioExo == null) {
+                radioExo = new ExoPlayer.Builder(this).build();
+                radioExo.addListener(new Player.Listener() {
+                    @Override
+                    public void onMediaMetadataChanged(androidx.media3.common.MediaMetadata m) {
+                        CharSequence t = m.title != null ? m.title : m.displayTitle;
+                        if (t == null || t.length() == 0 || radioPlaying == null) return;
+                        radioSong = t.toString();
+                        radioList.setPlaying(radioPlaying.uuid, radioSong);
+                        radioDimSong.setText(radioSong);
+                        if (radioSection >= 0) radioList.post(() -> radioList.dispatchSelect());
+                    }
+
+                    @Override
+                    public void onPlayerError(PlaybackException e) {
+                        android.widget.Toast.makeText(ClassicGuideActivity.this, "That station isn't available right now",
+                                android.widget.Toast.LENGTH_SHORT).show();
+                        stopRadio();
+                    }
+                });
+            }
+            radioExo.setMediaItem(androidx.media3.common.MediaItem.fromUri(st.url));
+            radioExo.prepare();
+            radioExo.play();
+            // Keep the screen on while listening; Glow dims it itself after a minute without a key press.
+            getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            scheduleRadioDim();
+            Net.image(radioArt, st.logo, Ui.dp(240), () -> radioArt.setImageDrawable(new SourceArt(Ui.initials(st.name), Ui.ACCENT, Ui.dp(12))));
+        }
+        radioList.setPlaying(radioPlaying == null ? null : radioPlaying.uuid, radioSong);
+        showRadioInfo(st, number);
+    }
+
+    private void stopRadio() {
+        if (radioExo != null) radioExo.stop();
+        radioPlaying = null;
+        radioSong = null;
+        radioList.setPlaying(null, null);
+        getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        radioDim.removeCallbacks(radioDimNow);
+    }
+
+    private void buildRadioDim(FrameLayout root) {
+        radioDim = new FrameLayout(this);
+        radioDim.setBackgroundColor(0xF2050810);
+        radioDim.setVisibility(View.GONE);
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setGravity(Gravity.CENTER);
+        radioDimClock = Ui.text(this, 72, 0x99FFFFFF, 300);
+        radioDimName = Ui.text(this, 20, 0x99FFFFFF, 600);
+        radioDimName.setPadding(0, Ui.dp(18), 0, 0);
+        radioDimSong = Ui.text(this, 15, 0x778FA8FF, 400);
+        radioDimSong.setPadding(0, Ui.dp(6), 0, 0);
+        for (TextView t : new TextView[] {radioDimClock, radioDimName, radioDimSong}) {
+            t.setGravity(Gravity.CENTER);
+            box.addView(t);
+        }
+        radioDim.addView(box, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
+        root.addView(radioDim, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+    }
+
+    private void scheduleRadioDim() {
+        radioDim.removeCallbacks(radioDimNow);
+        if (radioPlaying != null) radioDim.postDelayed(radioDimNow, RADIO_DIM_MS);
+    }
+
+    /** Long listening: dim the screen (clock, station, song), moved a little each time against burn-in. */
+    private void showRadioDim() {
+        if (radioPlaying == null) return;
+        radioDimClock.setText(DateFormat.format(Ui.is24h(this) ? "HH:mm" : "h:mm", System.currentTimeMillis()));
+        radioDimName.setText("♫  " + radioPlaying.name);
+        radioDimSong.setText(radioSong == null ? "" : radioSong);
+        View box = radioDim.getChildAt(0); // move the words, not the dark layer, so the whole screen stays dimmed
+        box.setTranslationX((float) (Math.random() - 0.5) * Ui.dp(60));
+        box.setTranslationY((float) (Math.random() - 0.5) * Ui.dp(40));
+        radioDim.setAlpha(0f);
+        radioDim.setVisibility(View.VISIBLE);
+        radioDim.animate().alpha(1f).setDuration(1200).start();
+        radioDim.postDelayed(radioDimNow, RADIO_DIM_MS); // refresh the clock and move it
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent e) {
+        if (radioDim != null && radioDim.getVisibility() == View.VISIBLE) { // any key wakes the screen, nothing else
+            if (e.getAction() == KeyEvent.ACTION_UP) {
+                radioDim.setVisibility(View.GONE);
+                scheduleRadioDim();
+            }
+            return true;
+        }
+        if (e.getAction() == KeyEvent.ACTION_DOWN && radioPlaying != null) scheduleRadioDim();
+        return super.dispatchKeyEvent(e);
     }
 
     // ---- grid callbacks ----
@@ -649,6 +887,11 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
     @Override
     protected void onStop() {
         super.onStop();
+        stopRadio(); // leaving the guide (to watch TV, or Home) ends the radio too
+        if (radioExo != null) {
+            radioExo.release();
+            radioExo = null;
+        }
         stopPreview("");
         if (exo != null) {
             exo.release();
@@ -658,7 +901,12 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
 
     @Override
     public boolean onKeyDown(int code, KeyEvent e) {
+        if (radioMode && radioSection < 0 && code >= KeyEvent.KEYCODE_0 && code <= KeyEvent.KEYCODE_9) {
+            openRadio(code == KeyEvent.KEYCODE_0 ? 9 : code - KeyEvent.KEYCODE_1);
+            return true;
+        }
         if (lineup == null) return super.onKeyDown(code, e);
+        if (radioMode) return super.onKeyDown(code, e);
         if (colourKey(code)) return true;
         if (section == null && code >= KeyEvent.KEYCODE_0 && code <= KeyEvent.KEYCODE_9) {
             if (code == KeyEvent.KEYCODE_0) {
@@ -675,6 +923,14 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
 
     @Override
     public void onBackPressed() {
+        if (radioSection >= 0) { // station list -> radio menu -> TV guide menu
+            showRadioMenu(radioSection);
+            return;
+        }
+        if (radioMode && lineup != null) {
+            showMenu(false, 0);
+            return;
+        }
         if (lineup != null && section != null) {
             int inMain = lineup.main.indexOf(section);
             if (inMain >= 0) showMenu(false, inMain);

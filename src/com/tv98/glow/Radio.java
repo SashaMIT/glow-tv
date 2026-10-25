@@ -23,19 +23,18 @@ final class Radio {
         int bitrate, votes;
     }
 
-    /** {label, query path}. */
+    /** {label, query path}: ten, so each has a number key in the guide's radio menu (1–9, 0). */
     static final String[][] SECTIONS = {
             {"Popular in Thailand", "stations/search?countrycode=TH&order=clickcount&reverse=true"},
-            {"Top worldwide", "stations/search?order=clickcount&reverse=true"},
+            {"Thai music", "stations/search?tag=thai&order=clickcount&reverse=true"},
             {"UK", "stations/search?countrycode=GB&order=clickcount&reverse=true"},
             {"US", "stations/search?countrycode=US&order=clickcount&reverse=true"},
+            {"Top worldwide", "stations/search?order=clickcount&reverse=true"},
             {"News & talk", "stations/search?tag=news&language=english&order=clickcount&reverse=true"},
             {"Chill & lo-fi", "stations/search?tag=chillout&order=clickcount&reverse=true"},
             {"Jazz", "stations/search?tag=jazz&order=clickcount&reverse=true"},
             {"Classical", "stations/search?tag=classical&order=clickcount&reverse=true"},
             {"Dance & electronic", "stations/search?tag=dance&order=clickcount&reverse=true"},
-            {"Rock", "stations/search?tag=rock&order=clickcount&reverse=true"},
-            {"Thai music", "stations/search?tag=thai&order=clickcount&reverse=true"},
     };
 
     /** The directory's servers; the first answer wins. */

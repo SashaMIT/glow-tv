@@ -262,3 +262,13 @@ stream has answered with its renditions it now gets 8 s more: Bellator MMA playe
 Chill, Jazz, Classical, Dance, Rock, Thai), up to 80 stations each with logos (initials when there's none), song
 titles from the stream, screen dims after 30 s with clock and station. Tested: Cool Fahrenheit (Thailand) with its
 stream title, BBC Radio 5 Live; dim screen and wake on any key.
+
+## Home smoothness, everything in the TV Guide — 25 Oct 2026 (evening)
+
+| Metric | Before | After | Result |
+|---|---|---|---|
+| Home scrolling (`tools/scrollbench.sh`, 3 passes × 3 runs) | 29.5 % late frames, p99 23–26 ms, 121 slow GPU draw passes | **1.0–1.8 % late, p99 15–19 ms** | each tile's card is a cached GPU layer (one texture per tile instead of glass + clip + contents every frame) |
+| Glow on Home, settled (same build ± layers, 90–150 s after start) | 44 MB | 60 MB | the layers cost ~16 MB while Home is on screen; released in onPause, so apps like Netflix get it back |
+| Tried and dropped | layers only while a row moves (released after 0.6 s / 8 s / 30 s) | 76 % / 13 % / 17 % late | rebuilding textures on the move costs more than it saves |
+| Ways into live TV | TV Guide, Free TV, Radio, My IPTV tiles | **one: TV Guide** (TV and radio) | Free TV/My IPTV channels are all in the guide (country lists and My IPTV under 0 More…) |
+| Radio | its own screen | **RADIO tab in the guide**: same numbered menu (10 sections, keys 1–9, 0), stations as guide rows numbered 0101…, logo + live song title in the info panel, keeps playing while you browse the guide, dims after 1 min | tested: News & talk → CNN on air, dim screen, back to the radio menu with "♫ CNN" |
