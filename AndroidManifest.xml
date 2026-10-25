@@ -12,6 +12,8 @@
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
     <!-- Glow Settings ▸ Update installs a newer Glow from GitHub Releases (Android asks the viewer to confirm). -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Banners over other apps (notifications, score alerts): only once the viewer allows "display over other apps". -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <application
         android:name=".GlowApp"
@@ -51,6 +53,23 @@
         <activity android:name=".AppsActivity" />
         <activity android:name=".IntelActivity" />
         <activity android:name=".ExtraAppsActivity" />
+        <activity android:name=".ButtonsActivity" />
+        <activity android:name=".NotificationsActivity" />
+        <!-- Other apps' notifications as banners and a list in Glow; only with notification access, granted by the viewer. -->
+        <service android:name=".GlowNotifications" android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+        <activity android:name=".QuickSettingsActivity" android:theme="@style/Glow.Panel" android:excludeFromRecents="true" />
+        <!-- "Glow remote buttons": the viewer's button jobs in every app. Switched on by the viewer in Android's
+             Accessibility settings; it only acts on buttons they set in Glow and never reads the screen. -->
+        <service android:name=".GlowButtons" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE" android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/glow_buttons" />
+        </service>
 
         <!-- Hears back from Android's installer when Glow installs an update from GitHub Releases. -->
         <receiver android:name=".Updates$Result" android:exported="false" />

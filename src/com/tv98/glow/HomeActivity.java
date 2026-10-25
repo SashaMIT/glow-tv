@@ -161,8 +161,21 @@ public class HomeActivity extends Activity {
         headline.removeCallbacks(rotateHeadline);
     }
 
+    private final Buttons.InApp buttons = new Buttons.InApp();
+
+    @Override
+    public boolean onKeyLongPress(int code, android.view.KeyEvent e) {
+        return buttons.longPress(this, code) || super.onKeyLongPress(code, e);
+    }
+
+    @Override
+    public boolean onKeyUp(int code, android.view.KeyEvent e) {
+        return buttons.up(this, e) || super.onKeyUp(code, e);
+    }
+
     @Override
     public boolean onKeyDown(int code, android.view.KeyEvent e) {
+        if (buttons.down(this, e)) return true; // a remote button the viewer gave a job
         if (code == android.view.KeyEvent.KEYCODE_GUIDE) {
             startActivity(new Intent(this, ClassicGuideActivity.class));
             return true;

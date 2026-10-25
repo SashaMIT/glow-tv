@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="buttons_service">Glow remote buttons: makes the remote buttons you set in Glow ▸ Settings ▸ Remote buttons work in every app, not only in Glow. Glow only looks at the buttons you set; it doesn\'t read the screen.</string>
+</resources>

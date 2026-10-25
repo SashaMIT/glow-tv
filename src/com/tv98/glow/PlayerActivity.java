@@ -536,7 +536,7 @@ public class PlayerActivity extends Activity {
     // ---- sleep timer (▶ while watching) ----
 
     private static final int[] SLEEP_STEPS = {0, 30, 60, 90, 120};
-    private static long sleepAt; // kept across channel changes and the guide; 0 = off
+    static long sleepAt; // kept across channel changes and the guide; 0 = off (Quick settings sets it too)
     private final Runnable sleepTick = new Runnable() {
         @Override
         public void run() {
@@ -639,6 +639,27 @@ public class PlayerActivity extends Activity {
             alertShowing = false;
             nextAlert();
         }).start(), 8000);
+    }
+
+    /** Back from Quick settings (or anything on top): apply changed night sound, picture size and subtitles. */
+    @Override
+    protected void onResume() {
+        super.onResume();
+        boolean wasNight = nightSound;
+        int wasPicture = pictureMode;
+        settingsRead = false;
+        readPlayerSettings();
+        if (exo == null) return;
+        if (wasNight != nightSound) applyNight(exo);
+        if (wasPicture != pictureMode) fit(lastW, lastH, lastRatio);
+        String subs = getSharedPreferences("player", MODE_PRIVATE).getString("subs_lang", null);
+        if (tracks != null) {
+            DefaultTrackSelector.Parameters.Builder b = tracks.buildUponParameters()
+                    .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_TEXT, subs == null);
+            if (subs != null) b.setPreferredTextLanguage(subs);
+            tracks.setParameters(b);
+            if (subs == null && subtitles != null) subtitles.setVisibility(View.GONE);
+        }
     }
 
     @Override
@@ -1268,8 +1289,11 @@ public class PlayerActivity extends Activity {
 
     private boolean okHandled;
 
+    private final Buttons.InApp buttons = new Buttons.InApp();
+
     @Override
     public boolean onKeyLongPress(int code, KeyEvent e) {
+        if (buttons.longPress(this, code)) return true;
         if (code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER) {
             okHandled = true;
             showPlayerMenu();
@@ -1280,6 +1304,7 @@ public class PlayerActivity extends Activity {
 
     @Override
     public boolean onKeyUp(int code, KeyEvent e) {
+        if (buttons.up(this, e)) return true;
         if (code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER) {
             if (!okHandled && !e.isCanceled()) showOsd(5000);
             okHandled = false;
@@ -1290,6 +1315,7 @@ public class PlayerActivity extends Activity {
 
     @Override
     public boolean onKeyDown(int code, KeyEvent e) {
+        if (Buttons.assignable(code) && buttons.down(this, e)) return true; // a remote button the viewer gave a job
         switch (code) {
             case KeyEvent.KEYCODE_DPAD_UP:
             case KeyEvent.KEYCODE_CHANNEL_UP:

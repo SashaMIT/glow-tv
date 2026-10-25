@@ -22,3 +22,4 @@ if [ -n "$NOTES" ]; then
 else
   gh release create "v$V" "$OUT" --title "Glow $V" --generate-notes
 fi
+git fetch -q --tags # so development builds afterwards are numbered above this release

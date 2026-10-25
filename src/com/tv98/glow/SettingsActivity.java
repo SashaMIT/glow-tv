@@ -190,6 +190,12 @@ public class SettingsActivity extends Activity {
                     focusRow("Score alerts");
                 });
 
+        row("Notifications & banners", "Other apps' notifications and score alerts as banners over anything you watch.",
+                null, v -> startActivity(new Intent(this, NotificationsActivity.class)));
+
+        row("Remote buttons", "Give spare remote buttons a job: an app, the TV Guide, Sports now, Quick settings… (press and hold).",
+                null, v -> startActivity(new Intent(this, ButtonsActivity.class)));
+
         row("Extra apps", "SmartTube, Jellyfin, Kodi, NewPipe: open-source apps from their official releases, installed only if you pick one.",
                 null, v -> startActivity(new Intent(this, ExtraAppsActivity.class)));
 
