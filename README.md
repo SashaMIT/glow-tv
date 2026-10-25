@@ -17,7 +17,8 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
   (guide, free channels, favourites) with channel numbers.
 - **TV guide**: a numbered menu (All Channels, Favourites, Entertainment, Lifestyle & Culture, Movies, Sports,
   News, Documentaries, Kids, 0 More…), then channels against half-hour columns with a muted live preview.
-  Type a number to jump; ◀ ▶ moves through the day; colour keys for Recently watched, Search, World and Favourites.
+  Type a number to jump; ◀ ▶ moves through the day; OK on a later programme sets a reminder; channel logos and
+  a one-line summary of the highlighted programme; colour keys for Recently watched, Search, World and Favourites.
 - **Channel numbers and ranking**: every channel gets a number in its genre's block (Entertainment 1xx,
   Lifestyle 2xx, Movies 3xx, Sports 4xx, News 5xx, Documentaries 6xx, Kids 7xx, Music 8xx). Inside each genre,
   hand-picked top channels come first (Red Bull TV, FUEL TV and the fight channels in Sports; Al Jazeera

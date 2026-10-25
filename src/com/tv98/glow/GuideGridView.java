@@ -25,6 +25,8 @@ class GuideGridView extends View {
     interface Listener {
         void onSelect(Channel ch, Guide.Prog prog, int number);
         void onWatch(Channel ch, int indexInList);
+        /** OK on a programme that hasn't started: set or clear a reminder. */
+        void onRemind(Channel ch, Guide.Prog prog);
         void onNeedGuide(List<Channel> visible);
     }
 
@@ -142,56 +144,27 @@ class GuideGridView extends View {
         // "Now" line across the grid.
         float y0 = headH;
         int vis = visibleRows();
+        if (cachedWindow != windowStart || cachedWidth != getWidth()) {
+            rowCache.clear();
+            cachedWindow = windowStart;
+            cachedWidth = getWidth();
+        }
         for (int i = 0; i < vis && top + i < rows.size(); i++) {
             int idx = top + i;
             Channel ch = rows.get(idx);
             float y = y0 + i * (rowH + gap);
-            boolean selected = idx == sel;
-
-            // Channel cell: "101  Thai PBS"
-            r.set(0, y, chanW, y + rowH);
-            drawCell(c, selected);
-            text.setColor(selected ? HILITE_TEXT : CELL_TEXT);
-            bold.setColor(selected ? HILITE_TEXT : CELL_TEXT);
-            int num = lineup == null ? 0 : lineup.number(ch);
-            String n = num > 0 ? String.valueOf(num) : "";
-            float numW = bold.measureText("8888") + pad;
-            c.drawText(n, pad, y + rowH - Ui.dp(9), bold);
-            float logoW = drawLogo(c, ch, y);
-            drawClipped(c, ch.name, pad + numW, y + rowH - Ui.dp(9), chanW - pad * 2 - numW - logoW, text);
-
-            // Programme blocks.
-            List<Guide.Prog> progs = Guide.between(ch, windowStart, windowEnd);
-            if (progs.isEmpty()) {
-                r.set(gridX, y, w, y + rowH);
-                boolean hl = selected;
-                drawCell(c, hl);
-                text.setColor(hl ? HILITE_TEXT : DIM_TEXT);
-                drawClipped(c, now >= windowStart && now < windowEnd ? liveLabel(ch) : "No listings",
-                        gridX + pad, y + rowH - Ui.dp(9), gridW - pad * 2, text);
-                continue;
-            }
-            long covered = windowStart;
-            for (Guide.Prog p : progs) {
-                if (p.start - covered > GAP) drawGap(c, covered, p.start, y, selected);
-                covered = Math.max(covered, p.stop);
-                float x1 = gridX + gridW * Math.max(0, p.start - windowStart) / (float) WINDOW;
-                float x2 = gridX + gridW * Math.min(WINDOW, p.stop - windowStart) / (float) WINDOW;
-                if (x2 - x1 < Ui.dp(6)) continue;
-                r.set(x1, y, x2 - gap, y + rowH);
-                boolean hl = selected && p.start <= cursor && cursor < p.stop;
-                drawCell(c, hl);
-                float tx = x1 + pad;
-                if (p.start < windowStart) { // started before the window: little ◀ like the classic guide
-                    drawArrow(c, x1 + Ui.dp(4), y + rowH / 2, true, hl);
-                    tx += Ui.dp(8);
+            if (idx == sel) {
+                drawRow(c, ch, y, true, now); // the highlighted row changes with every key press: drawn live
+            } else {
+                // Other rows are drawn once into a picture and reused, so each costs one draw call per frame.
+                android.graphics.Bitmap bm = rowCache.get(ch.key());
+                if (bm == null) {
+                    bm = android.graphics.Bitmap.createBitmap((int) w, (int) Math.ceil(rowH), android.graphics.Bitmap.Config.ARGB_8888);
+                    drawRow(new Canvas(bm), ch, 0, false, now);
+                    rowCache.put(ch.key(), bm);
                 }
-                boolean more = p.stop > windowEnd;
-                if (more) drawArrow(c, x2 - gap - Ui.dp(4), y + rowH / 2, false, hl);
-                text.setColor(hl ? HILITE_TEXT : CELL_TEXT);
-                drawClipped(c, p.title, tx, y + rowH - Ui.dp(9), (x2 - gap) - tx - (more ? Ui.dp(12) : Ui.dp(6)), text);
+                c.drawBitmap(bm, 0, y, null);
             }
-            if (windowEnd - covered > GAP) drawGap(c, covered, windowEnd, y, selected);
         }
         // Thin "now" marker when the current time is inside the window.
         if (now >= windowStart && now < windowEnd) {
@@ -202,6 +175,80 @@ class GuideGridView extends View {
         }
     }
 
+    /** One channel row at height y: channel cell (number, name, logo) and its programme blocks. */
+    private void drawRow(Canvas c, Channel ch, float y, boolean selected, long now) {
+        float w = getWidth();
+        float gridX = chanW + gap, gridW = w - gridX;
+        long windowEnd = windowStart + WINDOW;
+
+        // Channel cell: "101  Thai PBS"
+        r.set(0, y, chanW, y + rowH);
+        drawCell(c, selected);
+        text.setColor(selected ? HILITE_TEXT : CELL_TEXT);
+        bold.setColor(selected ? HILITE_TEXT : CELL_TEXT);
+        int num = lineup == null ? 0 : lineup.number(ch);
+        String n = num > 0 ? String.valueOf(num) : "";
+        float numW = bold.measureText("8888") + pad;
+        c.drawText(n, pad, y + rowH - Ui.dp(9), bold);
+        float logoW = drawLogo(c, ch, y);
+        drawClipped(c, ch.name, pad + numW, y + rowH - Ui.dp(9), chanW - pad * 2 - numW - logoW, text);
+
+        // Programme blocks.
+        List<Guide.Prog> progs = Guide.between(ch, windowStart, windowEnd);
+        if (progs.isEmpty()) {
+            r.set(gridX, y, w, y + rowH);
+            drawCell(c, selected);
+            text.setColor(selected ? HILITE_TEXT : DIM_TEXT);
+            drawClipped(c, now >= windowStart && now < windowEnd ? liveLabel(ch) : "No listings",
+                    gridX + pad, y + rowH - Ui.dp(9), gridW - pad * 2, text);
+            return;
+        }
+        long covered = windowStart;
+        for (Guide.Prog p : progs) {
+            if (p.start - covered > GAP) drawGap(c, covered, p.start, y, selected);
+            covered = Math.max(covered, p.stop);
+            float x1 = gridX + gridW * Math.max(0, p.start - windowStart) / (float) WINDOW;
+            float x2 = gridX + gridW * Math.min(WINDOW, p.stop - windowStart) / (float) WINDOW;
+            if (x2 - x1 < Ui.dp(6)) continue;
+            r.set(x1, y, x2 - gap, y + rowH);
+            boolean hl = selected && p.start <= cursor && cursor < p.stop;
+            drawCell(c, hl);
+            float tx = x1 + pad;
+            if (p.start < windowStart) { // started before the window: little ◀ like the classic guide
+                drawArrow(c, x1 + Ui.dp(4), y + rowH / 2, true, hl);
+                tx += Ui.dp(8);
+            }
+            boolean more = p.stop > windowEnd;
+            if (more) drawArrow(c, x2 - gap - Ui.dp(4), y + rowH / 2, false, hl);
+            text.setColor(hl ? HILITE_TEXT : CELL_TEXT);
+            if (p.start > now && Reminders.has(getContext(), ch, p)) { // reminder set: a small bell before the title
+                drawBell(c, tx + Ui.dp(5), y + rowH / 2 + Ui.dp(1), hl);
+                tx += Ui.dp(16);
+            }
+            drawClipped(c, p.title, tx, y + rowH - Ui.dp(9), (x2 - gap) - tx - (more ? Ui.dp(12) : Ui.dp(6)), text);
+        }
+        if (windowEnd - covered > GAP) drawGap(c, covered, windowEnd, y, selected);
+    }
+
+    // ---- cached row pictures ----
+
+    /** Pictures of unselected rows for the current time window (about 200 KB each; the most recent 18 kept). */
+    private final java.util.LinkedHashMap<String, android.graphics.Bitmap> rowCache =
+            new java.util.LinkedHashMap<String, android.graphics.Bitmap>(24, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(java.util.Map.Entry<String, android.graphics.Bitmap> e) {
+                    return size() > 18;
+                }
+            };
+    private long cachedWindow = -1;
+    private int cachedWidth = -1;
+
+    /** Listings or favourites changed: redraw every row. */
+    void dataChanged() {
+        rowCache.clear();
+        invalidate();
+    }
+
     // ---- channel logos, right of the name ----
 
     private final java.util.HashMap<String, android.graphics.Bitmap> logos = new java.util.HashMap<>();
@@ -209,7 +256,7 @@ class GuideGridView extends View {
     private final Paint bitmapPaint = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG);
     private final RectF logoBox = new RectF();
 
-    /** Draws the channel's logo at the right of its cell (on a dark plate so white logos read on yellow too); returns the width used. */
+    /** Draws the channel's logo at the right of its cell, straight on the cell colour; returns the width used. */
     private float drawLogo(Canvas c, Channel ch, float y) {
         if (ch.logo == null || ch.logo.isEmpty()) return 0;
         android.graphics.Bitmap bm = logos.get(ch.key());
@@ -219,25 +266,46 @@ class GuideGridView extends View {
                 Net.bitmap(getContext(), ch.logo, Ui.dp(96), loaded -> {
                     if (loaded == null) return;
                     if (logos.size() > 120) logos.clear(); // a screenful at a time is all that's drawn
-                    // Scaled once to the size it's drawn at, so each frame copies a small texture as-is.
-                    float k = Math.min(Ui.dp(54) / (float) loaded.getWidth(), (rowH - Ui.dp(8)) / loaded.getHeight());
-                    int w = Math.max(1, Math.round(loaded.getWidth() * k)), h = Math.max(1, Math.round(loaded.getHeight() * k));
-                    logos.put(key, android.graphics.Bitmap.createScaledBitmap(loaded, w, h, true));
+                    // Empty border trimmed (logo files pad unevenly, which made them sit high), then scaled once to
+                    // the size it's drawn at, so each frame copies a small texture as-is.
+                    android.graphics.Bitmap art = trim(loaded);
+                    float k = Math.min(LOGO_W / (float) art.getWidth(), LOGO_H / (float) art.getHeight());
+                    int w = Math.max(1, Math.round(art.getWidth() * k)), h = Math.max(1, Math.round(art.getHeight() * k));
+                    logos.put(key, android.graphics.Bitmap.createScaledBitmap(art, w, h, true));
+                    rowCache.remove(key); // that row's picture was drawn without its logo
                     invalidate();
                 });
             }
             return 0;
         }
-        float maxW = Ui.dp(54), maxH = rowH - Ui.dp(8);
-        float scale = Math.min(maxW / bm.getWidth(), maxH / bm.getHeight());
-        float w = bm.getWidth() * scale, h = bm.getHeight() * scale;
-        float right = chanW - Ui.dp(6), cx = right - maxW / 2, cy = y + rowH / 2;
-        logoBox.set(right - maxW - Ui.dp(3), y + Ui.dp(3), right + Ui.dp(1), y + rowH - Ui.dp(3));
-        fill.setShader(null);
-        fill.setColor(0x400A1A4A);
-        c.drawRoundRect(logoBox, radius, radius, fill);
-        c.drawBitmap(bm, Math.round(cx - w / 2), Math.round(cy - h / 2), bitmapPaint);
-        return maxW + Ui.dp(8);
+        // Centred on the same line as the channel name: the cell's 2 dp light top edge puts the visual middle
+        // of the row (and of the text) 1 dp below its geometric middle.
+        float right = chanW - Ui.dp(8), cx = right - LOGO_W / 2, cy = y + rowH / 2 + Ui.dp(1);
+        c.drawBitmap(bm, Math.round(cx - bm.getWidth() / 2f), Math.round(cy - bm.getHeight() / 2f), bitmapPaint);
+        return LOGO_W + Ui.dp(10);
+    }
+
+    private final float LOGO_W = Ui.dp(50), LOGO_H = Ui.dp(19);
+
+    /** The bitmap without its fully transparent border (the box around pixels with any real opacity). */
+    static android.graphics.Bitmap trim(android.graphics.Bitmap b) {
+        int w = b.getWidth(), h = b.getHeight();
+        int[] px = new int[w * h];
+        b.getPixels(px, 0, w, 0, 0, w, h);
+        int left = w, top = h, right = -1, bottom = -1;
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                if ((px[y * w + x] >>> 24) > 24) {
+                    if (x < left) left = x;
+                    if (x > right) right = x;
+                    if (y < top) top = y;
+                    if (y > bottom) bottom = y;
+                }
+            }
+        }
+        if (right < left || bottom < top) return b;
+        if (left == 0 && top == 0 && right == w - 1 && bottom == h - 1) return b;
+        return android.graphics.Bitmap.createBitmap(b, left, top, right - left + 1, bottom - top + 1);
     }
 
     /** For channels with no published schedule: "Live now · Comedy · OK to watch" instead of a bare "No information". */
@@ -275,6 +343,19 @@ class GuideGridView extends View {
         c.drawRoundRect(r, radius, radius, fill);
         fill.setColor(CELL);
         c.drawRect(r.left, r.top + Ui.dp(2), r.right, r.bottom, fill);
+    }
+
+    private final Paint bell = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+    /** A little bell: dome, rim and clapper. */
+    private void drawBell(Canvas c, float cx, float cy, boolean hl) {
+        float s = Ui.dp(1);
+        bell.setColor(hl ? HILITE_TEXT : HILITE);
+        bell.setStyle(Paint.Style.FILL);
+        RectF dome = new RectF(cx - 4.5f * s, cy - 6 * s, cx + 4.5f * s, cy + 3 * s);
+        c.drawRoundRect(dome, 4.5f * s, 4.5f * s, bell);
+        c.drawRect(cx - 6 * s, cy + 1.5f * s, cx + 6 * s, cy + 3.5f * s, bell);
+        c.drawCircle(cx, cy + 5 * s, 1.6f * s, bell);
     }
 
     private void drawArrow(Canvas c, float x, float cy, boolean left, boolean hl) {
@@ -347,7 +428,10 @@ class GuideGridView extends View {
                 return true;
             case KeyEvent.KEYCODE_DPAD_CENTER:
             case KeyEvent.KEYCODE_ENTER:
-                if (listener != null) listener.onWatch(rows.get(sel), sel);
+                if (listener == null) return true;
+                Guide.Prog at = selectedProg();
+                if (at != null && at.start > System.currentTimeMillis() + 60_000L) listener.onRemind(rows.get(sel), at);
+                else listener.onWatch(rows.get(sel), sel);
                 return true;
             default:
                 if (code >= KeyEvent.KEYCODE_0 && code <= KeyEvent.KEYCODE_9 && digits.length() < 4) {

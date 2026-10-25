@@ -181,3 +181,15 @@ ease in once per caption instead of re-sliding on every clip.
 | World news | text list | **pictures** (article preview images; designed source cards where the feed only gives Google News links), detail panel with QR code to read on the phone, **OK = watch live** on a matching news channel (Middle East story → Al Jazeera English playing in 2.8 s) | |
 | HTML codes in summaries ("&nbsp;") | shown | decoded | |
 | APK | 828 KB | 836 KB | |
+
+## Guide v3: cached rows, aligned logos, programme summaries, reminders — 25 Oct 2026 (late morning)
+
+| Metric | Before | After | Result |
+|---|---|---|---|
+| Guide browsing, 20▼ + 20▲ on All Channels (gfxinfo, 3 runs) | 68 % janky, p90 26 ms, p99 73 ms; "slow issue draw commands" 37 of 87 frames | **14–15 % janky, p90 16–17 ms, p99 24 ms** once rows are cached (first run while building the cache: 39 %, p99 38 ms); slow draw commands 1–3 | unselected rows are drawn once into a picture (18 kept, ~200 KB each) and reused; only the highlighted row is drawn live |
+| Logos in guide rows | on a shaded plate, sitting high (files pad unevenly) | **no plate; transparent border trimmed; one size; centred on the channel-name line** | same trim for the big logo in the info panel, which is centred on its text block |
+| Info panel | title, channel, next | **+ one-line programme summary** (XMLTV `<desc>`, first 160 chars; e.g. Drunk History: "A lawyer defends the lives of rats in court…") | index format v2; v1 files still load and refresh themselves |
+| Reminders | — | **OK on a later programme sets a reminder** (bell in the grid, "⏰ Reminder set · OK to clear" in the panel); a minute before, a dialog "Starting now … OK to watch" over any Glow screen, or a notice over other apps | tested: fired on time, OK → Comedy Central Pluto TV playing |
+| Home Live TV tiles | logo + name | + **"▶ now playing"** line for channels with listings | |
+| Daily US listings parse (background) | 15.8 s | 38 s this run (now also reads descriptions; network may vary) | once a day in the background; watch this |
+| APK | 836 KB | 840 KB | |

@@ -445,7 +445,8 @@ public class HomeActivity extends Activity {
         final FrameLayout art = new FrameLayout(a);
         FrameLayout.LayoutParams artLp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-        artLp.bottomMargin = Ui.dp(26);
+        final Guide.Prog now = Guide.now(ch);
+        artLp.bottomMargin = Ui.dp(now != null ? 40 : 26);
         card.addView(art, artLp);
         final ImageView logo = new ImageView(a);
         logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
@@ -462,10 +463,22 @@ public class HomeActivity extends Activity {
         name.setText(Picks.isFavourite(a, ch) ? ChannelRow.star(label) : label);
         name.setSingleLine();
         name.setGravity(Gravity.CENTER);
-        name.setPadding(Ui.dp(8), 0, Ui.dp(8), Ui.dp(9));
+        name.setPadding(Ui.dp(8), 0, Ui.dp(8), Ui.dp(now != null ? 3 : 9));
+        LinearLayout words = new LinearLayout(a);
+        words.setOrientation(LinearLayout.VERTICAL);
+        words.addView(name);
+        if (now != null) { // what's on right now, under the channel name
+            TextView on = Ui.text(a, 10.5f, Ui.TEXT_DIM, 400);
+            on.setText("▶ " + now.title);
+            on.setSingleLine();
+            on.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            on.setGravity(Gravity.CENTER);
+            on.setPadding(Ui.dp(10), 0, Ui.dp(10), Ui.dp(8));
+            words.addView(on);
+        }
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM);
-        card.addView(name, lp);
+        card.addView(words, lp);
     }
 
     private void fillQuick() {

@@ -44,6 +44,7 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
     private GuideGridView grid;
     private android.widget.ImageView infoLogo;
     private String infoLogoUrl;
+    private TextView infoDesc;
     private TextView heading, infoTime, infoTitle, infoChannel, infoNext, previewNote, clock;
     private FrameLayout preview;
     private SurfaceView previewSurface;
@@ -87,11 +88,11 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
         clock.setPadding(0, 0, Ui.dp(24), 0);
         info.addView(titleRow);
         infoTime = plain(17, 0xFFFFF3B0);
-        infoTime.setPadding(0, Ui.dp(16), 0, 0);
+        infoTime.setPadding(0, 0, 0, Ui.dp(2));
         infoTitle = bold(24);
         infoTitle.setSingleLine();
         infoTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        infoTitle.setPadding(0, Ui.dp(6), Ui.dp(24), 0);
+        infoTitle.setPadding(0, 0, Ui.dp(24), 0);
         infoChannel = plain(16, 0xFFFFFFFF);
         infoChannel.setPadding(0, Ui.dp(6), 0, 0);
         infoNext = plain(15, 0xFFDCE7FF);
@@ -107,23 +108,28 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
         details.setGravity(Gravity.CENTER_VERTICAL);
         infoLogo = new android.widget.ImageView(this);
         infoLogo.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-        GradientDrawable plate = new GradientDrawable();
-        plate.setColor(0x330A1A4A);
-        plate.setCornerRadius(Ui.dp(8));
-        infoLogo.setBackground(plate);
-        infoLogo.setPadding(Ui.dp(10), Ui.dp(8), Ui.dp(10), Ui.dp(8));
-        LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(Ui.dp(120), Ui.dp(84));
-        ilp.rightMargin = Ui.dp(18);
-        ilp.topMargin = Ui.dp(10);
+        // Just the logo on the guide's blue, vertically centred on the text block beside it.
+        LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(Ui.dp(108), Ui.dp(68));
+        ilp.rightMargin = Ui.dp(20);
+        ilp.gravity = Gravity.CENTER_VERTICAL;
         details.addView(infoLogo, ilp);
         LinearLayout texts = new LinearLayout(this);
         texts.setOrientation(LinearLayout.VERTICAL);
         texts.addView(infoTime);
         texts.addView(infoTitle);
         texts.addView(infoChannel);
+        infoDesc = plain(14, 0xFFEAF1FF);
+        infoDesc.setSingleLine();
+        infoDesc.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        infoDesc.setPadding(0, Ui.dp(5), Ui.dp(24), 0);
+        infoDesc.setVisibility(View.GONE);
+        texts.addView(infoDesc);
         texts.addView(infoNext);
-        details.addView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        info.addView(details);
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+        tlp.gravity = Gravity.CENTER_VERTICAL;
+        details.addView(texts, tlp);
+        LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1);
+        info.addView(details, dlp);
 
         preview = new FrameLayout(this);
         GradientDrawable frame = new GradientDrawable();
@@ -151,7 +157,7 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
 
         // Bottom: the key legend, like the coloured-button bar of the old guides.
         TextView legend = plain(13, 0xFFFFFFFF);
-        legend.setText("▲▼ Channels     ◀▶ Time     CH± Page     0–9 Channel number     OK Watch     ■ Blue: ★ favourite     BACK Menu");
+        legend.setText("▲▼ Channels     ◀▶ Time     0–9 Channel number     OK Watch / ⏰ Remind (later shows)     ■ Blue: ★ favourite     BACK Menu");
         legend.setGravity(Gravity.CENTER);
         GradientDrawable lb = new GradientDrawable();
         lb.setColor(0x55102A6E);
@@ -472,7 +478,7 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
     @Override
     public void onSelect(Channel ch, Guide.Prog prog, int number) {
         if (number < 0) { // typing a channel number
-            infoTime.setText("");
+            setTime("");
             infoTitle.setText("Channel " + (-number) + "_");
             infoChannel.setText("");
             infoNext.setText("");
@@ -497,7 +503,14 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
         } else if (!ch.logo.equals(infoLogoUrl)) {
             infoLogoUrl = ch.logo;
             infoLogo.setVisibility(View.VISIBLE);
-            Net.image(infoLogo, ch.logo, Ui.dp(240), () -> infoLogo.setVisibility(View.INVISIBLE));
+            // Trimmed of its empty border too, so it centres on the text block like the list logos do.
+            final String want = ch.logo;
+            infoLogo.setImageDrawable(null);
+            Net.bitmap(this, want, Ui.dp(240), bm -> {
+                if (!want.equals(infoLogoUrl)) return;
+                if (bm == null) infoLogo.setVisibility(View.INVISIBLE);
+                else infoLogo.setImageBitmap(GuideGridView.trim(bm));
+            });
         }
         CharSequence now = DateFormat.format(DateFormat.is24HourFormat(this) ? "HH:mm" : "h:mm a", System.currentTimeMillis());
         if (!now.toString().contentEquals(clock.getText())) clock.setText(now);
@@ -505,20 +518,31 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
         String where = ch.group == null || ch.group.isEmpty() ? "" : "  ·  " + ch.group;
         infoChannel.setText(num + ch.name + where);
         if (prog == null) {
-            infoTime.setText("");
+            setTime("");
             infoTitle.setText(ch.name);
+            infoDesc.setVisibility(View.GONE);
             infoNext.setText(Guide.hasData(ch) ? "No listings for this time  ·  OK to watch"
-                    : Guide.hasThai(ch) ? "Fetching this channel's schedule…" : "Live now  ·  this channel doesn't publish a schedule  ·  OK to watch");
+                    : Guide.hasThai(ch) ? "Fetching this channel's schedule…" : "Live now  ·  OK to watch");
             return;
         }
         boolean live = prog.start <= System.currentTimeMillis();
-        infoTime.setText((live ? "NOW  " : "") + time(prog.start) + " – " + time(prog.stop));
+        setTime((live ? "NOW  " : "") + time(prog.start) + " – " + time(prog.stop));
         infoTitle.setText(prog.title);
+        infoDesc.setText(prog.desc == null ? "" : prog.desc);
+        infoDesc.setVisibility(prog.desc == null ? View.GONE : View.VISIBLE);
         Guide.Prog after = null;
         for (Guide.Prog p : Guide.between(ch, prog.stop, prog.stop + 12 * 60 * 60 * 1000L)) {
             if (p.start >= prog.stop) { after = p; break; }
         }
-        infoNext.setText(after == null ? (live ? "OK to watch" : "") : "Then  " + time(after.start) + "  " + after.title);
+        String then = after == null ? (live ? "OK to watch" : "") : "Then  " + time(after.start) + "  " + after.title;
+        if (!live) then = (Reminders.has(this, ch, prog) ? "⏰ Reminder set  ·  OK to clear" : "OK to set a reminder") + (then.isEmpty() ? "" : "   ·   " + then);
+        infoNext.setText(then);
+    }
+
+    /** The time line above the title disappears when empty, so the text block stays centred on the logo. */
+    private void setTime(String t) {
+        infoTime.setText(t);
+        infoTime.setVisibility(t.isEmpty() ? View.GONE : View.VISIBLE);
     }
 
     private String time(long t) {
@@ -534,13 +558,22 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
     }
 
     @Override
+    public void onRemind(Channel ch, Guide.Prog prog) {
+        boolean on = Reminders.toggle(this, ch, prog);
+        android.widget.Toast.makeText(this, on ? "⏰  Reminder set: " + prog.title + " at " + time(prog.start)
+                : "Reminder cleared: " + prog.title, android.widget.Toast.LENGTH_SHORT).show();
+        grid.dataChanged();
+        showInfo(ch, prog, lineup.number(ch));
+    }
+
+    @Override
     public void onNeedGuide(List<Channel> visible) {
         for (Channel ch : visible) Guide.wantThai(this, ch, guideChanged);
     }
 
     private void refresh() {
         if (section == null || isFinishing()) return;
-        grid.invalidate();
+        grid.dataChanged();
         Channel ch = section.channels.get(grid.selectedIndex());
         showInfo(ch, grid.selectedProg(), lineup.number(ch));
     }

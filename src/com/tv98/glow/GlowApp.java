@@ -15,6 +15,7 @@ public class GlowApp extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        Reminders.start(this);
         registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks() {
             @Override public void onActivityResumed(Activity a) { front = a; }
             @Override public void onActivityPaused(Activity a) { if (front == a) front = null; }

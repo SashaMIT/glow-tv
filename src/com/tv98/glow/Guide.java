@@ -38,12 +38,29 @@ final class Guide {
     static final class Prog {
         final long start, stop;
         final String title;
+        /** First sentence or so of the synopsis, or null. */
+        final String desc;
 
         Prog(long start, long stop, String title) {
+            this(start, stop, title, null);
+        }
+
+        Prog(long start, long stop, String title, String desc) {
             this.start = start;
             this.stop = stop;
             this.title = title;
+            this.desc = desc == null || desc.isEmpty() ? null : desc;
         }
+    }
+
+    private static final int DESC_MAX = 160;
+
+    private static String shortDesc(String d) {
+        if (d == null) return null;
+        d = d.replace('\n', ' ').trim();
+        if (d.length() <= DESC_MAX) return d;
+        int cut = d.lastIndexOf(' ', DESC_MAX - 1);
+        return d.substring(0, cut > DESC_MAX / 2 ? cut : DESC_MAX - 1) + "…";
     }
 
     interface Listener {
@@ -118,7 +135,7 @@ final class Guide {
             if (!out.isEmpty()) {
                 Prog last = out.get(out.size() - 1);
                 if (p.start == last.start) continue; // duplicate slot: keep the first
-                if (last.stop > p.start) out.set(out.size() - 1, new Prog(last.start, p.start, last.title));
+                if (last.stop > p.start) out.set(out.size() - 1, new Prog(last.start, p.start, last.title, last.desc));
             }
             out.add(p);
         }
@@ -286,9 +303,9 @@ final class Guide {
                 if (byId != null) matchedChannels = byId.size();
                 SimpleDateFormat fmt = new SimpleDateFormat("yyyyMMddHHmmss Z", Locale.ROOT);
                 long now = System.currentTimeMillis(), from = now - KEEP_BEFORE_MS, to = now + KEEP_AFTER_MS;
-                String chId = null, progCh = null, title = null;
+                String chId = null, progCh = null, title = null, desc = null;
                 long start = 0, stop = 0;
-                boolean inName = false, inTitle = false;
+                boolean inName = false, inTitle = false, inDesc = false;
                 for (int ev = p.getEventType(); ev != XmlPullParser.END_DOCUMENT; ev = p.next()) {
                     if (ev == XmlPullParser.START_TAG) {
                         String tag = p.getName();
@@ -299,6 +316,7 @@ final class Guide {
                         } else if (tag.equals("programme")) {
                             progCh = p.getAttributeValue(null, "channel");
                             title = null;
+                            desc = null;
                             programmes++;
                             if (!idToKeys.containsKey(progCh)) {
                                 progCh = null; // not a channel Glow has
@@ -309,6 +327,8 @@ final class Guide {
                             }
                         } else if (tag.equals("title") && progCh != null && title == null) {
                             inTitle = true;
+                        } else if (tag.equals("desc") && progCh != null && desc == null) {
+                            inDesc = true;
                         }
                     } else if (ev == XmlPullParser.TEXT) {
                         if (inName) {
@@ -325,10 +345,13 @@ final class Guide {
                         } else if (inTitle) {
                             title = p.getText().trim();
                             inTitle = false;
+                        } else if (inDesc) {
+                            desc = shortDesc(p.getText());
+                            inDesc = false;
                         }
                     } else if (ev == XmlPullParser.END_TAG) {
                         if (p.getName().equals("programme") && progCh != null && title != null) {
-                            Prog prog = new Prog(start, stop, title);
+                            Prog prog = new Prog(start, stop, title, desc);
                             for (String k : idToKeys.get(progCh)) out.computeIfAbsent(k, x -> new ArrayList<>()).add(prog);
                             kept++;
                         }
@@ -351,7 +374,7 @@ final class Guide {
     private static void writeIndex(Context c, Map<String, List<Prog>> data, File target) {
         File tmp = new File(c.getFilesDir(), target.getName() + ".tmp");
         try (DataOutputStream out = new DataOutputStream(new java.io.BufferedOutputStream(new FileOutputStream(tmp), 32 * 1024))) {
-            out.writeInt(1);
+            out.writeInt(2); // v2: + description
             out.writeInt(data.size());
             for (Map.Entry<String, List<Prog>> e : data.entrySet()) {
                 out.writeUTF(e.getKey());
@@ -360,6 +383,7 @@ final class Guide {
                     out.writeLong(p.start);
                     out.writeLong(p.stop);
                     out.writeUTF(p.title.length() > 200 ? p.title.substring(0, 200) : p.title);
+                    out.writeUTF(p.desc == null ? "" : p.desc);
                 }
             }
         } catch (Exception e) {
@@ -379,7 +403,9 @@ final class Guide {
         long t0 = SystemClock.elapsedRealtime();
         int n = 0;
         try (DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(f), 32 * 1024))) {
-            if (in.readInt() != 1) return;
+            int version = in.readInt();
+            if (version != 1 && version != 2) return;
+            if (version == 1) f.setLastModified(0); // an older index without descriptions: refresh it soon
             int channels = in.readInt();
             long cutoff = System.currentTimeMillis() - KEEP_BEFORE_MS;
             for (int i = 0; i < channels; i++) {
@@ -389,7 +415,8 @@ final class Guide {
                 for (int j = 0; j < count; j++) {
                     long s = in.readLong(), e = in.readLong();
                     String t = in.readUTF();
-                    if (e >= cutoff) l.add(new Prog(s, e, t));
+                    String d = version >= 2 ? in.readUTF() : null;
+                    if (e >= cutoff) l.add(new Prog(s, e, t, d));
                 }
                 if (!l.isEmpty()) {
                     l = tidy(l);
