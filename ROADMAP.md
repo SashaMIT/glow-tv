@@ -3,20 +3,22 @@
 Everything Glow could still do, roughly in the order it's worth doing. Each item gets measured on the box before and
 after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published sources only.
 
-## Status at a glance (25 Oct 2026)
+## Status at a glance (26 Oct 2026)
 
 ### Done
 
 | Area | Feature |
 |---|---|
-| Box | Debloat, Glow as Home, undo scripts, developer-access shield; Gradle-free build, MIT repo, signed releases (v1.0.0, `tools/release.sh`), in-app updates |
+| Box | Debloat, Glow as Home, undo scripts, developer-access shield; Gradle-free build, MIT repo, signed releases (v1.0.0 → v1.2.0, `tools/release.sh`), in-app updates (box updated itself to 1.2.0) |
 | Home | Clock, weather, headline ticker, icon header (Search, World, Phone remote, Cast, IPTV, Settings); full-colour app cards; app order; smooth scrolling (29.5 % → 1.1 % late) |
 | Home | Live TV row (TV Guide, favourites, recents, white/black logo cards, Resume badge); Intelligence row; Cast from phone |
 | TV Guide | Numbered genre menu, ranking, fixed numbers; classic grid with logos, info panel, preview, reminders, search; Radio tab |
 | Listings | epg.pw, Pluto TV, TrueID, nightly GitHub job (~1,050 channels); channel facts (closed/adult hidden, real languages) |
-| Player | Fallbacks → official stream → official YouTube; ▲ in 0.22 s; 1080p; last channel; typed numbers; score banners; sleep timer |
+| Player | Fallbacks → official stream → official YouTube; ▲ 0.32 s / ▼ 0.28 s (two standby players); 1080p; last channel; typed numbers; audio + subtitles; score banners; sleep timer |
+| Player menu (hold OK) | Pause, back 10 s, back to live, picture size, night sound, stats, corner picture, sleep timer |
+| Remote & alerts | Remote buttons (press/hold jobs), Quick settings panel, score banners over other apps (overlay allowed with owner's OK) |
 | Intelligence | World map (quakes, alerts, EONET, news hotspots, ISS, day/night, rain); live cams + health; weather + air quality; rain radar; predictions; Sports now (19 leagues, favourite teams) |
-| Other | World news with pictures + QR; phone remote; screensaver; Settings; My IPTV |
+| Other | World news with pictures + QR; phone remote (+ photos to screensaver, backup/restore); screensaver; Settings; My IPTV; Extra apps (SmartTube, Jellyfin, Kodi, NewPipe) |
 
 ### To do
 
@@ -32,7 +34,7 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 | Intelligence | Markets ticker (CoinGecko), overview page, tennis/golf, map zoom | later |
 | Smart home | Home Assistant card, doorbell pop-ups, AirPlay (test first) | later |
 | Privacy (owner's call) | Private DNS ad/tracker blocking; vendor-app audit | needs OK |
-| Sharing | ~~Extra apps installer~~ ✅; ~~tour on the repo page~~ ✅ (GIF); Obtainium note ✅; ~~signed releases~~ ✅ (v1.0.0, signed on the owner's Mac, update tested); awesome-list PR (after v1.0.0, owner's OK) | next |
+| Sharing | ~~Extra apps installer~~ ✅; ~~tour on the repo page~~ ✅ (GIF); Obtainium note ✅; ~~signed releases~~ ✅ (v1.0.0, v1.1.0, v1.2.0, signed on the owner's Mac, box updated itself each time); awesome-list PR (after v1.0.0, owner's OK) | next |
 | Sharing | Contributors' guide, translations | later |
 
 ### Ruled out

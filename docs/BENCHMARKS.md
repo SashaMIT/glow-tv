@@ -578,3 +578,7 @@ is in front; a sample alert appeared over Android's Settings after 90 s.
 |---|---|---|
 | Time to first frame | 1.05–1.09 s | 1.05–1.07 s (one 1.9 s outlier) |
 | Glow on Home | 80–87 MB | 89–104 MB (median 91; the every-minute alert check now runs only when another app is in front) |
+
+**v1.2.0 release** (signed on the Mac, cert `c2810927…ed6fd8`): Home found it on its update check, Settings showed
+"Update available: Glow 1.2.0", OK → Android's installer → versionName 1.2.0 (10200). Release build, 3 cold starts with
+100 s settle: 1.010 / 1.014 / 1.037 s, Glow 88.7 / 87.0 / 99.8 MB.
