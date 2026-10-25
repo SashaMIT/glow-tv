@@ -8,8 +8,8 @@
 Usage: python3 tools/build_guide_data.py <out-dir>
        python3 tools/build_guide_data.py --retry <grabbed guide.xml> <out-dir>
          (second pass: channels that got no programmes, each with its next source -> <out>/glow.channels.2.xml)
-Only the box's own lists are covered (the same iptv-org playlists Glow downloads), and Pluto TV channels are
-skipped (Glow already has Pluto's own schedules).
+Only the box's own lists are covered (the same iptv-org playlists Glow downloads). Pluto TV channels are included
+too: Glow prefers Pluto's own schedules, and uses these where Pluto has none (e.g. Red Bull TV).
 """
 import collections
 import gzip
@@ -37,7 +37,7 @@ def get(url):
 def main(out):
     out = pathlib.Path(out)
     out.mkdir(parents=True, exist_ok=True)
-    ids, pluto = set(), set()
+    ids, pluto = set(), {}
     for p in PLAYLISTS:
         text = get("https://iptv-org.github.io/iptv/" + p).decode("utf-8", "replace")
         for head, url in re.findall(r'(#EXTINF[^\n]*)\n(?:#[^\n]*\n)*([^\n#][^\n]*)', text):
@@ -45,8 +45,15 @@ def main(out):
             if not m:
                 continue
             ids.add(m.group(1))
-            if "jmp2.uk/plu-" in url:
-                pluto.add(m.group(1))
+            p = re.search(r"jmp2\.uk/plu-([0-9a-f]+)", url)
+            if p:
+                pluto[m.group(1)] = p.group(1)
+
+    # Pluto channels that Pluto's own schedules (which Glow fetches itself) already cover don't need a second copy.
+    pluto_covered = set()
+    for region in ("us", "gb"):
+        pluto_covered |= set(re.findall(r'<channel id="([0-9a-f]+)"', get(f"https://i.mjh.nz/PlutoTV/{region}.xml.gz").decode("utf-8", "replace")))
+    skip = {sid for sid, pid in pluto.items() if pid in pluto_covered}
 
     channels = {c["id"]: c for c in json.loads(get(API + "channels.json"))}
     feeds = {(f["channel"], f["id"]): f for f in json.loads(get(API + "feeds.json"))}
@@ -71,7 +78,7 @@ def main(out):
 
     # One listing source per channel: the exact feed if listed, else the channel's main entry.
     picked, alternatives = [], {}
-    for sid in sorted(ids - pluto):
+    for sid in sorted(ids - skip):  # Pluto streams too, where Pluto's own schedules don't cover them
         base, _, feed = sid.partition("@")
         if base not in channels or channels[base].get("closed") or base in blocked:
             continue
@@ -84,7 +91,7 @@ def main(out):
     write_channels(out / "glow.channels.xml", picked)
     (out / "alternatives.json").write_text(json.dumps(alternatives))
     sites = collections.Counter(g["site"] for _, g in picked)
-    print(f"{len(ids)} stream ids, {len(lines)} with facts, {len(pluto)} Pluto skipped, {len(picked)} to grab")
+    print(f"{len(ids)} stream ids, {len(lines)} with facts, {len(pluto)} via Pluto ({len(skip)} covered by Pluto's schedules), {len(picked)} to grab")
     print("sources:", ", ".join(f"{s} {n}" for s, n in sites.most_common()))
 
 

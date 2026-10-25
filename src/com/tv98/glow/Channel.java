@@ -24,6 +24,8 @@ final class Channel {
     String country;
     /** iptv-org channel id without the feed ("bbcnews.uk"): the same channel under other links shares it. */
     String tvgId;
+    /** The playlist's full iptv-org id with its feed, e.g. "AlJazeera.qa@English" (tvgId is just "aljazeera.qa"). */
+    String feedId;
     /** Lazily computed: does the broadcaster have an official YouTube channel Glow can fall back to? */
     private Boolean officialYoutube;
 

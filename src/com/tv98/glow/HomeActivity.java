@@ -367,7 +367,9 @@ public class HomeActivity extends Activity {
         sourceTiles = live.getChildCount();
         showChannels();
 
+        Genres.factsContext = getApplicationContext();
         Net.IO.execute(() -> {
+            ChannelFacts.refreshIfDue(this);
             if (FreeTv.stale(this)) {
                 FreeTv.refresh(this);
                 Net.MAIN.post(() -> { if (!isFinishing()) showChannels(); });

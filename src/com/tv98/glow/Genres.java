@@ -1,5 +1,7 @@
 package com.tv98.glow;
 
+import android.content.Context;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -175,7 +177,13 @@ final class Genres {
     }
 
     /** 0 = English or Thai, 1 = unknown, 2 = another language. */
+    static Context factsContext; // set once by Home, so ranking can use iptv-org's language facts
+
     static int language(Channel ch) {
+        String langs = factsContext == null ? null : ChannelFacts.languages(factsContext, ch);
+        if (langs != null) { // the database knows: English or Thai feeds are "ours", others go below
+            return langs.contains("eng") || langs.contains("tha") ? 0 : 2;
+        }
         if (otherLanguageName(ch)) return 2;
         java.util.List<String> w = words(lower(ch.name));
         if (ch.country != null && (ch.country.equals("th") || ENGLISH_COUNTRIES.contains(ch.country))) return 0;

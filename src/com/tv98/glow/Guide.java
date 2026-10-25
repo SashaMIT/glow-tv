@@ -71,6 +71,13 @@ final class Guide {
     private static final String[] PLUTO_FEEDS = {"https://i.mjh.nz/PlutoTV/us.xml.gz", "https://i.mjh.nz/PlutoTV/gb.xml.gz"};
     private static final long PLUTO_FRESH_MS = 6 * 60 * 60 * 1000L;
     private static final Set<String> plutoKeys = java.util.Collections.newSetFromMap(new ConcurrentHashMap<>());
+    /**
+     * Glow's own nightly listings (.github/workflows/guide.yml): iptv-org/epg grabbers run on GitHub for the channels
+     * Glow lists, trimmed to 36 h, one ~1 MB gz file. Matched exactly on the iptv-org id in the playlists (tvg-id), so
+     * they win over epg.pw's name matches (Pluto's own schedules still win over both).
+     */
+    static final String GLOW_DATA = "https://raw.githubusercontent.com/SashaMIT/glow-tv/data/";
+    private static final Set<String> glowKeys = java.util.Collections.newSetFromMap(new ConcurrentHashMap<>());
     private static final long KEEP_BEFORE_MS = 60 * 60 * 1000L, KEEP_AFTER_MS = 26 * 60 * 60 * 1000L;
     private static final long THAI_FRESH_MS = 30 * 60 * 1000L;
 
@@ -176,6 +183,10 @@ final class Guide {
         return new File(c.getFilesDir(), "guide-pluto.idx");
     }
 
+    private static File glowIndex(Context c) {
+        return new File(c.getFilesDir(), "guide-glow.idx");
+    }
+
     /** Loads the saved index and refreshes the UK/US guide if it's a day old. Call off the main thread. */
     static void ensure(Context ctx, Listener l) {
         Context c = ctx.getApplicationContext();
@@ -189,6 +200,11 @@ final class Guide {
             File p = plutoIndex(c);
             if (!p.exists() || System.currentTimeMillis() - p.lastModified() > PLUTO_FRESH_MS) {
                 refreshPluto(c);
+                if (l != null) l.updated();
+            }
+            File g = glowIndex(c);
+            if (!g.exists() || System.currentTimeMillis() - g.lastModified() > FEED_FRESH_MS) {
+                refreshGlowData(c);
                 if (l != null) l.updated();
             }
             File f = index(c);
@@ -234,6 +250,30 @@ final class Guide {
         writeIndex(c, fresh, plutoIndex(c));
     }
 
+    private static void refreshGlowData(Context c) {
+        Map<String, List<String>> byId = new HashMap<>();
+        for (Channel ch : FreeTv.cached(c)) {
+            if (ch.feedId != null) { // Pluto streams too: Pluto's own schedule still wins where it has one
+                byId.computeIfAbsent(ch.feedId, k -> new ArrayList<>()).add(ch.key());
+            }
+        }
+        if (byId.isEmpty()) return;
+        Map<String, List<Prog>> fresh = new HashMap<>();
+        parseFeed(GLOW_DATA + "guide.xml.gz", "glow", null, byId, fresh, null);
+        if (fresh.isEmpty()) {
+            glowIndex(c).setLastModified(System.currentTimeMillis() - FEED_FRESH_MS + 3_600_000L); // retry in an hour
+            return;
+        }
+        for (String k : glowKeys) if (!thaiFetched.containsKey(k) && !plutoKeys.contains(k)) byKey.remove(k);
+        glowKeys.clear();
+        for (Map.Entry<String, List<Prog>> e : fresh.entrySet()) {
+            if (plutoKeys.contains(e.getKey())) continue;
+            byKey.put(e.getKey(), tidy(e.getValue()));
+            glowKeys.add(e.getKey());
+        }
+        writeIndex(c, fresh, glowIndex(c));
+    }
+
     private static String norm(String s) {
         String n = s.toLowerCase(Locale.ROOT);
         StringBuilder b = new StringBuilder();
@@ -267,9 +307,11 @@ final class Guide {
         for (Map.Entry<String, List<Prog>> e : fresh.entrySet()) {
             java.util.Collections.sort(e.getValue(), (a, b) -> Long.compare(a.start, b.start));
         }
-        for (String k : new ArrayList<>(byKey.keySet())) if (!thaiFetched.containsKey(k) && !plutoKeys.contains(k)) byKey.remove(k);
+        for (String k : new ArrayList<>(byKey.keySet())) {
+            if (!thaiFetched.containsKey(k) && !plutoKeys.contains(k) && !glowKeys.contains(k)) byKey.remove(k);
+        }
         for (Map.Entry<String, List<Prog>> e : fresh.entrySet()) {
-            if (!plutoKeys.contains(e.getKey())) byKey.put(e.getKey(), tidy(e.getValue()));
+            if (!plutoKeys.contains(e.getKey()) && !glowKeys.contains(e.getKey())) byKey.put(e.getKey(), tidy(e.getValue()));
         }
         writeIndex(c, fresh, index(c));
     }
@@ -438,11 +480,12 @@ final class Guide {
     }
 
     private static void readIndex(Context c) {
-        readIndex(index(c), false);
-        readIndex(plutoIndex(c), true); // after epg.pw, so Pluto's exact schedules win
+        readIndex(index(c), null);
+        readIndex(glowIndex(c), glowKeys); // exact ids beat epg.pw's name matches
+        readIndex(plutoIndex(c), plutoKeys); // last, so Pluto's own schedules win
     }
 
-    private static void readIndex(File f, boolean pluto) {
+    private static void readIndex(File f, Set<String> exact) {
         if (!f.exists()) return;
         long t0 = SystemClock.elapsedRealtime();
         int n = 0;
@@ -465,7 +508,7 @@ final class Guide {
                 if (!l.isEmpty()) {
                     l = tidy(l);
                     byKey.put(key, l);
-                    if (pluto) plutoKeys.add(key);
+                    if (exact != null) exact.add(key);
                     n += l.size();
                 }
             }

@@ -53,6 +53,7 @@ final class FreeTv {
     static synchronized List<Channel> cached(Context c) {
         long stamp = 0;
         for (String[] l : LISTS) stamp = stamp * 31 + file(c, l[0]).lastModified();
+        stamp = stamp * 31 + ChannelFacts.file(c).lastModified(); // new facts: rebuild without closed channels
         if (memo != null && stamp == memoStamp) return memo;
         long t0 = android.os.SystemClock.elapsedRealtime();
         List<Channel> indexed = readIndex(c, stamp);
@@ -64,6 +65,7 @@ final class FreeTv {
             return indexed;
         }
         List<Channel> all = new ArrayList<>();
+        int hiddenByFacts = 0;
         for (String[] l : LISTS) {
             File f = file(c, l[0]);
             if (!f.exists()) continue;
@@ -71,21 +73,24 @@ final class FreeTv {
                 byte[] b = new byte[(int) f.length()];
                 int off = 0, n;
                 while (off < b.length && (n = in.read(b, off, b.length - off)) > 0) off += n;
-                all.addAll(parse(new String(b, StandardCharsets.UTF_8), l[0]));
+                for (Channel ch : parse(new String(b, StandardCharsets.UTF_8), l[0])) {
+                    if (ChannelFacts.hidden(c, ch)) { hiddenByFacts++; continue; } // closed, replaced, adult, blocklisted
+                    all.add(ch);
+                }
             } catch (IOException ignored) {
             }
         }
         memo = all;
         memoStamp = stamp;
         android.util.Log.i("GlowPerf", "lists loaded: " + all.size() + " channels in "
-                + (android.os.SystemClock.elapsedRealtime() - t0) + " ms (m3u)");
+                + (android.os.SystemClock.elapsedRealtime() - t0) + " ms (m3u), " + hiddenByFacts + " hidden by channel facts");
         writeIndex(c, stamp, all);
         return all;
     }
 
     // ---- compact binary index: parsed channels saved once, read back in a fraction of the parse time ----
 
-    private static final int INDEX_VERSION = 1;
+    private static final int INDEX_VERSION = 2; // v2: + feedId
 
     private static File indexFile(Context c) {
         return new File(c.getFilesDir(), "free.idx");
@@ -109,6 +114,7 @@ final class FreeTv {
                 str(out, ch.group);
                 str(out, ch.country);
                 str(out, ch.tvgId);
+                str(out, ch.feedId);
             }
         } catch (IOException e) {
             tmp.delete();
@@ -131,6 +137,7 @@ final class FreeTv {
                 Channel ch = new Channel(url == null ? 0 : url.hashCode(), num, name, logo, cat, url, ua, ref, group);
                 ch.country = str(in);
                 ch.tvgId = str(in);
+                ch.feedId = str(in);
                 out.add(ch);
             }
             return out;
@@ -165,7 +172,7 @@ final class FreeTv {
 
     static List<Channel> parse(String text, String categoryId) {
         List<Channel> out = new ArrayList<>();
-        String name = null, logo = null, ua = null, ref = null, group = null, country = null, id = null;
+        String name = null, logo = null, ua = null, ref = null, group = null, country = null, id = null, feed = null;
         int num = 0, pos = 0, len = text.length();
         while (pos < len) {
             int eol = text.indexOf('\n', pos);
@@ -183,6 +190,7 @@ final class FreeTv {
                 String tvg = attr(head, "tvg-id=\"");
                 country = tvg == null ? null : countryOf(tvg);
                 id = null;
+                feed = tvg == null || tvg.isEmpty() ? null : tvg;
                 if (tvg != null) {
                     int at = tvg.indexOf('@');
                     id = (at >= 0 ? tvg.substring(0, at) : tvg).toLowerCase(java.util.Locale.ROOT);
@@ -197,6 +205,7 @@ final class FreeTv {
                 Channel ch = new Channel(line.hashCode(), num, tidy(name), logo, categoryId, line, ua, ref, group);
                 ch.country = country;
                 ch.tvgId = id;
+                ch.feedId = feed;
                 out.add(ch);
                 name = null;
             }

@@ -178,6 +178,55 @@ public class PlayerActivity extends Activity {
         setContentView(root);
     }
 
+    // ---- sleep timer (▶ while watching) ----
+
+    private static final int[] SLEEP_STEPS = {0, 30, 60, 90, 120};
+    private static long sleepAt; // kept across channel changes and the guide; 0 = off
+    private final Runnable sleepTick = new Runnable() {
+        @Override
+        public void run() {
+            if (sleepAt == 0) return;
+            long left = sleepAt - System.currentTimeMillis();
+            if (left <= 0) {
+                goToSleep();
+                return;
+            }
+            if (left <= sleepUnit() && left > sleepUnit() - 10_000) { // one warning, a minute before
+                osdNote.setText("Sleeping in 1 minute  ·  ▶ for more time");
+                showOsd(8000);
+            }
+            root.postDelayed(this, Math.min(10_000, sleepUnit()));
+        }
+    };
+
+    /** A minute, or a second with `setprop log.tag.GlowSleepTest DEBUG` (to test the whole timer quickly). */
+    private static long sleepUnit() {
+        return android.util.Log.isLoggable("GlowSleepTest", android.util.Log.DEBUG) ? 1_000L : 60_000L;
+    }
+
+    private void stepSleepTimer() {
+        long left = sleepAt == 0 ? 0 : Math.max(0, sleepAt - System.currentTimeMillis());
+        int next = 0;
+        long unit = sleepUnit();
+        for (int m : SLEEP_STEPS) if (m * unit > left + unit / 2) { next = m; break; } // the next step up
+        sleepAt = next == 0 ? 0 : System.currentTimeMillis() + next * unit;
+        osdNote.setText(next == 0 ? "Sleep timer off  ·  ▶ to set it" : "Sleep in " + next + " min  ·  ▶ change   ·   the screensaver comes on and TV stops");
+        showOsd(4000);
+        root.removeCallbacks(sleepTick);
+        if (sleepAt != 0) root.postDelayed(sleepTick, 10_000);
+    }
+
+    /** Stops TV and starts the screensaver (Android's "start dreaming now"), so the stream isn't left running all night. */
+    private void goToSleep() {
+        sleepAt = 0;
+        try {
+            startActivity(new android.content.Intent().setClassName("com.android.systemui", "com.android.systemui.Somnambulator")
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK));
+        } catch (Exception ignored) {
+        }
+        finish();
+    }
+
     // ---- score banners (ScoreAlerts) ----
 
     private LinearLayout scoreBanner;
@@ -242,6 +291,8 @@ public class PlayerActivity extends Activity {
         super.onStart();
         root.removeCallbacks(alertTick);
         root.postDelayed(alertTick, 5000);
+        root.removeCallbacks(sleepTick);
+        if (sleepAt != 0) root.postDelayed(sleepTick, 1000);
         if (Xtream.playlist.isEmpty()) return;
         createExo();
         play(index, false);
@@ -251,6 +302,7 @@ public class PlayerActivity extends Activity {
     protected void onStop() {
         super.onStop();
         root.removeCallbacks(alertTick);
+        root.removeCallbacks(sleepTick);
         nowPlaying = null;
         nowChannel = null;
         generation++;
@@ -678,8 +730,8 @@ public class PlayerActivity extends Activity {
         spinner.setVisibility(View.GONE);
         curtain.animate().alpha(0f).setDuration(250).start();
         prepareNeighbours();
-        osdNote.setText(attempt > 0 ? "Found a working source  ·  ▲ ▼ change channel   ·   OK info"
-                : "▲ ▼ change channel   ·   OK info   ·   BACK exit");
+        osdNote.setText(attempt > 0 ? "Found a working source  ·  ▲ ▼ change channel   ·   OK info   ·   ▶ sleep timer"
+                : "▲ ▼ change channel   ·   OK info   ·   ▶ sleep timer   ·   BACK exit");
         showOsd(4000);
     }
 
@@ -797,9 +849,11 @@ public class PlayerActivity extends Activity {
             case KeyEvent.KEYCODE_MENU:
                 startActivity(new android.content.Intent(this, ClassicGuideActivity.class).putExtra(ClassicGuideActivity.EXTRA_CHANNEL_KEY, current().key()));
                 return true;
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
+                stepSleepTimer();
+                return true;
             case KeyEvent.KEYCODE_INFO:
             case KeyEvent.KEYCODE_DPAD_LEFT:
-            case KeyEvent.KEYCODE_DPAD_RIGHT:
                 showOsd(5000);
                 return true;
             default:
