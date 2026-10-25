@@ -331,7 +331,7 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
         gridScreen.setVisibility(View.GONE);
         menuScreen.setVisibility(View.VISIBLE);
         stopPreview("");
-        menuClock.setText(DateFormat.format(DateFormat.is24HourFormat(this) ? "HH:mm" : "h:mm a", System.currentTimeMillis()));
+        menuClock.setText(DateFormat.format(Ui.is24h(this) ? "HH:mm" : "h:mm a", System.currentTimeMillis()));
         menuTitle.setText(more ? "TV GUIDE  ›  MORE" : DateFormat.format("EEEE d MMMM", System.currentTimeMillis()).toString().toUpperCase());
         menuList.removeAllViews();
         lineup.refreshPersonal(this); // favourites or recently watched may have changed since the lineup was built
@@ -512,7 +512,7 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
                 else infoLogo.setImageBitmap(GuideGridView.trim(bm));
             });
         }
-        CharSequence now = DateFormat.format(DateFormat.is24HourFormat(this) ? "HH:mm" : "h:mm a", System.currentTimeMillis());
+        CharSequence now = DateFormat.format(Ui.is24h(this) ? "HH:mm" : "h:mm a", System.currentTimeMillis());
         if (!now.toString().contentEquals(clock.getText())) clock.setText(now);
         String num = number > 0 ? number + "  " : "";
         String where = ch.group == null || ch.group.isEmpty() ? "" : "  ·  " + ch.group;
@@ -546,7 +546,7 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
     }
 
     private String time(long t) {
-        return DateFormat.format(DateFormat.is24HourFormat(this) ? "HH:mm" : "h.mma", t).toString().toLowerCase();
+        return DateFormat.format(Ui.is24h(this) ? "HH:mm" : "h.mma", t).toString().toLowerCase();
     }
 
     @Override

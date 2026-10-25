@@ -389,7 +389,7 @@ class GuideGridView extends View {
     }
 
     private String time(long t) {
-        return DateFormat.is24HourFormat(getContext())
+        return Ui.is24h(getContext())
                 ? DateFormat.format("HH:mm", t).toString()
                 : DateFormat.format("h.mma", t).toString().toLowerCase(); // "10.30pm", like the classic guide
     }

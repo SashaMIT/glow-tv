@@ -193,7 +193,11 @@ final class Guide {
             }
             File f = index(c);
             if (!f.exists() || System.currentTimeMillis() - f.lastModified() > FEED_FRESH_MS) {
-                refreshFeeds(c);
+                // Daily: just our channels, one small file each. Weekly (or if that fails): the full country files,
+                // which is also how Glow learns which epg.pw channels are ours.
+                File map = epgMap(c);
+                boolean done = map.exists() && System.currentTimeMillis() - map.lastModified() < MAP_FRESH_MS && refreshPerChannel(c);
+                if (!done) refreshFeeds(c);
                 if (l != null) l.updated();
             }
         } finally {
@@ -219,7 +223,7 @@ final class Guide {
         }
         if (byId.isEmpty()) return;
         Map<String, List<Prog>> fresh = new HashMap<>();
-        for (String url : PLUTO_FEEDS) parseFeed(url, "pluto", null, byId, fresh);
+        for (String url : PLUTO_FEEDS) parseFeed(url, "pluto", null, byId, fresh, null);
         if (fresh.isEmpty()) return;
         for (String k : plutoKeys) if (!thaiFetched.containsKey(k)) byKey.remove(k);
         plutoKeys.clear();
@@ -251,17 +255,114 @@ final class Guide {
             mine.computeIfAbsent(norm(ch.name), k -> new ArrayList<>()).add(ch);
         }
         Map<String, List<Prog>> fresh = new HashMap<>();
-        for (String[] feed : FEEDS) parseFeed(feed[0], feed[1], mine, null, fresh);
+        Map<String, List<String>> learned = new HashMap<>();
+        for (String[] feed : FEEDS) parseFeed(feed[0], feed[1], mine, null, fresh, learned);
         if (fresh.isEmpty()) return;
+        saveEpgMap(c, learned);
+        applyEpgPw(c, fresh);
+    }
+
+    /** Replaces the epg.pw part of the guide; Thai and Pluto entries stay (Pluto's own schedule wins where both exist). */
+    private static void applyEpgPw(Context c, Map<String, List<Prog>> fresh) {
         for (Map.Entry<String, List<Prog>> e : fresh.entrySet()) {
             java.util.Collections.sort(e.getValue(), (a, b) -> Long.compare(a.start, b.start));
         }
-        // Keep Thai and Pluto entries; replace the epg.pw part. Pluto's own schedule wins where both have a channel.
         for (String k : new ArrayList<>(byKey.keySet())) if (!thaiFetched.containsKey(k) && !plutoKeys.contains(k)) byKey.remove(k);
         for (Map.Entry<String, List<Prog>> e : fresh.entrySet()) {
             if (!plutoKeys.contains(e.getKey())) byKey.put(e.getKey(), tidy(e.getValue()));
         }
         writeIndex(c, fresh, index(c));
+    }
+
+    // ---- epg.pw one channel at a time ----
+
+    private static final long MAP_FRESH_MS = 7L * 24 * 60 * 60 * 1000;
+
+    private static File epgMap(Context c) {
+        return new File(c.getFilesDir(), "epgpw-map.tsv");
+    }
+
+    /** "epg.pw channel id \t Glow key \t Glow key …" per line. */
+    private static void saveEpgMap(Context c, Map<String, List<String>> learned) {
+        if (learned.isEmpty()) return;
+        StringBuilder b = new StringBuilder();
+        for (Map.Entry<String, List<String>> e : learned.entrySet()) {
+            b.append(e.getKey());
+            for (String k : e.getValue()) b.append('\t').append(k);
+            b.append('\n');
+        }
+        File tmp = new File(c.getFilesDir(), "epgpw-map.tsv.tmp");
+        try (FileOutputStream out = new FileOutputStream(tmp)) {
+            out.write(b.toString().getBytes("UTF-8"));
+        } catch (Exception e) {
+            return;
+        }
+        tmp.renameTo(epgMap(c));
+    }
+
+    /**
+     * Daily refresh from epg.pw's per-channel API (~35 KB each, 3 days ahead) for the channels the weekly full scan
+     * matched: about 7 MB instead of 42 MB, and no 200 MB file to read. False if it mostly failed.
+     */
+    private static boolean refreshPerChannel(Context c) {
+        final Map<String, List<String>> map = new HashMap<>();
+        try (java.io.BufferedReader r = new java.io.BufferedReader(new java.io.InputStreamReader(new FileInputStream(epgMap(c)), "UTF-8"))) {
+            for (String line; (line = r.readLine()) != null; ) {
+                String[] f = line.split("\t");
+                if (f.length >= 2) map.put(f[0], new ArrayList<>(java.util.Arrays.asList(f).subList(1, f.length)));
+            }
+        } catch (Exception e) {
+            return false;
+        }
+        if (map.isEmpty()) return false;
+        long t0 = SystemClock.elapsedRealtime();
+        final long now = System.currentTimeMillis(), from = now - KEEP_BEFORE_MS, to = now + KEEP_AFTER_MS;
+        final Map<String, List<Prog>> fresh = new ConcurrentHashMap<>();
+        final java.util.concurrent.atomic.AtomicInteger failed = new java.util.concurrent.atomic.AtomicInteger();
+        final java.util.concurrent.atomic.AtomicLong bytes = new java.util.concurrent.atomic.AtomicLong();
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(4);
+        for (final Map.Entry<String, List<String>> e : map.entrySet()) {
+            pool.execute(() -> {
+                try {
+                    byte[] body = Net.bytes("https://epg.pw/api/epg.json?channel_id=" + e.getKey(), 512 * 1024);
+                    bytes.addAndGet(body.length);
+                    org.json.JSONArray list = new org.json.JSONObject(new String(body, "UTF-8")).optJSONArray("epg_list");
+                    if (list == null) return;
+                    List<Prog> progs = new ArrayList<>();
+                    for (int i = 0; i < list.length(); i++) {
+                        org.json.JSONObject p = list.getJSONObject(i);
+                        long start = isoTime(p.optString("start_date"));
+                        // Each programme ends when the next one starts; the last one is given an hour.
+                        long stop = i + 1 < list.length() ? isoTime(list.getJSONObject(i + 1).optString("start_date")) : start + 3_600_000L;
+                        String title = p.optString("title").trim();
+                        if (start <= 0 || stop <= start || stop < from || start > to || title.isEmpty()) continue;
+                        String desc = p.optString("desc", "");
+                        progs.add(new Prog(start, stop, title, XmltvScan.shorten("None".equals(desc) ? "" : desc, DESC_MAX)));
+                    }
+                    for (String k : e.getValue()) fresh.put(k, progs);
+                } catch (Exception ex) {
+                    failed.incrementAndGet();
+                }
+            });
+        }
+        pool.shutdown();
+        try {
+            pool.awaitTermination(5, java.util.concurrent.TimeUnit.MINUTES);
+        } catch (InterruptedException ignored) {
+        }
+        Log.i("GlowPerf", "guide epg.pw per channel: " + map.size() + " channels, " + failed.get() + " failed, "
+                + (bytes.get() / 1024) + " KB in " + (SystemClock.elapsedRealtime() - t0) + " ms");
+        if (fresh.isEmpty() || failed.get() * 3 > map.size()) return false;
+        applyEpgPw(c, new HashMap<>(fresh));
+        return true;
+    }
+
+    /** "2026-10-25T00:30:00+00:00" -> epoch ms. */
+    private static long isoTime(String s) {
+        if (s == null || s.length() < 19) return -1;
+        String off = s.length() >= 25 ? s.substring(19, 22) + s.substring(23, 25) : "+0000";
+        return XmltvScan.time(s.substring(0, 4) + s.substring(5, 7) + s.substring(8, 10) + s.substring(11, 13)
+                + s.substring(14, 16) + s.substring(17, 19) + " " + off);
     }
 
     private static boolean countryFits(Channel ch, String feedCountry) {
@@ -275,7 +376,7 @@ final class Guide {
      * name ({@code mine}) or, when {@code byId} is given, by the feed's own channel ids.
      */
     private static void parseFeed(String url, String country, Map<String, List<Channel>> mine, Map<String, List<String>> byId,
-            Map<String, List<Prog>> out) {
+            Map<String, List<Prog>> out, Map<String, List<String>> learned) {
         long t0 = SystemClock.elapsedRealtime();
         Runtime rt = Runtime.getRuntime();
         long heap0 = rt.totalMemory() - rt.freeMemory();
@@ -301,6 +402,7 @@ final class Guide {
                 programmes = st.programmes;
                 kept = st.kept;
                 matchedChannels = byId != null ? byId.size() : st.channelsMatched;
+                if (learned != null) learned.putAll(idToKeys);
                 peak = Math.max(peak, rt.totalMemory() - rt.freeMemory());
             }
         } catch (Exception e) {

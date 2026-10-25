@@ -87,6 +87,50 @@ final class Health {
         }
     }
 
+    private static final long PRIORITY_MS = 3 * 60 * 60 * 1000L;
+
+    /**
+     * Every 3 hours, re-checks just the channels people actually reach for: favourites, recently watched and the top
+     * 30 of each genre (dead ones included, so a channel that's back reappears the same day). ~250 links, about a
+     * minute. Call off the main thread after the lineup is built.
+     */
+    static void priorityIfDue(Context ctx) {
+        final Context c = ctx.getApplicationContext();
+        android.content.SharedPreferences prefs = c.getSharedPreferences("channels", Context.MODE_PRIVATE);
+        long last = prefs.getLong("priority_check_at", 0);
+        GuideLineup l = GuideLineup.current();
+        if (l == null || running || System.currentTimeMillis() - last < PRIORITY_MS) return;
+        prefs.edit().putLong("priority_check_at", System.currentTimeMillis()).apply();
+        List<Channel> all = FreeTv.cached(c);
+        Map<String, Channel> todo = new LinkedHashMap<>();
+        for (Channel ch : Picks.favourites(c, all)) if (ch.url != null) todo.put(ch.url, ch);
+        for (Channel ch : Channel.recent(c, all)) if (ch.url != null) todo.put(ch.url, ch);
+        for (Channel ch : all) {
+            int n = l.number(ch);
+            if (ch.url != null && n > 0 && n < 1000 && n % 100 <= 30) todo.put(ch.url, ch);
+        }
+        final Map<String, Boolean> map = results(c);
+        long t0 = android.os.SystemClock.elapsedRealtime();
+        final java.util.concurrent.atomic.AtomicInteger ok = new java.util.concurrent.atomic.AtomicInteger(), changed = new java.util.concurrent.atomic.AtomicInteger();
+        ExecutorService ex = Executors.newFixedThreadPool(THREADS);
+        for (final Channel ch : todo.values()) {
+            ex.execute(() -> {
+                boolean good = check(ch);
+                Boolean before = map.put(ch.url, good);
+                if (good) ok.incrementAndGet();
+                if (before != null && before != good) changed.incrementAndGet();
+            });
+        }
+        ex.shutdown();
+        try {
+            ex.awaitTermination(10, TimeUnit.MINUTES);
+        } catch (InterruptedException ignored) {
+        }
+        save(c, map);
+        android.util.Log.i("GlowPerf", "health priority: " + todo.size() + " links, " + ok.get() + " ok, " + changed.get()
+                + " changed since last check, in " + (android.os.SystemClock.elapsedRealtime() - t0) + " ms");
+    }
+
     private static Map<String, Channel> urls(List<Channel> all) {
         Map<String, Channel> u = new LinkedHashMap<>();
         for (Channel ch : all) if (ch.url != null) u.put(ch.url, ch);

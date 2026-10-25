@@ -28,15 +28,13 @@ import java.util.List;
 
 /** The home screen: clock and weather, a shelf of apps, a Live TV row and quick actions. */
 public class HomeActivity extends Activity {
-    /** Apps shown first, in this order, when installed and enabled. Everything else follows A–Z. */
-    private static final List<String> FAVOURITES = Arrays.asList(
-            "com.netflix.mediaclient", "com.google.android.youtube.tv", "com.amazon.amazonvideo.livingroom",
-            "com.disney.disneyplus", "com.spotify.tv.android", "com.plexapp.android", "org.xbmc.kodi");
-    /** Never shown on the shelf (store, settings and tools reachable elsewhere). */
-    private static final List<String> HIDDEN = Arrays.asList(
-            "com.tv98.glow", "com.android.tv.settings", "com.android.vending", "com.google.android.tvlauncher");
-
     private TextView clock, date, weather, headline, quickLabel;
+    private boolean resumedBefore;
+    private final Runnable trimAfterReturn = () -> {
+        Net.trim();
+        System.gc();
+        Runtime.getRuntime().runFinalization();
+    };
     private List<World.Story> headlines = new ArrayList<>();
     private int headlineIndex;
     /** Rotates the top world headlines under the date, one every 9 seconds. */
@@ -58,7 +56,7 @@ public class HomeActivity extends Activity {
         @Override
         public void run() {
             Date now = new Date();
-            if (DateFormat.is24HourFormat(HomeActivity.this)) {
+            if (Ui.is24h(HomeActivity.this)) {
                 clock.setText(DateFormat.format("HH:mm", now));
             } else {
                 String hm = DateFormat.format("h:mm", now).toString();
@@ -104,6 +102,9 @@ public class HomeActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        // Back on Home after the guide, player or World: let go of their pictures and buffers once Home has drawn.
+        if (resumedBefore) clock.postDelayed(trimAfterReturn, 3000);
+        resumedBefore = true;
         tick.run();
         Weather.load(this, t -> weather.setText(t));
         fillApps();
@@ -224,21 +225,7 @@ public class HomeActivity extends Activity {
 
     private void fillApps() {
         PackageManager pm = getPackageManager();
-        Intent q = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
-        List<ResolveInfo> found = pm.queryIntentActivities(q, 0);
-        List<ResolveInfo> ordered = new ArrayList<>();
-        for (String fav : FAVOURITES) {
-            for (ResolveInfo ri : found) if (ri.activityInfo.packageName.equals(fav)) ordered.add(ri);
-        }
-        List<ResolveInfo> rest = new ArrayList<>();
-        for (ResolveInfo ri : found) {
-            String p = ri.activityInfo.packageName;
-            if (!FAVOURITES.contains(p) && !HIDDEN.contains(p)) rest.add(ri);
-        }
-        final java.util.Map<ResolveInfo, String> labels = new java.util.HashMap<>();
-        for (ResolveInfo ri : rest) labels.put(ri, ri.loadLabel(pm).toString());
-        Collections.sort(rest, (x, y) -> labels.get(x).compareToIgnoreCase(labels.get(y)));
-        ordered.addAll(rest);
+        List<ResolveInfo> ordered = AppsActivity.ordered(this, false); // Glow ▸ Settings ▸ Apps on Home
 
         apps.removeAllViews();
         for (final ResolveInfo ri : ordered) {
@@ -364,6 +351,7 @@ public class HomeActivity extends Activity {
             boolean fresh = GuideLineup.current() == null;
             GuideLineup.build(this); // ready before the TV Guide is opened (kept 30 min)
             if (fresh) Net.MAIN.post(() -> { if (!isFinishing()) showChannels(); }); // tiles now show guide numbers
+            Health.priorityIfDue(this);
             Guide.ensure(this, null);
         });
         if (acct != null) {

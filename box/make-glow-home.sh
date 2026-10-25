@@ -10,3 +10,5 @@ adb -s "$D" shell pm disable-user --user 0 com.google.android.tvlauncher || true
 adb -s "$D" shell pm disable-user --user 0 com.google.android.leanbacklauncher || true
 adb -s "$D" shell cmd role add-role-holder android.app.role.HOME com.tv98.glow 0 || true
 adb -s "$D" shell input keyevent KEYCODE_HOME
+# Lets Glow ▸ Settings ▸ Screensaver set the idle time before the screensaver starts.
+adb -s "$D" shell appops set com.tv98.glow WRITE_SETTINGS allow || true

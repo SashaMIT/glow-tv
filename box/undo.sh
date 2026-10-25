@@ -31,3 +31,5 @@ adb -s $D shell cmd appops set com.netflix.mediaclient RUN_ANY_IN_BACKGROUND all
 adb -s $D shell pm enable com.google.android.tvlauncher
 adb -s $D shell cmd role add-role-holder android.app.role.HOME com.google.android.tvlauncher 0
 adb -s $D shell pm revoke com.tv98.glow android.permission.WRITE_SECURE_SETTINGS 2>/dev/null
+adb -s $D shell settings put secure screensaver_components com.android.dreams.web/com.android.dreams.web.Screensaver
+adb -s $D shell settings put system screen_off_timeout 2147483646

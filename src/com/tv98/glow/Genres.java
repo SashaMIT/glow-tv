@@ -240,8 +240,12 @@ final class Genres {
      * place in the top list (0-999) unless its name marks another language's feed; the country in its id
      * isn't used for those ("FUEL TV" has a Portuguese id but broadcasts in English).
      */
+    /** Glow ▸ Settings ▸ "Thai channels first": Thai broadcasters lead Entertainment ahead of the English picks. */
+    static volatile boolean thaiFirst;
+
     static int score(int genre, Channel ch, int base) {
         int t = top(genre, ch);
+        if (thaiFirst && genre == ENT && t >= 0 && "th".equals(ch.country)) return t * 10 - 5_000;
         if (t >= 0) return t * 10 + (otherLanguageName(ch) ? 1_200 : 0);
         return base;
     }

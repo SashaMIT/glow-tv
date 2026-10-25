@@ -45,7 +45,13 @@ final class GuideLineup {
      * Call off the main thread. The numbering is kept for 30 minutes while the channel lists are unchanged,
      * so reopening the guide is instant; favourites and recently watched are always re-read.
      */
+    /** Settings that change the ranking were changed: rebuild on next use. */
+    static synchronized void invalidate() {
+        last = null;
+    }
+
     static synchronized GuideLineup build(Context c) {
+        Genres.thaiFirst = c.getSharedPreferences("display", Context.MODE_PRIVATE).getBoolean("thai_first", false);
         List<Channel> free = FreeTv.cached(c);
         if (last != null && free == lastFree && System.currentTimeMillis() - lastAt < 30 * 60 * 1000L) {
             last.refreshPersonal(c);

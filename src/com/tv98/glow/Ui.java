@@ -32,6 +32,12 @@ final class Ui {
         density = c.getResources().getDisplayMetrics().density;
     }
 
+    /** Glow ▸ Settings ▸ Clock: automatic (the box's setting), 12-hour or 24-hour. */
+    static boolean is24h(Context c) {
+        String mode = c.getSharedPreferences("display", Context.MODE_PRIVATE).getString("clock", "auto");
+        return mode.equals("24") || (mode.equals("auto") && android.text.format.DateFormat.is24HourFormat(c));
+    }
+
     static int dp(float v) {
         return Math.round(v * density);
     }

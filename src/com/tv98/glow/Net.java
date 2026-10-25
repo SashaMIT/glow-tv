@@ -30,6 +30,11 @@ final class Net {
 
     private Net() {}
 
+    /** Drops decoded pictures held in memory (they reload from the storage cache in milliseconds). */
+    static void trim() {
+        IMAGES.evictAll();
+    }
+
     /** The first {@code limit} bytes of a web page (enough for its <head>), as a browser would ask for it. */
     static String head(String url, int limit) throws IOException {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();

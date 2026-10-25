@@ -37,7 +37,10 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
 - **World**: top stories and alerts by region from [World Monitor](https://github.com/koala73/worldmonitor), with
   article pictures, a QR code to read the story on your phone, and OK to watch a news channel covering that region.
 - **My IPTV**: sign in with your own Xtream-style provider details to browse and play their channels.
-- **Settings**: switch developer access (ADB) off and on in two clicks, hide offline channels, refresh lists.
+- **Screensaver**: after 15 minutes idle, a big clock, weather, world stories with their pictures and what's on your
+  favourites, drifting slowly so nothing burns in.
+- **Settings**: developer access (ADB) off and on, offline channels, phone remote, screensaver, weather city,
+  12/24-hour clock, Thai channels first, and which apps appear on Home and in what order.
 
 | | | |
 |---|---|---|
@@ -82,7 +85,7 @@ key (`glow.keystore`, kept out of git; set `GLOW_KS_PASS` to choose its password
 export GLOW_DEVICE=192.168.1.50:5555   # your box's address and ADB port
 adb connect $GLOW_DEVICE
 tools/install.sh                       # installs and fully pre-compiles Glow
-box/make-glow-home.sh $GLOW_DEVICE     # makes Glow the Home screen
+box/make-glow-home.sh $GLOW_DEVICE     # makes Glow the Home screen (and lets its Settings manage ADB and the screensaver)
 box/debloat.sh $GLOW_DEVICE            # optional: switches off factory test apps, side-loaded stores and extras
 ```
 

@@ -210,3 +210,16 @@ when it isn't ours; only matching programmes are decoded (times parsed without S
 
 What's left of the US time is mostly downloading and unzipping 30 MB. epg.pw also serves one channel at a time
 (`/api/epg.json?channel_id=…`, ~35 KB for 3 days): ~215 small requests would be ~7.5 MB a day instead of 42 MB.
+
+## Lighter listings, memory, priority link checks, screensaver, Settings v2 — 25 Oct 2026 (afternoon)
+
+| Metric | Before | After | Result |
+|---|---|---|---|
+| Daily UK/US listings download | ~42 MB (two whole-country files) | **2.6 MB** (215 channels from epg.pw's per-channel API, 4 at a time, 0 failed, 20 s mostly waiting on the network) | the full files are read weekly to learn which channels are ours (epgpw-map.tsv); falls back to them if a third of requests fail |
+| Glow on Home after guide + preview + watching + World | 83 MB (Java 19, native 37) | **60 MB** after it settles | pictures dropped from memory when you come back Home or another app is in front (onTrimMemory) |
+| Glow while Netflix is open | — | 49 MB (from 55 on Home) | memory handed to the app being watched |
+| Glow fresh on Home (settled) | 42 MB (first build) / 56 MB (before this) | **37 MB** | |
+| Link checks for the channels that matter | every 12 h with all 3,340 | **every 3 h** for favourites, recently watched and each genre's top 30 (272 links in 51 s); full sweep still 12 h | a dead top channel hides, a recovered one returns, the same day |
+| Screensaver | box's web screensaver, never started (timeout "never") | **Glow ambient after 15 min idle**: clock, weather, world stories with pictures, "on now" for favourites, burn-in drift | Glow ▸ Settings switch; off restores the box's own values; any key wakes |
+| Settings | developer access, offline channels, phone remote, refresh | **+ screensaver, weather city (17), clock 12/24/auto, Thai channels first, apps on Home (hide, reorder)** | all tested on the box, then reset to defaults |
+| APK | 840 KB | 852 KB | |

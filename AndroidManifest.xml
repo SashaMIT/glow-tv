@@ -8,6 +8,9 @@
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
+    <!-- Glow Settings ▸ Screensaver sets the idle time before the screensaver starts. -->
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" />
+
     <application
         android:name=".GlowApp"
         android:label="Glow"
@@ -43,5 +46,14 @@
         <activity android:name=".RemoteActivity" />
         <activity android:name=".SettingsActivity" />
         <activity android:name=".ClassicGuideActivity" />
+        <activity android:name=".AppsActivity" />
+            <!-- Ambient screensaver (clock, weather, headlines with pictures, what's on now). -->
+        <service android:name=".GlowDream" android:exported="true" android:label="Glow ambient"
+            android:permission="android.permission.BIND_DREAM_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.dreams.DreamService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

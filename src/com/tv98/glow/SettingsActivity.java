@@ -83,6 +83,47 @@ public class SettingsActivity extends Activity {
                     }
                 });
 
+        final boolean dream = GlowDreamSettings.on(this);
+        row(dream ? "Screensaver: Glow ambient, after 15 min" : "Screensaver: off",
+                dream ? "Clock, weather, world headlines with pictures and what's on your favourites. Any key wakes the box. "
+                        + "Videos playing in any app keep the screen awake."
+                        : "Shows Glow's ambient screen after 15 minutes without a key press (switching off puts back the box's own settings).",
+                dream, v -> {
+                    String problem = GlowDreamSettings.set(this, !GlowDreamSettings.on(this));
+                    if (problem != null) Toast.makeText(this, problem, Toast.LENGTH_LONG).show();
+                    build();
+                });
+
+        final android.content.SharedPreferences display = getSharedPreferences("display", MODE_PRIVATE);
+        final int city = display.getInt("weather_city", 0);
+        row("Weather: " + Weather.CITIES[Math.min(city, Weather.CITIES.length - 1)][0], "Press OK to choose the next city.", null, v -> {
+            display.edit().putInt("weather_city", (city + 1) % Weather.CITIES.length).apply();
+            Weather.reset(this);
+            build();
+            focusRow("Weather");
+        });
+
+        final String clockMode = display.getString("clock", "auto");
+        row("Clock: " + (clockMode.equals("12") ? "12-hour" : clockMode.equals("24") ? "24-hour" : "automatic"),
+                "Home, the TV guide and the screensaver. Press OK to switch.", null, v -> {
+                    display.edit().putString("clock", clockMode.equals("auto") ? "12" : clockMode.equals("12") ? "24" : "auto").apply();
+                    build();
+                    focusRow("Clock");
+                });
+
+        final boolean thai = display.getBoolean("thai_first", false);
+        row(thai ? "Thai channels first: on" : "Thai channels first: off",
+                "Puts the main Thai broadcasters (3HD, Channel 7, Workpoint…) ahead of the English picks in Entertainment. Channel numbers stay the same.",
+                thai, v -> {
+                    display.edit().putBoolean("thai_first", !thai).apply();
+                    GuideLineup.invalidate();
+                    build();
+                    focusRow("Thai channels");
+                });
+
+        row("Apps on Home", "Hide apps you don't use and choose their order on the shelf.", null,
+                v -> startActivity(new Intent(this, AppsActivity.class)));
+
         row("Refresh channels & guide now", "Re-downloads the free channel lists and today's TV guide, then re-checks links in the background.",
                 null, v -> {
                     Toast.makeText(this, "Refreshing in the background…", Toast.LENGTH_SHORT).show();
@@ -99,6 +140,20 @@ public class SettingsActivity extends Activity {
                 v -> startActivity(new Intent(Settings.ACTION_SETTINGS)));
 
         if (list.getChildCount() > 1) list.getChildAt(1).requestFocus();
+    }
+
+    /** After a rebuild, puts focus back on the row whose title starts with {@code prefix}. */
+    private void focusRow(String prefix) {
+        for (int i = 0; i < list.getChildCount(); i++) {
+            View r = list.getChildAt(i);
+            if (r instanceof LinearLayout && ((LinearLayout) r).getChildCount() > 0 && ((LinearLayout) r).getChildAt(0) instanceof LinearLayout) {
+                View t = ((LinearLayout) ((LinearLayout) r).getChildAt(0)).getChildAt(0);
+                if (t instanceof TextView && ((TextView) t).getText().toString().startsWith(prefix)) {
+                    r.requestFocus();
+                    return;
+                }
+            }
+        }
     }
 
     /** A focusable glass row: title, explanation and an on/off pill (null = plain action). */
