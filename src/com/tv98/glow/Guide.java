@@ -6,7 +6,6 @@ import android.util.Log;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.xmlpull.v1.XmlPullParser;
 
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
@@ -54,14 +53,6 @@ final class Guide {
     }
 
     private static final int DESC_MAX = 160;
-
-    private static String shortDesc(String d) {
-        if (d == null) return null;
-        d = d.replace('\n', ' ').trim();
-        if (d.length() <= DESC_MAX) return d;
-        int cut = d.lastIndexOf(' ', DESC_MAX - 1);
-        return d.substring(0, cut > DESC_MAX / 2 ? cut : DESC_MAX - 1) + "…";
-    }
 
     interface Listener {
         void updated();
@@ -297,69 +288,20 @@ final class Guide {
             conn.setReadTimeout(30_000);
             conn.setRequestProperty("User-Agent", "Glow/1.0 (Android TV)");
             try (InputStream in = new GZIPInputStream(new BufferedInputStream(conn.getInputStream(), 64 * 1024), 64 * 1024)) {
-                XmlPullParser p = android.util.Xml.newPullParser();
-                p.setInput(in, "UTF-8");
                 Map<String, List<String>> idToKeys = byId != null ? byId : new HashMap<>();
-                if (byId != null) matchedChannels = byId.size();
-                SimpleDateFormat fmt = new SimpleDateFormat("yyyyMMddHHmmss Z", Locale.ROOT);
-                long now = System.currentTimeMillis(), from = now - KEEP_BEFORE_MS, to = now + KEEP_AFTER_MS;
-                String chId = null, progCh = null, title = null, desc = null;
-                long start = 0, stop = 0;
-                boolean inName = false, inTitle = false, inDesc = false;
-                for (int ev = p.getEventType(); ev != XmlPullParser.END_DOCUMENT; ev = p.next()) {
-                    if (ev == XmlPullParser.START_TAG) {
-                        String tag = p.getName();
-                        if (tag.equals("channel")) {
-                            chId = p.getAttributeValue(null, "id");
-                        } else if (tag.equals("display-name") && byId == null && chId != null && !idToKeys.containsKey(chId)) {
-                            inName = true;
-                        } else if (tag.equals("programme")) {
-                            progCh = p.getAttributeValue(null, "channel");
-                            title = null;
-                            desc = null;
-                            programmes++;
-                            if (!idToKeys.containsKey(progCh)) {
-                                progCh = null; // not a channel Glow has
-                            } else {
-                                start = fmt.parse(p.getAttributeValue(null, "start")).getTime();
-                                stop = fmt.parse(p.getAttributeValue(null, "stop")).getTime();
-                                if (stop < from || start > to) progCh = null;
-                            }
-                        } else if (tag.equals("title") && progCh != null && title == null) {
-                            inTitle = true;
-                        } else if (tag.equals("desc") && progCh != null && desc == null) {
-                            inDesc = true;
-                        }
-                    } else if (ev == XmlPullParser.TEXT) {
-                        if (inName) {
-                            List<Channel> match = mine.get(norm(p.getText()));
-                            if (match != null) {
-                                List<String> keys = new ArrayList<>();
-                                for (Channel ch : match) if (countryFits(ch, country)) keys.add(ch.key());
-                                if (!keys.isEmpty()) {
-                                    idToKeys.put(chId, keys);
-                                    matchedChannels++;
-                                }
-                            }
-                            inName = false;
-                        } else if (inTitle) {
-                            title = p.getText().trim();
-                            inTitle = false;
-                        } else if (inDesc) {
-                            desc = shortDesc(p.getText());
-                            inDesc = false;
-                        }
-                    } else if (ev == XmlPullParser.END_TAG) {
-                        if (p.getName().equals("programme") && progCh != null && title != null) {
-                            Prog prog = new Prog(start, stop, title, desc);
-                            for (String k : idToKeys.get(progCh)) out.computeIfAbsent(k, x -> new ArrayList<>()).add(prog);
-                            kept++;
-                        }
-                        if (p.getName().equals("channel")) chId = null;
-                        inName = false;
-                    }
-                    if ((programmes & 4095) == 0) peak = Math.max(peak, rt.totalMemory() - rt.freeMemory());
-                }
+                XmltvScan.Names names = byId != null ? null : displayName -> {
+                    List<Channel> match = mine.get(norm(displayName));
+                    if (match == null) return null;
+                    List<String> keys = new ArrayList<>();
+                    for (Channel ch : match) if (countryFits(ch, country)) keys.add(ch.key());
+                    return keys;
+                };
+                long now = System.currentTimeMillis();
+                XmltvScan.Stats st = XmltvScan.scan(in, idToKeys, names, now - KEEP_BEFORE_MS, now + KEEP_AFTER_MS, out, DESC_MAX);
+                programmes = st.programmes;
+                kept = st.kept;
+                matchedChannels = byId != null ? byId.size() : st.channelsMatched;
+                peak = Math.max(peak, rt.totalMemory() - rt.freeMemory());
             }
         } catch (Exception e) {
             Log.i("GlowPerf", "guide " + country + " failed: " + e);

@@ -193,3 +193,20 @@ ease in once per caption instead of re-sliding on every clip.
 | Home Live TV tiles | logo + name | + **"▶ now playing"** line for channels with listings | |
 | Daily US listings parse (background) | 15.8 s | 38 s this run (now also reads descriptions; network may vary) | once a day in the background; watch this |
 | APK | 836 KB | 840 KB | |
+
+## Faster listings refresh — 25 Oct 2026 (midday)
+
+epg.pw's US file is 30 MB compressed and **202 MB** of XML for 5,493 channels; Glow uses ~120 of them. The XML pull
+parser tokenised all of it. `XmltvScan` now finds each `<programme`, checks its channel id, and jumps past the block
+when it isn't ours; only matching programmes are decoded (times parsed without SimpleDateFormat).
+
+| Feed (box idle) | Before (XmlPullParser) | After (XmltvScan) | Same result? |
+|---|---|---|---|
+| US (epg.pw) | 38.1 s | **12.6 s** | 3,721 vs 3,720 programmes, 120 channels |
+| UK (epg.pw) | 4.5 s | **1.8 s** | 3,150 vs 3,152, 95 channels |
+| Pluto TV US | 4.3 s | **1.5 s** | same channels |
+| Pluto TV UK | 1.9 s | **0.9 s** | same channels |
+| **Whole refresh** | **~49 s** | **~17 s** | |
+
+What's left of the US time is mostly downloading and unzipping 30 MB. epg.pw also serves one channel at a time
+(`/api/epg.json?channel_id=…`, ~35 KB for 3 days): ~215 small requests would be ~7.5 MB a day instead of 42 MB.
