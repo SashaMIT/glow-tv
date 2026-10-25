@@ -37,14 +37,18 @@ jobs:
           # Sites that fail or time out just leave their channels without listings; the rest still publish.
           npm run grab --- --channels=../out/glow.channels.xml --output=../out/guide-full.xml \
             --days=2 --maxConnections=8 --timeout=20000 || true
+          # Second pass: channels with no programmes (e.g. a site that blocks GitHub) try their next source.
+          cd .. && python3 tools/build_guide_data.py --retry out/guide-full.xml out && cd epg
+          npm run grab --- --channels=../out/glow.channels.2.xml --output=../out/guide-2.xml \
+            --days=2 --maxConnections=8 --timeout=20000 || true
 
       - name: Trim to the next 36 hours and pack
-        run: python3 tools/trim_guide.py out/guide-full.xml out/guide.xml.gz out/report.txt
+        run: python3 tools/trim_guide.py out/guide-full.xml,out/guide-2.xml out/guide.xml.gz out/report.txt
 
       - name: Publish to the data branch
         run: |
           cd out
-          rm -f guide-full.xml glow.channels.xml
+          rm -f guide-full.xml guide-2.xml glow.channels.xml glow.channels.2.xml alternatives.json
           git init -q -b data
           git config user.name "glow-data"
           git config user.email "actions@users.noreply.github.com"

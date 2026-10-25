@@ -1,6 +1,6 @@
 """Trims an XMLTV guide to what Glow shows (1 hour back to 36 hours ahead), shortens descriptions, and packs it.
 
-Usage: python3 tools/trim_guide.py <guide.xml> <out.xml.gz> <report.txt>
+Usage: python3 tools/trim_guide.py <guide.xml>[,<guide-2.xml>...] <out.xml.gz> <report.txt>
 """
 import collections
 import datetime as dt
@@ -25,16 +25,19 @@ def main(src, dst, report):
     now = dt.datetime.now(dt.timezone.utc)
     lo, hi = now - dt.timedelta(hours=1), now + dt.timedelta(hours=36)
     per = collections.Counter()
+    first = set()
     out = ['<?xml version="1.0" encoding="UTF-8"?>', '<tv generator-info-name="glow-tv data">']
-    if os.path.exists(src):
-        for _, el in ET.iterparse(src, events=("end",)):
+    for one in src.split(","):
+        if not os.path.exists(one):
+            continue
+        for _, el in ET.iterparse(one, events=("end",)):
             if el.tag == "programme":
                 try:
                     start, stop = when(el.get("start")), when(el.get("stop"))
                 except Exception:
                     el.clear()
                     continue
-                if stop > lo and start < hi:
+                if stop > lo and start < hi and not (one != src.split(",")[0] and el.get("channel") in first):
                     title = (el.findtext("title") or "").strip()
                     desc = (el.findtext("desc") or "").strip()
                     if len(desc) > DESC_MAX:
@@ -44,6 +47,8 @@ def main(src, dst, report):
                         escape(title), "<desc>%s</desc>" % escape(desc) if desc else ""))
                     per[el.get("channel")] += 1
                 el.clear()
+        if one == src.split(",")[0]:
+            first = set(per)  # a later pass only fills channels the first one missed
     out.append("</tv>")
     data = ("\n".join(out) + "\n").encode("utf-8")
     with gzip.open(dst, "wb", compresslevel=9) as f:
