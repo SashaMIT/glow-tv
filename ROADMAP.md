@@ -3,6 +3,47 @@
 Everything Glow could still do, roughly in the order it's worth doing. Each item gets measured on the box before and
 after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published sources only.
 
+## Status at a glance (25 Oct 2026)
+
+### Done
+
+| Area | Feature |
+|---|---|
+| Box | Debloat, Glow as Home, undo scripts, developer-access shield; Gradle-free build, MIT repo, releases workflow, in-app update check |
+| Home | Clock, weather, headline ticker, icon header (Search, World, Phone remote, Cast, IPTV, Settings); full-colour app cards; app order; smooth scrolling (29.5 % → 1.1 % late) |
+| Home | Live TV row (TV Guide, favourites, recents, white/black logo cards, Resume badge); Intelligence row; Cast from phone |
+| TV Guide | Numbered genre menu, ranking, fixed numbers; classic grid with logos, info panel, preview, reminders, search; Radio tab |
+| Listings | epg.pw, Pluto TV, TrueID, nightly GitHub job (~1,050 channels); channel facts (closed/adult hidden, real languages) |
+| Player | Fallbacks → official stream → official YouTube; ▲ in 0.22 s; 1080p; last channel; typed numbers; score banners; sleep timer |
+| Intelligence | World map (quakes, alerts, EONET, news hotspots, ISS, day/night, rain); live cams + health; weather + air quality; rain radar; predictions; Sports now (19 leagues, favourite teams) |
+| Other | World news with pictures + QR; phone remote; screensaver; Settings; My IPTV |
+
+### To do
+
+| Area | Feature | When |
+|---|---|---|
+| Player | ▼ / favourites as instant as ▲; audio + subtitle switching | now |
+| Player | Picture-in-picture / two channels; pause & rewind live; night-mode audio, dialogue boost, volume levelling; zoom/aspect, stats overlay | later |
+| TV Guide | Now & Next; Live sport now; smoother first pass | now |
+| TV Guide | Radio favourites + album art; F1 live timing (OpenF1); Trending (TMDB, free key) | later |
+| Home & box | Photos to the screensaver from the phone; settings backup | next |
+| Home & box | Remote remapping + quick settings; notifications over TV; Thai menus; parental PIN / Kids mode; data usage + Wi-Fi; faster cold start | later |
+| Intelligence | Markets ticker (CoinGecko), overview page, tennis/golf, map zoom | later |
+| Smart home | Home Assistant card, doorbell pop-ups, AirPlay (test first) | later |
+| Privacy (owner's call) | Private DNS ad/tracker blocking; vendor-app audit | needs OK |
+| Sharing | Signed releases (key decision); Extra apps installer; Obtainium + awesome-list; promo video on the repo page | next |
+| Sharing | Contributors' guide, translations | later |
+
+### Ruled out
+
+| Feature | Why |
+|---|---|
+| Continue watching (Watch Next) | needs a system-only permission; Netflix/YouTube publish nothing on this box |
+| Samsung TV Plus / Plex / Roku channels | no legal keyless channel lists any more (schedules only) |
+| World Monitor AI brief, summaries, fact-checks | paid key; not worked around |
+| Boxing / MotoGP scores | no ESPN feed |
+| Unlicensed aggregators; SmartTube built in | legal-only rule (SmartTube stays a user install) |
+
 ## Done: Intelligence, batch 1 (25 Oct 2026)
 
 - [x] Home row **Intelligence**: World map card (live snapshot), Weather, Predictions, six one-click live cams, All live cams
