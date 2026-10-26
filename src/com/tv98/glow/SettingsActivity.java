@@ -54,9 +54,9 @@ public class SettingsActivity extends Activity {
         if (update != null) {
             row("Update available: Glow " + update, "Press OK to download it; Android then asks you to confirm the install.",
                     null, v -> {
-                        Toast.makeText(this, "Downloading Glow " + update + "…", Toast.LENGTH_SHORT).show();
+                        L.toast(this, "Downloading Glow " + update + "…", Toast.LENGTH_SHORT).show();
                         Net.IO.execute(() -> Updates.install(this,
-                                msg -> Net.MAIN.post(() -> Toast.makeText(this, msg, Toast.LENGTH_SHORT).show())));
+                                msg -> Net.MAIN.post(() -> L.toast(this, msg, Toast.LENGTH_SHORT).show())));
                     });
         }
 
@@ -68,9 +68,28 @@ public class SettingsActivity extends Activity {
                     try {
                         Settings.Global.putInt(getContentResolver(), Settings.Global.ADB_ENABLED, adbOn(this) ? 0 : 1);
                     } catch (SecurityException e) {
-                        Toast.makeText(this, "Glow needs a one-time permission for this (see the Glow notes).", Toast.LENGTH_LONG).show();
+                        L.toast(this, "Glow needs a one-time permission for this (see the Glow notes).", Toast.LENGTH_LONG).show();
                     }
                     build();
+                });
+
+        row("Kids mode: off", "A simpler Home for children: only the apps you pick and the children's channels. Search, news, "
+                + "Intelligence and Settings stay closed until the 4-digit PIN is entered.", false, v -> {
+                    if (Kids.hasPin(this)) chooseKidsApps();
+                    else startActivityForResult(new Intent(this, PinActivity.class).putExtra(PinActivity.EXTRA_MODE, PinActivity.SET), PIN_FOR_KIDS);
+                });
+        if (Kids.hasPin(this)) {
+            row("Kids mode PIN", "Change the PIN (the current one first).", null,
+                    v -> startActivityForResult(new Intent(this, PinActivity.class).putExtra(PinActivity.EXTRA_MODE, PinActivity.CHECK), PIN_OLD));
+        }
+
+        final String lang = L.choice(this);
+        row("Language: " + (lang.equals(L.TH) ? "ไทย (Thai)" : lang.equals(L.EN) ? "English" : "Automatic (" + (L.thai() ? "ไทย" : "English") + ")"),
+                "Glow's menus in English or Thai. Channel names, programmes and news stay as the broadcasters send them. Press OK to switch.",
+                null, v -> {
+                    L.set(this, lang.equals(L.AUTO) ? L.EN : lang.equals(L.EN) ? L.TH : L.AUTO);
+                    build();
+                    focusRow("Language");
                 });
 
         final boolean hide = getSharedPreferences("channels", MODE_PRIVATE).getBoolean("hide_offline", true);
@@ -100,7 +119,7 @@ public class SettingsActivity extends Activity {
                         : "Shows Glow's ambient screen after 15 minutes without a key press (switching off puts back the box's own settings).",
                 dream, v -> {
                     String problem = GlowDreamSettings.set(this, !GlowDreamSettings.on(this));
-                    if (problem != null) Toast.makeText(this, problem, Toast.LENGTH_LONG).show();
+                    if (problem != null) L.toast(this, problem, Toast.LENGTH_LONG).show();
                     build();
                 });
 
@@ -135,7 +154,7 @@ public class SettingsActivity extends Activity {
             final boolean[] on = Sports.chosen(this);
             String[] names = new String[Sports.LEAGUES.length];
             for (int i = 0; i < names.length; i++) names[i] = Sports.LEAGUES[i][1];
-            new android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            new L.Dialog(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                     .setTitle("Sports leagues")
                     .setMultiChoiceItems(names, on, (d, which, checked) -> on[which] = checked)
                     .setPositiveButton("Done", (d, w) -> {
@@ -150,7 +169,7 @@ public class SettingsActivity extends Activity {
         final java.util.Set<String> favTeams = Sports.favourites(this);
         row("Favourite teams" + (favTeams.isEmpty() ? "" : ": " + favTeams.size()),
                 "Their games go first in Sports now and on Home, and can be the only score alerts. Press OK to choose.", null, v -> {
-                    Toast.makeText(this, "Loading teams…", Toast.LENGTH_SHORT).show();
+                    L.toast(this, "Loading teams…", Toast.LENGTH_SHORT).show();
                     Net.IO.execute(() -> {
                         java.util.List<String[]> teams = Sports.teams(this);
                         Net.MAIN.post(() -> {
@@ -161,7 +180,7 @@ public class SettingsActivity extends Activity {
                                 names[i] = teams.get(i)[1] + "   ·   " + teams.get(i)[2];
                                 on[i] = favTeams.contains(teams.get(i)[0]);
                             }
-                            new android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                            new L.Dialog(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                                     .setTitle("Favourite teams")
                                     .setMultiChoiceItems(names, on, (d, which, checked) -> on[which] = checked)
                                     .setPositiveButton("Done", (d, w) -> {
@@ -204,7 +223,7 @@ public class SettingsActivity extends Activity {
 
         row("Refresh channels & guide now", "Re-downloads the free channel lists and today's TV guide, then re-checks links in the background.",
                 null, v -> {
-                    Toast.makeText(this, "Refreshing in the background…", Toast.LENGTH_SHORT).show();
+                    L.toast(this, "Refreshing in the background…", Toast.LENGTH_SHORT).show();
                     Net.IO.execute(() -> {
                         FreeTv.refresh(this);
                         new java.io.File(getFilesDir(), "guide.idx").setLastModified(0);
@@ -230,13 +249,48 @@ public class SettingsActivity extends Activity {
         if (list.getChildCount() > 1) list.getChildAt(1).requestFocus();
     }
 
+    private static final int PIN_FOR_KIDS = 1, PIN_OLD = 2, PIN_NEW = 3;
+
+    @Override
+    protected void onActivityResult(int request, int result, Intent data) {
+        super.onActivityResult(request, result, data);
+        if (result != RESULT_OK) return;
+        if (request == PIN_FOR_KIDS) chooseKidsApps();
+        else if (request == PIN_OLD) startActivityForResult(new Intent(this, PinActivity.class).putExtra(PinActivity.EXTRA_MODE, PinActivity.SET), PIN_NEW);
+        else if (request == PIN_NEW) L.toast(this, "PIN changed", Toast.LENGTH_SHORT).show();
+    }
+
+    /** Which apps children may open, then Kids mode on and straight to the Kids Home. */
+    private void chooseKidsApps() {
+        final java.util.List<android.content.pm.ResolveInfo> all = AppsActivity.ordered(this, true);
+        final java.util.Set<String> picked = Kids.apps(this);
+        String[] names = new String[all.size()];
+        final boolean[] on = new boolean[all.size()];
+        for (int i = 0; i < names.length; i++) {
+            names[i] = all.get(i).loadLabel(getPackageManager()).toString();
+            on[i] = picked.contains(all.get(i).activityInfo.packageName);
+        }
+        new L.Dialog(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle("Apps children can open")
+                .setMultiChoiceItems(names, on, (d, which, checked) -> on[which] = checked)
+                .setPositiveButton("Start Kids mode", (d, w) -> {
+                    java.util.Set<String> keep = new java.util.HashSet<>();
+                    for (int i = 0; i < on.length; i++) if (on[i]) keep.add(all.get(i).activityInfo.packageName);
+                    Kids.setApps(this, keep);
+                    Kids.setOn(this, true);
+                    startActivity(new Intent(this, HomeActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
     /** After a rebuild, puts focus back on the row whose title starts with {@code prefix}. */
     private void focusRow(String prefix) {
         for (int i = 0; i < list.getChildCount(); i++) {
             View r = list.getChildAt(i);
             if (r instanceof LinearLayout && ((LinearLayout) r).getChildCount() > 0 && ((LinearLayout) r).getChildAt(0) instanceof LinearLayout) {
                 View t = ((LinearLayout) ((LinearLayout) r).getChildAt(0)).getChildAt(0);
-                if (t instanceof TextView && ((TextView) t).getText().toString().startsWith(prefix)) {
+                if (t instanceof TextView && ((TextView) t).getText().toString().startsWith(L.t(prefix))) {
                     r.requestFocus();
                     return;
                 }

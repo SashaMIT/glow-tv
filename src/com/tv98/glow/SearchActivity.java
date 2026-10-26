@@ -55,7 +55,7 @@ public class SearchActivity extends Activity {
         root.setPadding(Ui.dp(40), Ui.dp(28), Ui.dp(40), 0);
 
         box = new EditText(this);
-        box.setHint("Search channels — try BBC, CNN, sport, music…");
+        box.setHint(L.t("Search channels — try BBC, CNN, sport, music…"));
         box.setSingleLine();
         box.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
         box.setImeOptions(EditorInfo.IME_ACTION_SEARCH);

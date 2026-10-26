@@ -582,3 +582,37 @@ is in front; a sample alert appeared over Android's Settings after 90 s.
 **v1.2.0 release** (signed on the Mac, cert `c2810927…ed6fd8`): Home found it on its update check, Settings showed
 "Update available: Glow 1.2.0", OK → Android's installer → versionName 1.2.0 (10200). Release build, 3 cold starts with
 100 s settle: 1.010 / 1.014 / 1.037 s, Glow 88.7 / 87.0 / 99.8 MB.
+
+## Kids mode and Thai menus — 26 Oct 2026
+
+**Thai menus.** English stays in the code; `res/raw/lang_th.tsv` (372 phrases, 66 patterns with `{n}` numbers,
+`{t}` times and `{}` names) is applied where text is shown: every `Ui.text` view, toasts, dialogs and the few
+canvas-drawn labels, so no screen's code had to be rewritten. Longer text is tried piece by piece between "·", ":",
+wide gaps and line breaks. First version let `{}` run across "·", which turned "AIR QUALITY · Moderate" into
+"อากาศQUALITY" and could have caught headlines ("Air India…"); placeholders now stop at "·" and line breaks, and
+number/time slots only match digits. Checked on the box screen by screen: Home, Settings, TV Guide menu and grid,
+player banner and menu, Quick settings, World map, Sports now, Weather. Channel names, programmes and headlines stay
+as broadcast.
+
+**Kids mode.** Home shows only the apps a grown-up ticked and the guide's Kids section (71 working channels: PBS
+Kids, Nick Jr., Nickelodeon, Retro Toons, Animation…); no headline line, no Intelligence row, one "Grown-ups"
+button. Any other Glow screen closes as it opens (checked: Search key, starting Search, Intelligence and Settings
+directly; Settings asks for the PIN instead). The guide opens on Kids with no menu; typing 503 (Al Jazeera) in the
+player says "No channel 503."; YouTube hand-offs are skipped; remote-button jobs other than the Kids guide, Home and
+picked apps do nothing; the screensaver shows photos, clock and weather but no news. PIN: salted SHA-256, five wrong
+tries then 60 s (the right PIN is refused during the wait too); the phone remote is switched off when Kids mode
+starts and the PIN isn't in the phone backup.
+
+| Home, 3 cold starts, 100 s settle | Time to first frame | Glow memory |
+|---|---|---|
+| v1.2.0 (before) | 1.010 / 1.014 / 1.037 s | 88.7 / 87.0 / 99.8 MB |
+| English | 2.200 (first after install) / 0.977 / 0.950 s | 95.8 / 93.1 / 99.9 MB |
+| Thai | 1.073 / 1.036 / 1.039 s (table load 26 ms) | 99.9 / 89.4 / 95.9 MB |
+| Kids mode | 1.479 (first after install) / 0.700 / 0.673 s | 62.6 / 58.2 / 55.5 MB |
+
+| Home scrolling (`scrollbench.sh`, 3 passes) | Late frames | p99 |
+|---|---|---|
+| English | 1.24 % / 1.51 % | 15–20 ms |
+| Thai | 5.18 % (first run, Thai glyphs drawn for the first time) / 0.86 % | 16–23 ms |
+
+APK 1,270,720 → 1,291,265 bytes (+20 KB, mostly the Thai table).

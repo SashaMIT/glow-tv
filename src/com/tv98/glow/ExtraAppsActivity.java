@@ -91,7 +91,7 @@ public class ExtraAppsActivity extends Activity {
                 }
                 status.setText("");
                 String size = rel.size > 0 ? (rel.size >> 20) + " MB" : "about 80 MB";
-                new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                new L.Dialog(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                         .setTitle("Install " + app[0] + " " + rel.version + "?")
                         .setMessage(app[2] + ".\n\nDownloads " + size + " from " + rel.url.replaceFirst("^https://", "").replaceFirst("/[^/]*$", "/…")
                                 + "\nLicence " + app[5] + ". Android will ask you to confirm.")

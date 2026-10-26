@@ -242,7 +242,7 @@ public class IntelActivity extends Activity {
             for (int i = 0; i < FILTERS.length; i++) {
                 int n = count(FILTERS[i][1]);
                 TextView c = Ui.text(this, 12, Ui.TEXT, 600);
-                c.setText(FILTERS[i][0] + (all.isEmpty() || n < 0 ? "" : "  " + n));
+                c.setText(L.t(FILTERS[i][0]) + (all.isEmpty() || n < 0 ? "" : "  " + n));
                 c.setPadding(Ui.dp(12), Ui.dp(5), Ui.dp(12), Ui.dp(5));
                 GradientDrawable g = new GradientDrawable();
                 g.setCornerRadius(Ui.dp(12));
@@ -341,6 +341,12 @@ public class IntelActivity extends Activity {
         select();
     }
 
+    /** "earthquakes" in the hint under the map (in Thai, the filter's Thai name). */
+    private String nextFilterName() {
+        String n = FILTERS[(filter + 1) % FILTERS.length][0];
+        return L.thai() ? L.t(n) : n.toLowerCase(Locale.ROOT);
+    }
+
     private void select() {
         boolean rainView = FILTERS[filter][1].equals(RAIN);
         map.setRainOnly(rainView);
@@ -351,7 +357,7 @@ public class IntelActivity extends Activity {
             evDetail.setText("Beige is light rain, blue is rain, yellow to red is heavy. Where there's no radar there's no data.");
             String fmt = Ui.is24h(this) ? "HH:mm" : "h:mm a";
             evMeta.setText(rainAt > 0 ? "RainViewer   ·   radar at " + DateFormat.format(fmt, rainAt) : "RainViewer");
-            evHint.setText("▲ ▼ " + FILTERS[(filter + 1) % FILTERS.length][0].toLowerCase(Locale.ROOT) + "…   ·   Rain radar in the menu for a close-up");
+            evHint.setText("▲ ▼ " + nextFilterName() + "…   ·   Rain radar in the menu for a close-up");
             return;
         }
         if (shown.isEmpty()) {
@@ -369,7 +375,7 @@ public class IntelActivity extends Activity {
         evDetail.setText(e.detail);
         evMeta.setText(e.source + (e.at > 0 ? "   ·   " + World.ago(e.at) : "") + "   ·   " + (pos + 1) + " of " + shown.size());
         String ok = e.kind.equals(Intel.CAM) ? "OK  watch this live cam" : "OK  watch live news about this";
-        evHint.setText("◀ ▶ next   ·   ▲ ▼ " + FILTERS[(filter + 1) % FILTERS.length][0].toLowerCase(Locale.ROOT) + "…   ·   " + ok);
+        evHint.setText("◀ ▶ next   ·   ▲ ▼ " + nextFilterName() + "…   ·   " + ok);
     }
 
     private boolean onMapKey(int code) {
@@ -869,7 +875,7 @@ public class IntelActivity extends Activity {
             cell.setOrientation(LinearLayout.VERTICAL);
             cell.setGravity(Gravity.CENTER_HORIZONTAL);
             TextView dn = Ui.text(this, 12, Ui.TEXT, 600);
-            dn.setText(i == 0 ? "Today" : DateFormat.format("EEE", d[0]).toString());
+            dn.setText(i == 0 ? "Today" : L.date("EEE", (long) d[0]).toString());
             TextView ic = Ui.text(this, 24, Ui.TEXT, 400);
             ic.setText(com.tv98.glow.Weather.symbol((int) d[3]));
             ic.setPadding(0, Ui.dp(4), 0, Ui.dp(4));

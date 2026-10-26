@@ -108,7 +108,7 @@ public class ButtonsActivity extends Activity {
         Buttons.choices(this, actions, labels);
         actions.add(0, null);
         labels.add(0, "Nothing (clear this button)");
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        new L.Dialog(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle(Buttons.keyName(code) + ": when pressed")
                 .setItems(labels.toArray(new String[0]), (d, which) -> {
                     final String press = actions.get(which);
@@ -118,7 +118,7 @@ public class ButtonsActivity extends Activity {
                         return;
                     }
                     labels.set(0, "Nothing extra");
-                    new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                    new L.Dialog(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                             .setTitle(Buttons.keyName(code) + ": when held")
                             .setItems(labels.toArray(new String[0]), (d2, w2) -> {
                                 Buttons.set(this, code, press, actions.get(w2));

@@ -263,7 +263,7 @@ public class PlayerActivity extends Activity {
             if (showStats) statsTick.run();
             else if (stats != null) stats.setVisibility(View.GONE);
         });
-        new android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        new L.Dialog(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle(current().name)
                 .setItems(labels.toArray(new String[0]), (d, which) -> actions.get(which).run())
                 .show();
@@ -517,7 +517,7 @@ public class PlayerActivity extends Activity {
             showOsd(4000);
             return;
         }
-        new android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        new L.Dialog(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle("Audio & subtitles")
                 .setItems(labels.toArray(new String[0]), (d, which) -> actions.get(which).run())
                 .show();
@@ -1059,6 +1059,10 @@ public class PlayerActivity extends Activity {
         if (k > 0) osdNote.setText("That link isn't answering. Trying another source (" + (k + 1) + " of " + attempts.size() + ")…");
 
         if (a.youtubeChannels != null) {
+            if (Kids.on(this)) { // YouTube would open all of YouTube
+                tryAttempt(k + 1);
+                return;
+            }
             findOfficialLive(a);
             return;
         }
@@ -1212,8 +1216,8 @@ public class PlayerActivity extends Activity {
                 return;
             }
         }
-        // Not in this list: switch to the full numbered lineup, like a satellite box would.
-        GuideLineup l = GuideLineup.current();
+        // Not in this list: switch to the full numbered lineup, like a satellite box would (not in Kids mode).
+        GuideLineup l = Kids.on(this) ? null : GuideLineup.current();
         if (l != null) {
             List<Channel> all = l.allChannels();
             for (int i = 0; i < all.size(); i++) {

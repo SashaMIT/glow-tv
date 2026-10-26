@@ -155,7 +155,7 @@ final class Updates {
                 Intent confirm = i.getParcelableExtra(Intent.EXTRA_INTENT);
                 if (confirm != null) c.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             } else if (status != PackageInstaller.STATUS_SUCCESS) {
-                android.widget.Toast.makeText(c, "Not installed: " + i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE),
+                L.toast(c, "Not installed: " + i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE),
                         android.widget.Toast.LENGTH_LONG).show();
             }
         }

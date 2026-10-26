@@ -17,6 +17,7 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 | Player | Fallbacks → official stream → official YouTube; ▲ 0.32 s / ▼ 0.28 s (two standby players); 1080p; last channel; typed numbers; audio + subtitles; score banners; sleep timer |
 | Player menu (hold OK) | Pause, back 10 s, back to live, picture size, night sound, stats, corner picture, sleep timer |
 | Remote & alerts | Remote buttons (press/hold jobs), Quick settings panel, score banners over other apps (overlay allowed with owner's OK) |
+| Family & language | Kids mode (picked apps + Kids channels, PIN with lockout, everything else closed); Thai menus (Settings ▸ Language), one translation file |
 | Intelligence | World map (quakes, alerts, EONET, news hotspots, ISS, day/night, rain); live cams + health; weather + air quality; rain radar; predictions; Sports now (19 leagues, favourite teams) |
 | Other | World news with pictures + QR; phone remote (+ photos to screensaver, backup/restore); screensaver; Settings; My IPTV; Extra apps (SmartTube, Jellyfin, Kodi, NewPipe) |
 
@@ -30,12 +31,12 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 | Memory | ~~Listings' descriptions on disk, rows updated in place~~ ✅ (Home 118 → 81–100 MB); under 80 MB every time needs fewer layered cards / smaller banners | later |
 | TV Guide | Radio favourites + album art; F1 live timing (OpenF1); Trending (TMDB, free key) | later |
 | Home & box | ~~Photos to the screensaver from the phone~~ ✅; ~~settings backup~~ ✅ | done |
-| Home & box | ~~Remote remapping + quick settings~~ ✅; ~~banners over other apps~~ ✅ (notification access off by choice); Thai menus; parental PIN / Kids mode; data usage + Wi-Fi | later |
+| Home & box | ~~Remote remapping + quick settings~~ ✅; ~~banners over other apps~~ ✅ (notification access off by choice); ~~Thai menus~~ ✅; ~~parental PIN / Kids mode~~ ✅; data usage + Wi-Fi | later |
 | Intelligence | Markets ticker (CoinGecko), overview page, tennis/golf, map zoom | later |
 | Smart home | Home Assistant card, doorbell pop-ups, AirPlay (test first) | later |
 | Privacy (owner's call) | Private DNS ad/tracker blocking; vendor-app audit | needs OK |
 | Sharing | ~~Extra apps installer~~ ✅; ~~tour on the repo page~~ ✅ (GIF); Obtainium note ✅; ~~signed releases~~ ✅ (v1.0.0, v1.1.0, v1.2.0, signed on the owner's Mac, box updated itself each time); awesome-list PR (after v1.0.0, owner's OK) | next |
-| Sharing | Contributors' guide, translations | later |
+| Sharing | Contributors' guide; more languages (Translating section + one file each) | later |
 
 ### Ruled out
 

@@ -49,12 +49,19 @@ public class GlowApp extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        L.init(this);
         Reminders.start(this);
         Net.MAIN.postDelayed(alertsEverywhere, 90_000);
         registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks() {
             @Override public void onActivityResumed(Activity a) { front = a; }
             @Override public void onActivityPaused(Activity a) { if (front == a) front = null; }
-            @Override public void onActivityCreated(Activity a, Bundle b) {}
+            @Override public void onActivityCreated(Activity a, Bundle b) {
+                // Kids mode: Home, the Kids guide and the player only; Settings asks for the PIN to leave Kids mode.
+                if (Kids.on(a) && !Kids.allowed(a)) {
+                    if (a instanceof SettingsActivity) PinActivity.leave(a);
+                    a.finish();
+                }
+            }
             @Override public void onActivityStarted(Activity a) {}
             @Override public void onActivityStopped(Activity a) {}
             @Override public void onActivitySaveInstanceState(Activity a, Bundle b) {}

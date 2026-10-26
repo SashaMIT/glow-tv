@@ -85,7 +85,7 @@ public class LoginActivity extends Activity {
 
     private EditText field(LinearLayout parent, String hint, int variation, String value) {
         EditText e = new EditText(this);
-        e.setHint(hint);
+        e.setHint(L.t(hint));
         e.setText(value);
         e.setSingleLine();
         e.setInputType(InputType.TYPE_CLASS_TEXT | variation);

@@ -98,7 +98,7 @@ final class Reminders {
             Net.MAIN.post(() -> {
                 Activity a = GlowApp.front();
                 if (a != null && !a.isFinishing()) {
-                    AlertDialog d = new AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                    AlertDialog d = new L.Dialog(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                             .setTitle("Starting now: " + title)
                             .setMessage("On " + where + "\n\nOK to watch")
                             .setPositiveButton("Watch", (dlg, w) -> watch(a, l, ch))
@@ -108,7 +108,7 @@ final class Reminders {
                 } else {
                     // Another app is in front: a notice it can't hide. Press Home and open the guide to switch.
                     for (int i = 0; i < 2; i++) {
-                        Toast.makeText(app, "⏰  Starting now: " + title + "  ·  " + where, Toast.LENGTH_LONG).show();
+                        L.toast(app, "⏰  Starting now: " + title + "  ·  " + where, Toast.LENGTH_LONG).show();
                     }
                 }
             });

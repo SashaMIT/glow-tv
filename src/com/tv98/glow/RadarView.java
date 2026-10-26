@@ -248,6 +248,6 @@ class RadarView extends View {
     private void label(Canvas c, String s, float x, float baseline) {
         float tw = text.measureText(s);
         c.drawRoundRect(x - Ui.dp(7), baseline - Ui.dp(16), x + tw + Ui.dp(7), baseline + Ui.dp(6), Ui.dp(6), Ui.dp(6), chip);
-        c.drawText(s, x, baseline, text);
+        c.drawText(L.t(s), x, baseline, text);
     }
 }

@@ -136,10 +136,10 @@ class GuideGridView extends View {
 
         // Time header: "Today" over the channels, then the three half-hour marks.
         header.setColor(0xFFFFFFFF);
-        c.drawText(DateFormat.format("EEE d MMM", windowStart).toString(), pad, headH - Ui.dp(9), header);
+        c.drawText(L.date("EEE d MMM", windowStart).toString(), pad, headH - Ui.dp(9), header);
         if (nowNext) {
-            c.drawText("Now", gridX + Ui.dp(4), headH - Ui.dp(9), header);
-            c.drawText("Next", gridX + gridW / 2f + Ui.dp(4), headH - Ui.dp(9), header);
+            c.drawText(L.t("Now"), gridX + Ui.dp(4), headH - Ui.dp(9), header);
+            c.drawText(L.t("Next"), gridX + gridW / 2f + Ui.dp(4), headH - Ui.dp(9), header);
         } else for (int k = 0; k < 3; k++) {
             long t = windowStart + k * SLOT;
             c.drawText(time(t), gridX + gridW * k / 3f + Ui.dp(4), headH - Ui.dp(9), header);
@@ -226,7 +226,7 @@ class GuideGridView extends View {
             r.set(gridX, y, w, y + rowH);
             drawCell(c, selected);
             text.setColor(selected ? HILITE_TEXT : DIM_TEXT);
-            drawClipped(c, now >= windowStart && now < windowEnd ? liveLabel(ch) : "No listings",
+            drawClipped(c, now >= windowStart && now < windowEnd ? L.t(liveLabel(ch)) : L.t("No listings"),
                     gridX + pad, y + rowH - Ui.dp(9), gridW - pad * 2, text);
             return;
         }
@@ -401,7 +401,7 @@ class GuideGridView extends View {
         fill.setColor(hl ? HILITE : 0xB31C3A8E);
         c.drawRoundRect(r, radius, radius, fill);
         text.setColor(hl ? HILITE_TEXT : DIM_TEXT);
-        drawClipped(c, "No listings", x1 + pad, y + rowH - Ui.dp(9), r.right - x1 - pad * 2, text);
+        drawClipped(c, L.t("No listings"), x1 + pad, y + rowH - Ui.dp(9), r.right - x1 - pad * 2, text);
     }
 
     private void drawCell(Canvas c, boolean hl) {
@@ -566,7 +566,7 @@ class GuideGridView extends View {
             boolean hl = selected && p != null && p.start <= cursor && cursor < p.stop;
             drawCell(c, hl);
             text.setColor(hl ? HILITE_TEXT : p == null ? DIM_TEXT : CELL_TEXT);
-            String label = p == null ? (k == 0 ? "No listing now" : "")
+            String label = p == null ? (k == 0 ? L.t("No listing now") : "")
                     : (k == 0 ? "until " + time(p.stop) + "   " : time(p.start) + "   ") + p.title;
             float tx = x1 + pad;
             if (k == 1 && p != null && p.start > now && Reminders.has(getContext(), ch, p)) {

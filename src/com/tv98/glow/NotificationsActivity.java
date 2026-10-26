@@ -62,7 +62,7 @@ public class NotificationsActivity extends Activity {
             if (withPackage) i.setData(android.net.Uri.parse("package:" + getPackageName()));
             startActivity(i);
         } catch (Exception e) {
-            android.widget.Toast.makeText(this, "This box doesn't have that settings page; it can be allowed over adb instead.", android.widget.Toast.LENGTH_LONG).show();
+            L.toast(this, "This box doesn't have that settings page; it can be allowed over adb instead.", android.widget.Toast.LENGTH_LONG).show();
         }
     }
 

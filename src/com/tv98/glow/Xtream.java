@@ -102,7 +102,7 @@ final class Xtream {
             }
             String status = info.optString("status", "");
             long exp = info.optLong("exp_date", 0);
-            String day = exp > 0 ? android.text.format.DateFormat.format("d MMM yyyy", exp * 1000L).toString() : null;
+            String day = exp > 0 ? L.date("d MMM yyyy", exp * 1000L).toString() : null;
             if ("Expired".equalsIgnoreCase(status)) {
                 return new Status(false, "This subscription expired" + (day != null ? " on " + day : "") + ".");
             }

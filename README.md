@@ -61,6 +61,12 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
 - **Remote buttons & Quick settings** (Settings): give spare remote buttons a job (an app, TV Guide, Sports now,
   Quick settings…) for press and hold; Quick settings has night sound, subtitles, picture size, sleep timer, Wi-Fi.
   Score alerts can show over other apps once "display over other apps" is allowed.
+- **Kids mode** (Settings): a simpler Home for children with only the apps you pick and the children's channels
+  (PBS Kids, Nick Jr., cartoons…); the TV Guide opens on Kids, and Search, news, Intelligence and Settings stay
+  closed until a 4-digit PIN is entered (five wrong tries, then a minute's wait). It's a friendly fence for young
+  children, not a lock: Android's own settings can still reset Glow.
+- **ภาษาไทย / Thai menus** (Settings ▸ Language: Automatic, English, ไทย). Channel names, programmes and news stay
+  as the broadcasters send them.
 - **Extra apps** (Settings): SmartTube, Jellyfin, Kodi and NewPipe from their developers' official releases,
   installed only when you pick one (Android confirms each install).
 - **Photos and settings backup** (phone remote ▸ More): send photos from your phone to the screensaver; download
@@ -78,6 +84,12 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
 | ![Sports now](docs/screenshots/27_intel_sports_now.jpg) | ![Rain radar](docs/screenshots/28_intel_rain_radar.jpg) | ![Live TV cards](docs/screenshots/26_live_tv_cards.jpg) |
 | ![Rain around the world](docs/screenshots/29_world_rain.jpg) | ![Sports leagues](docs/screenshots/30_sports_leagues.jpg) | ![Score banner over live TV](docs/screenshots/31_score_banner.jpg) |
 | ![News with nightly listings](docs/screenshots/32_guide_news_listings.jpg) | ![Favourite team first](docs/screenshots/33_favourite_team.jpg) | ![Cast button and Resume card](docs/screenshots/34_cast_and_resume.jpg) |
+| ![Sleep timer](docs/screenshots/35_sleep_timer.jpg) | ![Now & Next](docs/screenshots/36_now_and_next.jpg) | ![Subtitles](docs/screenshots/37_subtitles.jpg) |
+| ![Audio & subtitles](docs/screenshots/38_audio_subtitles_menu.jpg) | ![Live sport now](docs/screenshots/39_live_sport_now.jpg) | ![Extra apps](docs/screenshots/40_extra_apps.jpg) |
+| ![Photo on the screensaver](docs/screenshots/41_screensaver_photo.jpg) | ![Player menu](docs/screenshots/42_player_menu.jpg) | ![Corner picture](docs/screenshots/43_corner_picture.jpg) |
+| ![Stats overlay](docs/screenshots/44_stats_overlay.jpg) | ![Remote buttons](docs/screenshots/45_remote_buttons.jpg) | ![Quick settings](docs/screenshots/46_quick_settings.jpg) |
+| ![Kids mode Home](docs/screenshots/47_kids_home.jpg) | ![Kids mode PIN](docs/screenshots/48_kids_pin.jpg) | ![Home in Thai](docs/screenshots/49_thai_home.jpg) |
+| ![TV Guide in Thai](docs/screenshots/50_thai_guide.jpg) | ![Guide grid in Thai](docs/screenshots/51_thai_guide_grid.jpg) | |
 
 ## Measured on the box
 
@@ -143,11 +155,19 @@ switched off.
 |---|---|
 | `src/com/tv98/glow/` | The app. `HomeActivity`, `ClassicGuideActivity` + `GuideGridView` (guide, drawn as one view), `GuideLineup` + `Genres` (numbers and ranking), `PlayerActivity` + `Sources` + `OfficialLive` (playback and fallbacks), `FreeTv` + `Health` (channel lists and link checks), `Guide` (listings), `Remote` (phone remote), `World`, `Weather`, `IntelActivity` + `Intel` + `WorldMapView` + `Sports` + `ScoreAlerts` + `Cams` + `RadarView` + `Rain` (Intelligence) |
 | `res/raw/remote.html` | The phone remote's web page |
+| `res/raw/lang_th.tsv` | Thai menus: one English phrase and its Thai per line (see Translating) |
 | `.github/workflows/` | `release.yml` (signed releases), `guide.yml` (nightly listings + channel facts to the `data` branch) |
 | `tools/` | `build_guide_data.py` / `trim_guide.py` (nightly data), build helpers, install, benchmarks (`bench.sh`, `zapbench.sh`, `guidebench.sh`, `scrollbench.sh`), a mock IPTV server for testing logins, the screenshot tour and video scripts |
 | `box/` | Debloat, make-Home and undo scripts for the TV98 box |
 | `docs/` | Screenshots, tour video, benchmarks |
 | `ROADMAP.md` | What's next, top picks from GitHub, and what Glow won't do |
+
+## Translating
+
+Glow's English stays in the code; each language is one file in `res/raw/` with an English phrase and its translation
+per line, separated by a tab (`lang_th.tsv` is Thai). `{n}` stands for a number, `{t}` for a time or date and `{}` for
+a name, e.g. `Sleep in {n} min<TAB>ปิดใน {} นาที`. Symbols in front (★, ▶, ⏰) are kept as they are, so leave them
+out. `L.java` applies it wherever text is shown. Corrections and new languages are welcome as pull requests.
 
 ## Credits
 

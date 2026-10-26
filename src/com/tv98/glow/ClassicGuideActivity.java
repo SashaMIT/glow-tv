@@ -212,7 +212,15 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
             Net.MAIN.post(() -> {
                 if (isFinishing()) return;
                 lineup = l;
-                if (startKey != null) {
+                if (Kids.on(this)) { // Kids mode: only the Kids section, no menu
+                    GuideLineup.Section k = l.section(Genres.NAMES[Genres.KIDS]);
+                    if (k == null || k.channels.isEmpty()) {
+                        L.toast(this, "No children's channels are working right now", android.widget.Toast.LENGTH_LONG).show();
+                        finish();
+                        return;
+                    }
+                    openSection(k, startKey);
+                } else if (startKey != null) {
                     openSection(l.main.get(0), startKey);
                     if (section == null) showMenu(false, 0);
                 } else {
@@ -387,7 +395,7 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
         menuScreen.setVisibility(View.VISIBLE);
         stopPreview("");
         menuClock.setText(DateFormat.format(Ui.is24h(this) ? "HH:mm" : "h:mm a", System.currentTimeMillis()));
-        menuTitle.setText(more ? "TV GUIDE  ›  MORE" : DateFormat.format("EEEE d MMMM", System.currentTimeMillis()).toString().toUpperCase());
+        menuTitle.setText(more ? "TV GUIDE  ›  MORE" : L.date("EEEE d MMMM", System.currentTimeMillis()).toString().toUpperCase());
         menuList.removeAllViews();
         lineup.refreshPersonal(this); // favourites or recently watched may have changed since the lineup was built
         List<GuideLineup.Section> list = more ? lineup.more : lineup.main;
@@ -464,7 +472,7 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
 
     private void openSection(GuideLineup.Section s, String selectKey) {
         if (s.channels.isEmpty()) {
-            android.widget.Toast.makeText(this, s.name.equals("Favourites") ? "No favourites yet: highlight a channel in the guide and press the blue key"
+            L.toast(this, s.name.equals("Favourites") ? "No favourites yet: highlight a channel in the guide and press the blue key"
                     : s.name.equals("Recently watched") ? "Nothing watched yet" : "No working channels here right now",
                     android.widget.Toast.LENGTH_LONG).show();
             return;
@@ -642,7 +650,7 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
 
                     @Override
                     public void onPlayerError(PlaybackException e) {
-                        android.widget.Toast.makeText(ClassicGuideActivity.this, "That station isn't available right now",
+                        L.toast(ClassicGuideActivity.this, "That station isn't available right now",
                                 android.widget.Toast.LENGTH_SHORT).show();
                         stopRadio();
                     }
@@ -815,7 +823,7 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
     @Override
     public void onRemind(Channel ch, Guide.Prog prog) {
         boolean on = Reminders.toggle(this, ch, prog);
-        android.widget.Toast.makeText(this, on ? "⏰  Reminder set: " + prog.title + " at " + time(prog.start)
+        L.toast(this, on ? "⏰  Reminder set: " + prog.title + " at " + time(prog.start)
                 : "Reminder cleared: " + prog.title, android.widget.Toast.LENGTH_SHORT).show();
         grid.dataChanged();
         showInfo(ch, prog, lineup.number(ch));
@@ -923,7 +931,7 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
             return true;
         }
         if (lineup == null) return super.onKeyDown(code, e);
-        if (radioMode) return super.onKeyDown(code, e);
+        if (radioMode || Kids.on(this)) return super.onKeyDown(code, e);
         if (colourKey(code)) return true;
         if (section == null && code >= KeyEvent.KEYCODE_0 && code <= KeyEvent.KEYCODE_9) {
             if (code == KeyEvent.KEYCODE_0) {
@@ -946,6 +954,10 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
         }
         if (radioMode && lineup != null) {
             showMenu(false, 0);
+            return;
+        }
+        if (Kids.on(this)) {
+            super.onBackPressed();
             return;
         }
         if (lineup != null && section != null) {

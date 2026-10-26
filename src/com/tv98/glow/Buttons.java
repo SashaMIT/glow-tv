@@ -106,7 +106,7 @@ final class Buttons {
 
     /** Does the button's job. Works from any context (the accessibility service has no activity). */
     static void run(final Context c, String action) {
-        if (action == null) return;
+        if (action == null || (Kids.on(c) && !Kids.allowsButton(c, action))) return;
         Intent i = null;
         switch (action) {
             case "glow:quick": i = new Intent(c, QuickSettingsActivity.class); break;

@@ -214,6 +214,13 @@ final class GuideLineup {
         return out;
     }
 
+    /** A menu section by its (English) name, or null. */
+    Section section(String name) {
+        for (Section s : main) if (s.name.equals(name)) return s;
+        for (Section s : more) if (s.name.equals(name)) return s;
+        return null;
+    }
+
     private Section genreSection(int genre, List<Channel> ranked, Set<String> on) {
         Section s = new Section(Genres.NAMES[genre]);
         for (Channel ch : ranked) if (on.contains(ch.key())) s.channels.add(ch);

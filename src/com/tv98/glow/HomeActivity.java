@@ -54,6 +54,10 @@ public class HomeActivity extends Activity {
         }
     };
     private LinearLayout apps, live, quick, intel;
+    private View appsLabel, appsShelf;
+    /** Kids mode and the menu language this screen was built for: rebuilt when either changes. */
+    private boolean kids;
+    private String builtFor;
     private final Runnable tick = new Runnable() {
         @Override
         public void run() {
@@ -66,7 +70,7 @@ public class HomeActivity extends Activity {
                 s.setSpan(new RelativeSizeSpan(0.36f), hm.length(), s.length(), 0);
                 clock.setText(s);
             }
-            date.setText(DateFormat.format("EEEE d MMMM", now));
+            date.setText(L.date("EEEE d MMMM", now.getTime()));
             clock.postDelayed(this, 60_000 - System.currentTimeMillis() % 60_000 + 50);
         }
     };
@@ -91,21 +95,36 @@ public class HomeActivity extends Activity {
         col.setPadding(Ui.dp(28), Ui.dp(30), Ui.dp(28), Ui.dp(30));
         scroll.addView(col);
 
+        kids = Kids.on(this);
+        builtFor = builtFor();
         col.addView(header());
         col.addView(headline, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        col.addView(Ui.label(this, "Apps"));
-        col.addView(shelf(apps = row()));
-        col.addView(Ui.label(this, "Live TV"));
+        col.addView(appsLabel = Ui.label(this, "Apps"));
+        col.addView(appsShelf = shelf(apps = row()));
+        col.addView(Ui.label(this, kids ? "Kids TV" : "Live TV"));
         col.addView(shelf(live = row()));
-        col.addView(Ui.label(this, "Intelligence"));
-        col.addView(shelf(intel = row()));
+        intel = row();
+        if (!kids) { // Kids mode leaves out news, disasters and markets
+            col.addView(Ui.label(this, "Intelligence"));
+            col.addView(shelf(intel));
+        } else {
+            headline.setVisibility(View.GONE);
+        }
 
         setContentView(root);
+    }
+
+    private String builtFor() {
+        return Kids.on(this) + "|" + L.thai();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        if (!builtFor().equals(builtFor)) { // Kids mode or the language changed while away
+            recreate();
+            return;
+        }
         // Back on Home after the guide, player or World: let go of their pictures and buffers once Home has drawn.
         if (resumedBefore) clock.postDelayed(trimAfterReturn, 3000);
         resumedBefore = true;
@@ -116,15 +135,17 @@ public class HomeActivity extends Activity {
         // 87 MB after five returns).
         fillApps();
         fillLive();
-        fillIntel();
+        if (!kids) fillIntel();
         fillQuick();
         Tile.restore(apps);
         Tile.restore(live);
         Tile.restore(intel);
         restoreFocus();
         headline.removeCallbacks(rotateHeadline);
-        if (!headlines.isEmpty()) headline.postDelayed(rotateHeadline, 9000);
-        loadHeadlines();
+        if (!kids) {
+            if (!headlines.isEmpty()) headline.postDelayed(rotateHeadline, 9000);
+            loadHeadlines();
+        }
         if (getCurrentFocus() == null && apps.getChildCount() > 0) apps.getChildAt(0).requestFocus();
     }
 
@@ -280,6 +301,14 @@ public class HomeActivity extends Activity {
     private void fillApps() {
         PackageManager pm = getPackageManager();
         List<ResolveInfo> ordered = AppsActivity.ordered(this, false); // Glow ▸ Settings ▸ Apps on Home
+        if (kids) { // only the apps a grown-up picked for Kids mode
+            java.util.Set<String> picked = Kids.apps(this);
+            List<ResolveInfo> mine = new ArrayList<>();
+            for (ResolveInfo ri : AppsActivity.ordered(this, true)) if (picked.contains(ri.activityInfo.packageName)) mine.add(ri);
+            ordered = mine;
+            appsLabel.setVisibility(mine.isEmpty() ? View.GONE : View.VISIBLE);
+            appsShelf.setVisibility(mine.isEmpty() ? View.GONE : View.VISIBLE);
+        }
         StringBuilder sig = new StringBuilder();
         for (ResolveInfo ri : ordered) sig.append(ri.activityInfo.packageName).append('/').append(ri.activityInfo.name).append(';');
         if (apps.getChildCount() > 0 && sig.toString().equals(appsSig)) return; // same apps, same order: keep the cards
@@ -307,7 +336,7 @@ public class HomeActivity extends Activity {
             apps.addView(t);
         }
         final Intent store = pm.getLeanbackLaunchIntentForPackage("com.android.vending");
-        if (store != null) {
+        if (store != null && !kids) {
             Tile more = actionTile("⬇", "Get more apps", "Google Play");
             more.setOnClickListener(v -> startActivity(store));
             apps.addView(more);
@@ -383,7 +412,8 @@ public class HomeActivity extends Activity {
     private void fillLive() {
         if (live.getChildCount() == 0) {
             // One way in: the TV Guide has every channel (free and My IPTV), radio, and the country lists under More.
-            Tile guide = actionTile("▤", "TV Guide", "TV and radio, channel by channel");
+            Tile guide = kids ? actionTile("▤", "Kids TV guide", "Cartoons and children's channels")
+                    : actionTile("▤", "TV Guide", "TV and radio, channel by channel");
             guide.setOnClickListener(v -> startActivity(new Intent(this, ClassicGuideActivity.class)));
             live.addView(guide);
         }
@@ -430,6 +460,17 @@ public class HomeActivity extends Activity {
      */
     private void showChannels() {
         final boolean signedIn = Xtream.load(this) != null;
+        if (kids) {
+            Net.IO.execute(() -> {
+                // Kids channels, the ones watched lately first.
+                List<Channel> all = Kids.channels(this), pick = new ArrayList<>();
+                java.util.Set<String> seen = new java.util.HashSet<>();
+                for (Channel ch : Channel.recent(this, all)) if (seen.add(ch.key())) pick.add(ch);
+                for (Channel ch : all) if (pick.size() < 24 && seen.add(ch.key())) pick.add(ch);
+                Net.MAIN.post(() -> { if (!isFinishing()) renderChannels(pick); });
+            });
+            return;
+        }
         Net.IO.execute(() -> {
             List<Channel> free = FreeTv.cached(this);
             List<Channel> all = new ArrayList<>(free);
@@ -517,7 +558,7 @@ public class HomeActivity extends Activity {
     }
 
     static void toastFavourite(Activity a, Channel ch, boolean on) {
-        android.widget.Toast.makeText(a, on ? "★  " + ch.name + " added to favourites" : ch.name + " removed from favourites",
+        L.toast(a, on ? "★  " + ch.name + " added to favourites" : ch.name + " removed from favourites",
                 android.widget.Toast.LENGTH_SHORT).show();
     }
 
@@ -587,6 +628,10 @@ public class HomeActivity extends Activity {
 
     private void fillQuick() {
         quick.removeAllViews();
+        if (kids) {
+            quickButton(Icons.SETTINGS, "Grown-ups: leave Kids mode", Ui.ACCENT, v -> PinActivity.leave(this));
+            return;
+        }
         quickButton(Icons.SEARCH, "Search", Ui.ACCENT, v -> startActivity(new Intent(this, SearchActivity.class)));
         quickButton(Icons.WORLD, "World news", Ui.ACCENT, v -> startActivity(new Intent(this, WorldActivity.class)));
         quickButton(Icons.PHONE, "Phone remote", Ui.ACCENT, v -> startActivity(new Intent(this, RemoteActivity.class)));
@@ -600,7 +645,7 @@ public class HomeActivity extends Activity {
             quickButton(Icons.SHIELD, "Developer access is ON · press to switch off", 0xFFFF8A7A, v -> {
                 try {
                     android.provider.Settings.Global.putInt(getContentResolver(), android.provider.Settings.Global.ADB_ENABLED, 0);
-                    android.widget.Toast.makeText(this, "Developer access switched off", android.widget.Toast.LENGTH_SHORT).show();
+                    L.toast(this, "Developer access switched off", android.widget.Toast.LENGTH_SHORT).show();
                 } catch (SecurityException e) {
                     startActivity(new Intent(this, SettingsActivity.class));
                 }
@@ -623,7 +668,7 @@ public class HomeActivity extends Activity {
         t.setOnClickListener(click);
         t.setOnFocusChangeListener((v, has) -> {
             if (has) quickLabel.setText(name.toUpperCase(java.util.Locale.ROOT));
-            else if (quickLabel.getText().toString().equalsIgnoreCase(name)) quickLabel.setText("");
+            else if (quickLabel.getText().toString().equalsIgnoreCase(L.t(name))) quickLabel.setText("");
         });
         quick.addView(t);
     }

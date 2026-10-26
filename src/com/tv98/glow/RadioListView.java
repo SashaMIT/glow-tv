@@ -125,7 +125,7 @@ class RadioListView extends View {
 
             r.set(rightX, y, w, y + rowH);
             cell(c, hl);
-            String right = on ? "♫  On air" + (song == null || song.isEmpty() ? "" : "  ·  " + song) : Radio.describe(s);
+            String right = on ? L.t("♫  On air") + (song == null || song.isEmpty() ? "" : "  ·  " + song) : Radio.describe(s);
             text.setColor(hl ? GuideGridView.HILITE_TEXT : on ? GuideGridView.HILITE : GuideGridView.DIM_TEXT);
             fit(c, right, rightX + pad, baseline, w - rightX - pad * 2, text);
         }

@@ -34,7 +34,7 @@ public class GlowDream extends DreamService {
         public void run() {
             long now = System.currentTimeMillis();
             clock.setText(DateFormat.format(Ui.is24h(GlowDream.this) ? "HH:mm" : "h:mm", now));
-            date.setText(DateFormat.format("EEEE d MMMM", now));
+            date.setText(L.date("EEEE d MMMM", now));
             clock.postDelayed(this, 60_000 - now % 60_000 + 50);
         }
     };
@@ -127,7 +127,8 @@ public class GlowDream extends DreamService {
         Weather.load(this, t -> weather.setText(t));
         Net.IO.execute(() -> {
             if (World.stale(this)) World.refresh(this);
-            List<World.Story> top = World.section(World.cached(this), "__top");
+            // Kids mode: photos, clock and weather, but no news.
+            List<World.Story> top = Kids.on(this) ? new ArrayList<>() : World.section(World.cached(this), "__top");
             Guide.loadSaved(this);
             Net.MAIN.post(() -> {
                 stories.clear();
@@ -154,7 +155,7 @@ public class GlowDream extends DreamService {
                     storyImage.animate().alpha(0f).setDuration(400).withEndAction(() -> {
                         storyImage.setImageBitmap(bm);
                         storyTitle.setText("Your photos");
-                        storyMeta.setText("From your phone   ·   " + android.text.format.DateFormat.format("d MMM", f.lastModified()));
+                        storyMeta.setText("From your phone   ·   " + L.date("d MMM", f.lastModified()));
                         storyImage.animate().alpha(1f).setDuration(600).start();
                     }).start();
                 });

@@ -1,0 +1,481 @@
+# Glow's menus in Thai. One line each: English <TAB> Thai. Case doesn't matter; {} is a part that varies (a name,
+# a number). Symbols in front of the English ("★  ", "◐   ") are kept as they are. Lines can be in any order.
+# Corrections welcome: open a pull request on github.com/SashaMIT/glow-tv with this file changed.
+
+# ---- Home ----
+Apps	แอป
+Live TV	ทีวีสด
+Intelligence	ข่าวกรองโลก
+Kids TV	ทีวีเด็ก
+Kids TV guide	ผังรายการเด็ก
+Cartoons and children's channels	การ์ตูนและช่องสำหรับเด็ก
+TV Guide	ผังรายการทีวี
+TV and radio, channel by channel	ทีวีและวิทยุ ทีละช่อง
+Get more apps	หาแอปเพิ่ม
+Google Play	Google Play
+RESUME	ดูต่อ
+Search	ค้นหา
+World news	ข่าวโลก
+Phone remote	รีโมตจากมือถือ
+Cast from phone	แคสต์จากมือถือ
+My IPTV sign-in	ลงชื่อเข้าใช้ IPTV ของฉัน
+Settings	การตั้งค่า
+Grown-ups: leave Kids mode	ผู้ใหญ่: ออกจากโหมดเด็ก
+Developer access is ON · press to switch off	การเข้าถึงสำหรับนักพัฒนาเปิดอยู่ · กดเพื่อปิด
+Developer access switched off	ปิดการเข้าถึงสำหรับนักพัฒนาแล้ว
+{} added to favourites	เพิ่ม {} ในรายการโปรดแล้ว
+{} removed from favourites	นำ {} ออกจากรายการโปรดแล้ว
+World map	แผนที่โลก
+Earthquakes, disasters and news, live	แผ่นดินไหว ภัยพิบัติ และข่าว แบบสด
+{n} quakes	แผ่นดินไหว {} ครั้ง
+{n} alerts	การแจ้งเตือน {} รายการ
+{n} in the news	{} ในข่าว
+Sports now	กีฬาตอนนี้
+Weather	สภาพอากาศ
+Predictions	การคาดการณ์
+What the world expects	โลกคาดว่าจะเกิดอะไร
+All live cams	กล้องสดทั้งหมด
+{n} places, live now	{} สถานที่ ถ่ายทอดสดตอนนี้
+LIVE	สด
+Today {t}	วันนี้ {}
+Tomorrow {t}	พรุ่งนี้ {}
+Today	วันนี้
+Tomorrow	พรุ่งนี้
+no leagues chosen	ยังไม่ได้เลือกลีก
+
+# ---- Settings ----
+Glow settings	การตั้งค่า Glow
+Update available	มีอัปเดต
+Press OK to download it; Android then asks you to confirm the install.	กด OK เพื่อดาวน์โหลด จากนั้น Android จะให้ยืนยันการติดตั้ง
+Downloading Glow {}…	กำลังดาวน์โหลด Glow {}…
+Developer access	การเข้าถึงสำหรับนักพัฒนา
+Anyone on your Wi-Fi can fully control this box while it's on. Turn it off unless you're working on the box.	ขณะเปิดอยู่ ใครก็ได้ใน Wi-Fi เดียวกันควบคุมกล่องนี้ได้ทั้งหมด ปิดไว้เว้นแต่กำลังทำงานกับกล่อง
+Turn on only while you (or Claude) are working on the box. A warning shows on Home while it's on.	เปิดเฉพาะตอนที่คุณ (หรือ Claude) กำลังทำงานกับกล่อง ขณะเปิดจะมีคำเตือนที่หน้าแรก
+Glow needs a one-time permission for this (see the Glow notes).	Glow ต้องได้รับอนุญาตหนึ่งครั้งก่อน (ดูบันทึกของ Glow)
+Kids mode	โหมดเด็ก
+A simpler Home for children: only the apps you pick and the children's channels. Search, news, Intelligence and Settings stay closed until the 4-digit PIN is entered.	หน้าแรกแบบง่ายสำหรับเด็ก: มีเฉพาะแอปที่คุณเลือกและช่องสำหรับเด็ก การค้นหา ข่าว ข่าวกรองโลก และการตั้งค่า จะปิดไว้จนกว่าจะใส่ PIN 4 หลัก
+Kids mode PIN	PIN โหมดเด็ก
+Change the PIN (the current one first).	เปลี่ยน PIN (ใส่ PIN ปัจจุบันก่อน)
+Apps children can open	แอปที่เด็กเปิดได้
+Start Kids mode	เริ่มโหมดเด็ก
+PIN changed	เปลี่ยน PIN แล้ว
+Language	ภาษา
+Automatic ({})	อัตโนมัติ ({})
+English	อังกฤษ
+Glow's menus in English or Thai. Channel names, programmes and news stay as the broadcasters send them. Press OK to switch.	เมนูของ Glow เป็นภาษาอังกฤษหรือไทย ชื่อช่อง รายการ และข่าว จะแสดงตามที่ผู้ออกอากาศส่งมา กด OK เพื่อสลับ
+Offline channels	ช่องที่ออฟไลน์
+hidden	ซ่อน
+shown	แสดง
+Channels that failed the link check stay out of lists and search (ones with a YouTube backup always show).	ช่องที่ตรวจลิงก์ไม่ผ่านจะไม่อยู่ในรายการและการค้นหา (ช่องที่มีสำรองบน YouTube จะแสดงเสมอ)
+Pairing code {n}	รหัสจับคู่ {}
+switches itself off after 30 minutes unused.	ปิดเองหลังไม่ได้ใช้ 30 นาที
+Control Glow and type from your phone.	ควบคุม Glow และพิมพ์จากมือถือของคุณ
+Screensaver	ภาพพักหน้าจอ
+Glow ambient, after 15 min	Glow แอมเบียนต์ หลัง 15 นาที
+Clock, weather, world headlines with pictures and what's on your favourites. Any key wakes the box.	นาฬิกา สภาพอากาศ พาดหัวข่าวโลกพร้อมภาพ และรายการที่กำลังฉายในช่องโปรด กดปุ่มใดก็ได้เพื่อปลุกกล่อง
+Videos playing in any app keep the screen awake.	วิดีโอที่เล่นอยู่ในแอปใดก็ตามจะไม่ให้หน้าจอดับ
+Clock, weather, world headlines with pictures and what's on your favourites. Any key wakes the box. Videos playing in any app keep the screen awake.	นาฬิกา สภาพอากาศ พาดหัวข่าวโลกพร้อมภาพ และรายการที่กำลังฉายในช่องโปรด กดปุ่มใดก็ได้เพื่อปลุกกล่อง วิดีโอที่เล่นอยู่ในแอปใดก็ตามจะไม่ให้หน้าจอดับ
+Shows Glow's ambient screen after 15 minutes without a key press (switching off puts back the box's own settings).	แสดงหน้าจอแอมเบียนต์ของ Glow หลังไม่มีการกดปุ่ม 15 นาที (ปิดแล้วจะกลับไปใช้การตั้งค่าเดิมของกล่อง)
+Press OK to choose the next city.	กด OK เพื่อเลือกเมืองถัดไป
+Clock	นาฬิกา
+automatic	อัตโนมัติ
+12-hour	12 ชั่วโมง
+24-hour	24 ชั่วโมง
+Home, the TV guide and the screensaver. Press OK to switch.	หน้าแรก ผังรายการทีวี และภาพพักหน้าจอ กด OK เพื่อสลับ
+Thai channels first	ช่องไทยก่อน
+Puts the main Thai broadcasters (3HD, Channel 7, Workpoint…) ahead of the English picks in Entertainment. Channel numbers stay the same.	ให้ช่องไทยหลัก (3HD, ช่อง 7, เวิร์คพอยท์…) ขึ้นก่อนช่องภาษาอังกฤษในหมวดบันเทิง หมายเลขช่องไม่เปลี่ยน
+Sports leagues	ลีกกีฬา
+Press OK to choose which appear in Sports now.	กด OK เพื่อเลือกว่าจะแสดงลีกไหนในกีฬาตอนนี้
+Done	เสร็จ
+Cancel	ยกเลิก
+Favourite teams	ทีมโปรด
+Favourite teams: {n}	ทีมโปรด: {}
+Their games go first in Sports now and on Home, and can be the only score alerts. Press OK to choose.	เกมของทีมเหล่านี้จะขึ้นก่อนในกีฬาตอนนี้และหน้าแรก และตั้งให้แจ้งผลเฉพาะทีมเหล่านี้ได้ กด OK เพื่อเลือก
+Loading teams…	กำลังโหลดทีม…
+Score alerts	แจ้งเตือนผลบอล
+favourite teams only	เฉพาะทีมโปรด
+all my leagues	ทุกลีกที่เลือก
+A small banner over live TV for goals, kick-offs and final results. Press OK to switch.	แถบเล็กๆ บนทีวีสดเมื่อมีประตู เริ่มเกม และผลจบเกม กด OK เพื่อสลับ
+Notifications & banners	การแจ้งเตือนและแถบข้อความ
+Other apps' notifications and score alerts as banners over anything you watch.	การแจ้งเตือนจากแอปอื่นและผลบอล แสดงเป็นแถบบนทุกอย่างที่คุณดู
+Remote buttons	ปุ่มรีโมต
+Give spare remote buttons a job: an app, the TV Guide, Sports now, Quick settings… (press and hold).	กำหนดงานให้ปุ่มรีโมตที่ว่าง: แอป ผังรายการทีวี กีฬาตอนนี้ การตั้งค่าด่วน… (กดและกดค้าง)
+Extra apps	แอปเพิ่มเติม
+SmartTube, Jellyfin, Kodi, NewPipe: open-source apps from their official releases, installed only if you pick one.	SmartTube, Jellyfin, Kodi, NewPipe: แอปโอเพนซอร์สจากรุ่นทางการของผู้พัฒนา ติดตั้งเฉพาะเมื่อคุณเลือก
+Apps on Home	แอปบนหน้าแรก
+Hide apps you don't use and choose their order on the shelf.	ซ่อนแอปที่ไม่ได้ใช้ และเลือกลำดับบนชั้นแอป
+Refresh channels & guide now	รีเฟรชช่องและผังรายการตอนนี้
+Re-downloads the free channel lists and today's TV guide, then re-checks links in the background.	ดาวน์โหลดรายการช่องฟรีและผังรายการวันนี้ใหม่ แล้วตรวจลิงก์อีกครั้งเบื้องหลัง
+Refreshing in the background…	กำลังรีเฟรชเบื้องหลัง…
+Android settings	การตั้งค่า Android
+Wi-Fi, display, sound, apps and everything else.	Wi-Fi จอภาพ เสียง แอป และอื่นๆ ทั้งหมด
+on	เปิด
+off	ปิด
+ON	เปิด
+OFF	ปิด
+allowed	อนุญาตแล้ว
+not allowed	ไม่ได้อนุญาต
+
+# ---- Kids mode PIN ----
+Too many tries	ลองผิดหลายครั้งเกินไป
+Try again in {n} seconds.	ลองอีกครั้งใน {} วินาที
+Choose a 4-digit PIN	ตั้ง PIN 4 หลัก
+Enter the PIN again	ใส่ PIN อีกครั้ง
+Grown-ups need it to leave Kids mode or open Settings. Keep it away from little eyes.	ผู้ใหญ่ใช้ PIN นี้เพื่อออกจากโหมดเด็กหรือเปิดการตั้งค่า อย่าให้เด็กเห็น
+Leave Kids mode	ออกจากโหมดเด็ก
+Enter the PIN	ใส่ PIN
+Number keys on the remote, or the keypad below.	ใช้ปุ่มตัวเลขบนรีโมต หรือแป้นด้านล่าง
+Those didn't match. Choose the PIN again.	PIN ไม่ตรงกัน ตั้งใหม่อีกครั้ง
+Wrong PIN	PIN ไม่ถูกต้อง
+No children's channels are working right now	ตอนนี้ยังไม่มีช่องเด็กที่ใช้งานได้
+
+# ---- Quick settings ----
+Quick settings	การตั้งค่าด่วน
+Night sound	เสียงกลางคืน
+Subtitles	คำบรรยาย
+Picture	ภาพ
+Sleep timer	ตั้งเวลาปิด
+{n} min left	เหลือ {} นาที
+Screensaver now	เปิดภาพพักหน้าจอเลย
+Wi-Fi	Wi-Fi
+Picture & sound (Android)	ภาพและเสียง (Android)
+Glow settings	การตั้งค่า Glow
+Fit	พอดีจอ
+Fill	เต็มจอ
+Stretch	ยืดภาพ
+Zoom	ซูม
+
+# ---- Player ----
+Play	เล่น
+Pause	หยุดชั่วคราว
+Back 10 seconds	ย้อนกลับ 10 วินาที
+Back to live ({n} s behind)	กลับไปที่สด (ช้ากว่าสด {} วินาที)
+Live	สด
+Picture: {}   (next: {})	ภาพ: {}   (ถัดไป: {})
+Night sound: {}   (evens out loud and quiet, levels channels)	เสียงกลางคืน: {}   (ปรับเสียงดัง-เบาให้สม่ำเสมอ และระดับเสียงระหว่างช่อง)
+Night sound isn't available on this box	กล่องนี้ใช้เสียงกลางคืนไม่ได้
+Night sound {}	เสียงกลางคืน{}
+Keep {} in the corner	ย่อ {} ไว้ที่มุมจอ
+Swap: {} to the big picture	สลับ: ให้ {} เป็นภาพใหญ่
+Close the corner picture	ปิดภาพที่มุมจอ
+Audio & subtitles	เสียงและคำบรรยาย
+Stats	สถิติ
+Playing	กำลังเล่น
+{n} s behind live	ช้ากว่าสด {} วินาที
+hold OK ▸ Back to live	กด OK ค้าง ▸ กลับไปที่สด
+Paused	หยุดชั่วคราว
+hold OK for the menu	กด OK ค้างเพื่อเปิดเมนู
+Back {n} s behind live	ย้อนกลับ ช้ากว่าสด {} วินาที
+no video yet	ยังไม่มีภาพ
+{} can't go in the corner (it plays through YouTube)	{} ย่อไว้ที่มุมจอไม่ได้ (เล่นผ่าน YouTube)
+{} in the corner	{} อยู่ที่มุมจอ
+change the big picture	เปลี่ยนภาพใหญ่
+hold OK to swap or close	กด OK ค้างเพื่อสลับหรือปิด
+Audio	เสียง
+Subtitles: off	คำบรรยาย: ปิด
+This channel has one audio track and no subtitles	ช่องนี้มีเสียงเดียวและไม่มีคำบรรยาย
+Sleeping in 1 minute	จะปิดในอีก 1 นาที
+for more time	เพื่อเพิ่มเวลา
+Sleep timer off	ปิดการตั้งเวลาปิด
+to set it	เพื่อตั้ง
+Sleep in {n} min	ปิดใน {} นาที
+change	เปลี่ยน
+the screensaver comes on and TV stops	ภาพพักหน้าจอจะขึ้นและทีวีจะหยุด
+Connecting…	กำลังเชื่อมต่อ…
+That link isn't answering. Trying another source ({n} of {n})…	ลิงก์นี้ไม่ตอบสนอง กำลังลองแหล่งอื่น ({} จาก {})…
+Looking for the official live stream…	กำลังหาการถ่ายทอดสดทางการ…
+Live on the broadcaster's YouTube	ถ่ายทอดสดบน YouTube ของผู้ออกอากาศ
+press OK to watch it there	กด OK เพื่อดูที่นั่น
+keep zapping	เปลี่ยนช่องต่อ
+Opening the official live stream in YouTube…	กำลังเปิดการถ่ายทอดสดทางการใน YouTube…
+Found a working source	พบแหล่งที่ใช้งานได้
+change channel	เปลี่ยนช่อง
+OK info, hold for menu	OK ดูข้อมูล กดค้างเพื่อเปิดเมนู
+audio & subtitles	เสียงและคำบรรยาย
+sleep timer	ตั้งเวลาปิด
+No channel {n}.	ไม่มีช่อง {}
+Not playing right now	ตอนนี้เล่นไม่ได้
+Now	ตอนนี้
+Next	ถัดไป
+until {t}	จนถึง {}
+Go to channel {}	ไปที่ช่อง {}
+Paused longer than {} keeps: back to live	หยุดนานกว่าที่ {} เก็บไว้: กลับไปที่สด
+
+# ---- TV Guide ----
+Loading the guide…	กำลังโหลดผังรายการ…
+TV GUIDE	ผังรายการ
+NOW & NEXT	ตอนนี้และถัดไป
+NOW & NEXT ✓	ตอนนี้และถัดไป ✓
+RADIO	วิทยุ
+SEARCH	ค้นหา
+WORLD NEWS	ข่าวโลก
+SETTINGS	ตั้งค่า
+TV GUIDE  ›  MORE	ผังรายการ  ›  เพิ่มเติม
+More…	เพิ่มเติม…
+Recently watched	ดูล่าสุด
+Search A–Z	ค้นหา ก–ฮ
+Favourites	รายการโปรด
+All Channels	ทุกช่อง
+Entertainment	บันเทิง
+Lifestyle & Culture	ไลฟ์สไตล์และวัฒนธรรม
+Movies	ภาพยนตร์
+Sports	กีฬา
+News	ข่าว
+Documentaries	สารคดี
+Kids	เด็ก
+Music	เพลง
+Religious	ศาสนา
+Shopping	ช้อปปิ้ง
+Other	อื่นๆ
+Thailand	ไทย
+UK	สหราชอาณาจักร
+US	สหรัฐอเมริกา
+My IPTV	IPTV ของฉัน
+{n} channels	{} ช่อง
+TV Guide	ผังรายการทีวี
+Radio	วิทยุ
+FREE STATIONS FROM AROUND THE WORLD	สถานีฟรีจากทั่วโลก
+Loading stations…	กำลังโหลดสถานี…
+Couldn't load stations	โหลดสถานีไม่ได้
+Check the internet connection and try again.	ตรวจการเชื่อมต่ออินเทอร์เน็ตแล้วลองอีกครั้ง
+ON AIR	กำลังออกอากาศ
+OK to stop	OK เพื่อหยุด
+OK to listen	OK เพื่อฟัง
+now playing: {}	กำลังเล่น: {}
+That station isn't available right now	ตอนนี้สถานีนี้ไม่พร้อมใช้งาน
+Popular in Thailand	ยอดนิยมในไทย
+Thai music	เพลงไทย
+Top worldwide	ยอดนิยมทั่วโลก
+News & talk	ข่าวและทอล์ก
+Chill & lo-fi	ชิลล์และโลไฟ
+Jazz	แจ๊ส
+Classical	คลาสสิก
+Dance & electronic	แดนซ์และอิเล็กทรอนิก
+On air	กำลังออกอากาศ
+Channel {n}	ช่อง {}
+No listings for this time	ไม่มีผังรายการในช่วงนี้
+OK to watch	OK เพื่อดู
+Fetching this channel's schedule…	กำลังดึงผังรายการของช่องนี้…
+Live now	สดตอนนี้
+Then  {}	จากนั้น  {}
+Reminder set	ตั้งเตือนแล้ว
+OK to clear	OK เพื่อลบ
+OK to set a reminder	OK เพื่อตั้งเตือน
+Reminder set: {} at {}	ตั้งเตือนแล้ว: {} เวลา {}
+Reminder cleared: {}	ลบการเตือนแล้ว: {}
+No preview	ไม่มีภาพตัวอย่าง
+No listings	ไม่มีผังรายการ
+No listing now	ตอนนี้ไม่มีผังรายการ
+No favourites yet: highlight a channel in the guide and press the blue key	ยังไม่มีรายการโปรด: เลือกช่องในผังรายการแล้วกดปุ่มสีน้ำเงิน
+Nothing watched yet	ยังไม่ได้ดูอะไร
+No working channels here right now	ตอนนี้ไม่มีช่องที่ใช้งานได้ในหมวดนี้
+Starting now: {}	เริ่มแล้วตอนนี้: {}
+Watch	ดู
+Not now	ไว้ทีหลัง
+OK to watch	OK เพื่อดู
+
+# ---- Search, channels, World ----
+Search channels — try BBC, CNN, sport, music…	ค้นหาช่อง — ลอง BBC, CNN, กีฬา, เพลง…
+Type to search {n} channels.	พิมพ์เพื่อค้นหาจาก {} ช่อง
+Free TV	ทีวีฟรี
+Search channels	ค้นหาช่อง
+Loading channels…	กำลังโหลดช่อง…
+All channels	ทุกช่อง
+News by country	ข่าวตามประเทศ
+Show offline too	แสดงช่องออฟไลน์ด้วย
+Hide offline	ซ่อนช่องออฟไลน์
+No channels here.	ไม่มีช่องในหมวดนี้
+Grid view	มุมมองตาราง
+List view	มุมมองรายการ
+TOP PICK	แนะนำ
+OFFLINE	ออฟไลน์
+World	โลก
+Scan to read the full story on your phone	สแกนเพื่ออ่านข่าวเต็มบนมือถือ
+Loading headlines…	กำลังโหลดพาดหัวข่าว…
+Couldn't reach World Monitor. Check the internet connection.	เชื่อมต่อ World Monitor ไม่ได้ ตรวจการเชื่อมต่ออินเทอร์เน็ต
+Nothing here right now.	ตอนนี้ยังไม่มีอะไรที่นี่
+No summary for this story.	ข่าวนี้ไม่มีสรุป
+Top stories	ข่าวเด่น
+Alerts	การแจ้งเตือน
+Asia	เอเชีย
+Europe	ยุโรป
+Middle East	ตะวันออกกลาง
+Africa	แอฟริกา
+Latin America	ละตินอเมริกา
+Politics	การเมือง
+Government	รัฐบาล
+Tech	เทคโนโลยี
+Science	วิทยาศาสตร์
+Finance	การเงิน
+Commodities	สินค้าโภคภัณฑ์
+Energy	พลังงาน
+Think tanks	สถาบันวิจัย
+Layoffs	การเลิกจ้าง
+Crisis	วิกฤต
+just now	เมื่อสักครู่
+{n} min ago	{} นาทีที่แล้ว
+{n} h ago	{} ชั่วโมงที่แล้ว
+{n} days ago	{} วันที่แล้ว
+
+# ---- Intelligence ----
+Live cams	กล้องสด
+Rain radar	เรดาร์ฝน
+All	ทั้งหมด
+Earthquakes	แผ่นดินไหว
+Disaster alerts	เตือนภัยพิบัติ
+Natural events	เหตุการณ์ธรรมชาติ
+News hotspots	จุดร้อนข่าว
+Rain	ฝน
+World now	โลกตอนนี้
+updated {t}	อัปเดต {}
+night side shaded	ด้านกลางคืนแรเงาไว้
+ISS live	ISS สด
+Rain around the world	ฝนทั่วโลก
+Loading the rain radar…	กำลังโหลดเรดาร์ฝน…
+Loading the world…	กำลังโหลดโลก…
+Nothing in this view right now	ตอนนี้ไม่มีอะไรในมุมมองนี้
+change what's shown	เปลี่ยนสิ่งที่แสดง
+Rain radar in the menu for a close-up	เรดาร์ฝนในเมนูเพื่อดูใกล้ๆ
+OK  watch this live cam	OK  ดูกล้องสดนี้
+OK  watch live news about this	OK  ดูข่าวสดเรื่องนี้
+Earthquake	แผ่นดินไหว
+Tropical cyclone	พายุหมุนเขตร้อน
+Flood	น้ำท่วม
+Volcano	ภูเขาไฟ
+Drought	ภัยแล้ง
+Wildfire	ไฟป่า
+Live cam	กล้องสด
+Good	ดี
+Moderate	ปานกลาง
+Unhealthy for sensitive groups	มีผลต่อกลุ่มเสี่ยง
+Unhealthy	มีผลต่อสุขภาพ
+Very unhealthy	มีผลต่อสุขภาพมาก
+Hazardous	อันตราย
+Nothing on right now in these leagues. The free sports channels are below.	ตอนนี้ไม่มีการแข่งขันในลีกเหล่านี้ ช่องกีฬาฟรีอยู่ด้านล่าง
+ON FREE\nTV NOW	ดูฟรี\nตอนนี้
+US TV: {}	ทีวีสหรัฐฯ: {}
+Weather isn't available right now. Check the internet connection.	ตอนนี้ดูสภาพอากาศไม่ได้ ตรวจการเชื่อมต่ออินเทอร์เน็ต
+feels like {n}	รู้สึกเหมือน {}
+Sunrise {t}	พระอาทิตย์ขึ้น {}
+Sunset {t}	พระอาทิตย์ตก {}
+AIR QUALITY	คุณภาพอากาศ
+Next 24 hours	24 ชั่วโมงข้างหน้า
+7 days	7 วัน
+{} and around, the last two hours	{} และรอบๆ สองชั่วโมงที่ผ่านมา
+Prediction-market odds from Polymarket's most-traded open questions today, for information only.	ความน่าจะเป็นจากตลาดคาดการณ์ Polymarket คำถามที่ซื้อขายมากที่สุดวันนี้ เพื่อเป็นข้อมูลเท่านั้น
+{} traded today	ซื้อขายวันนี้ {}
+ends {t}	สิ้นสุด {}
+CHANCE OF YES	โอกาสที่จะ "ใช่"
+Loading radar…	กำลังโหลดเรดาร์…
+Radar isn't available right now	ตอนนี้เรดาร์ใช้งานไม่ได้
+latest	ล่าสุด
+Fighting now: {}	กำลังชก: {}
+Main event: {}	คู่เอก: {}
+Final	จบเกม
+FULL TIME	จบเกม
+FINAL	จบเกม
+KICK-OFF	เริ่มเกม
+GOAL	ประตู
+
+# ---- Phone remote, buttons, notifications, apps ----
+The phone remote is off.	รีโมตจากมือถือปิดอยู่
+Waiting for a phone…   It switches itself off after 30 minutes unused.	กำลังรอมือถือ…   ปิดเองหลังไม่ได้ใช้ 30 นาที
+{n} phone connected	เชื่อมต่อมือถือ {} เครื่อง
+{n} phones connected	เชื่อมต่อมือถือ {} เครื่อง
+switches off after 30 minutes unused	ปิดเองหลังไม่ได้ใช้ 30 นาที
+Pairing code	รหัสจับคู่
+Turn off	ปิด
+The box isn't connected to a network, so a phone can't reach it.	กล่องยังไม่ได้เชื่อมต่อเครือข่าย มือถือจึงเชื่อมต่อไม่ได้
+Works in every app	ใช้ได้ในทุกแอป
+Your buttons work in Netflix, YouTube and everywhere else too.	ปุ่มของคุณใช้ได้ใน Netflix, YouTube และทุกที่
+Add or change a button	เพิ่มหรือเปลี่ยนปุ่ม
+Press OK, then the button on your remote.	กด OK แล้วกดปุ่มบนรีโมต
+Press the remote button you want to set…	กดปุ่มรีโมตที่ต้องการตั้ง…
+Hold: {}	กดค้าง: {}
+OK to change or clear	OK เพื่อเปลี่ยนหรือลบ
+Nothing (clear this button)	ไม่มี (ลบปุ่มนี้)
+Nothing extra	ไม่มีเพิ่มเติม
+Last channel watched	ช่องที่ดูล่าสุด
+Glow Home	หน้าแรก Glow
+App: {}	แอป: {}
+Banners over other apps	แถบข้อความบนแอปอื่น
+Score alerts and notifications show while Netflix, YouTube or any app is on.	ผลบอลและการแจ้งเตือนจะแสดงขณะเปิด Netflix, YouTube หรือแอปใดก็ได้
+Notifications from other apps	การแจ้งเตือนจากแอปอื่น
+New notifications show as a banner, and the latest 30 are listed below.	การแจ้งเตือนใหม่จะแสดงเป็นแถบ และ 30 รายการล่าสุดอยู่ด้านล่าง
+Android needs notification access for Glow (press OK to open it).	Android ต้องให้ Glow เข้าถึงการแจ้งเตือน (กด OK เพื่อเปิด)
+No notifications yet	ยังไม่มีการแจ้งเตือน
+This box doesn't have that settings page; it can be allowed over adb instead.	กล่องนี้ไม่มีหน้าการตั้งค่านั้น แต่อนุญาตผ่าน adb ได้
+Open-source apps, downloaded from their developers' own releases when you choose one. Android asks you to confirm each install. They're separate apps with their own terms; install them only if you want to.	แอปโอเพนซอร์ส ดาวน์โหลดจากรุ่นทางการของผู้พัฒนาเมื่อคุณเลือก Android จะให้ยืนยันทุกการติดตั้ง แอปเหล่านี้แยกต่างหากและมีเงื่อนไขของตัวเอง ติดตั้งเฉพาะถ้าต้องการ
+installed {}	ติดตั้งแล้ว {}
+OPEN	เปิด
+INSTALL	ติดตั้ง
+Checking {}'s latest release…	กำลังตรวจรุ่นล่าสุดของ {}…
+Couldn't find {}'s release right now. Try again later.	ตอนนี้หารุ่นของ {} ไม่พบ ลองใหม่ภายหลัง
+Download and install	ดาวน์โหลดและติดตั้ง
+Install {}?	ติดตั้ง {} ไหม?
+Opening the installer…	กำลังเปิดตัวติดตั้ง…
+Downloading {}	กำลังดาวน์โหลด {}
+OK shows or hides an app	OK เพื่อแสดงหรือซ่อนแอป
+moves it earlier or later on the shelf	เลื่อนแอปไปก่อนหรือหลังบนชั้น
+ON HOME	อยู่บนหน้าแรก
+HIDDEN	ซ่อนอยู่
+IPTV login	เข้าสู่ระบบ IPTV
+Enter the Xtream details from your provider. They're kept only on this box.	ใส่ข้อมูล Xtream จากผู้ให้บริการ ข้อมูลเก็บไว้ในกล่องนี้เท่านั้น
+Username	ชื่อผู้ใช้
+Password	รหัสผ่าน
+Sign in	ลงชื่อเข้าใช้
+Sign out	ออกจากระบบ
+Checking with the provider…	กำลังตรวจกับผู้ให้บริการ…
+Fill in all three: server, username and password.	กรอกให้ครบทั้งสาม: เซิร์ฟเวอร์ ชื่อผู้ใช้ และรหัสผ่าน
+Your photos	รูปของคุณ
+From your phone	จากมือถือของคุณ
+ON NOW	กำลังฉาย
+
+# ---- key hints along the bottom of the guide, radio and player ----
+NOW  {t}	ตอนนี้  {}
+Next {t}	ถัดไป {}
+Channels	ช่อง
+Time	เวลา
+Now / Next	ตอนนี้ / ถัดไป
+0–9 Channel number	0–9 หมายเลขช่อง
+OK Watch / ⏰ Remind (later shows)	OK ดู / ⏰ เตือน (รายการถัดไป)
+Blue	สีน้ำเงิน
+favourite	รายการโปรด
+BACK Menu	BACK เมนู
+Stations	สถานี
+CH± Page	CH± หน้า
+0–9 Station number	0–9 หมายเลขสถานี
+OK Listen / stop	OK ฟัง / หยุด
+BACK Radio menu	BACK เมนูวิทยุ
+
+# ---- more ----
+air Good	อากาศดี
+air Moderate	อากาศปานกลาง
+air Unhealthy for sensitive groups	อากาศมีผลต่อกลุ่มเสี่ยง
+air Unhealthy	อากาศมีผลต่อสุขภาพ
+air Very unhealthy	อากาศมีผลต่อสุขภาพมาก
+air Hazardous	อากาศอันตราย
+{n} of {n}	{} จาก {}
+{n} stories	{} ข่าว
+{n} story	{} ข่าว
+rain {n}	ฝน {}
+Race	การแข่งขัน
+next	ถัดไป
+Live scores, fixtures in your time and results from the last day (ESPN). TV shows who broadcasts it in the US; OK plays it when a free channel here carries it, otherwise the free sports channels below. Leagues: Glow ▸ Settings.	ผลสด โปรแกรมตามเวลาของคุณ และผลการแข่งขันวันที่ผ่านมา (ESPN) บรรทัดทีวีบอกว่าใครถ่ายทอดในสหรัฐฯ กด OK เพื่อดูเมื่อมีช่องฟรีที่นี่ถ่ายทอด ไม่เช่นนั้นจะเป็นช่องกีฬาฟรีด้านล่าง เลือกลีก: Glow ▸ การตั้งค่า
+Bangkok	กรุงเทพฯ
+Chiang Mai	เชียงใหม่
+Phuket	ภูเก็ต
+Pattaya	พัทยา
+Hua Hin	หัวหิน
+Singapore	สิงคโปร์
+Kuala Lumpur	กัวลาลัมเปอร์
+Ho Chi Minh City	นครโฮจิมินห์
+Tokyo	โตเกียว
+Dubai	ดูไบ
+London	ลอนดอน
+Manchester	แมนเชสเตอร์
+Edinburgh	เอดินบะระ
+New York	นิวยอร์ก
+Los Angeles	ลอสแอนเจลิส
+Sydney	ซิดนีย์
+Automatic (time zone)	อัตโนมัติ (ตามเขตเวลา)

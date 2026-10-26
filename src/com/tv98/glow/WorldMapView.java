@@ -272,7 +272,8 @@ class WorldMapView extends View {
     }
 
     private void drawLabel(Canvas c, Intel.Event e) {
-        String t = e.title.length() > 40 ? e.title.substring(0, 39) + "…" : e.title;
+        String t = L.t(e.title);
+        if (t.length() > 40) t = t.substring(0, 39) + "…";
         float w = label.measureText(t) + Ui.dp(14), h = Ui.dp(22);
         float px = x(e.lon), py = y(e.lat);
         float lx = Math.min(Math.max(px + Ui.dp(14), Ui.dp(4)), getWidth() - w - Ui.dp(4));

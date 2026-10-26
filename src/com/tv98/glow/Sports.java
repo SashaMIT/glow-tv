@@ -393,7 +393,7 @@ final class Sports {
         String hm = DateFormat.format(Ui.is24h(c) ? "HH:mm" : "h:mm a", t).toString();
         if (days == 0) return "Today " + hm;
         if (days == 1) return "Tomorrow " + hm;
-        return DateFormat.format("EEE", t) + " " + hm;
+        return L.date("EEE", t) + " " + hm;
     }
 
     /** For a card: something live, else the next thing to start, else the latest result. */

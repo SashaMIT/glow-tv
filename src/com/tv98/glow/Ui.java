@@ -43,7 +43,7 @@ final class Ui {
     }
 
     static TextView text(Context c, float sp, int color, int weight) {
-        TextView t = new TextView(c);
+        TextView t = new L.Text(c);
         t.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
         t.setTextColor(color);
         t.setTypeface(Typeface.create(weight >= 600 ? "sans-serif-medium"
