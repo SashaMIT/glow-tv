@@ -616,3 +616,37 @@ starts and the PIN isn't in the phone backup.
 | Thai | 5.18 % (first run, Thai glyphs drawn for the first time) / 0.86 % | 16–23 ms |
 
 APK 1,270,720 → 1,291,265 bytes (+20 KB, mostly the Thai table).
+
+## Intelligence 4: Overview, Markets, F1 timing, tennis and golf, map zoom — 26 Oct 2026
+
+- **Overview** (first in the Intelligence menu): weather, the Sports now headline, markets, the most serious
+  quake/alert, the top story, the top prediction, a live cam and the last F1 podium on one screen. Each card fills
+  as its source answers (all eight in 3.4 s cold, F1 last); the first version waited for all of them.
+- **Markets**: CoinGecko `coins/markets` (Bitcoin, Ether, PAX Gold ≈ 1 oz of gold, 7-day lines; one call, kept 10
+  min) and Frankfurter/ECB rates (USD, GBP, EUR in baht, GBP in dollars; 3 weeks, kept 6 h). Home's Intelligence
+  row has a Markets card ("BTC $79,987 −0.5% / Gold $4,015 · $1 = ฿33.75").
+- **F1 timing**: OpenF1's free tier is historical only; live data is their €9.90/month tier, which Glow doesn't
+  use. The sheet shows the latest finished session (sessions list, `session_result`, `drivers`, `stints`; four
+  calls, under their 30/minute limit; kept a week once settled). OK on the F1 row in Sports now opens it.
+- **Tennis and golf** in the league picker (ATP, WTA, PGA Tour, DP World Tour, LPGA; off by default): one row per
+  tournament, the singles match on now (latest round), else the next, else the latest result with set scores; golf
+  shows the top three to par. Checked with a live WTA match (Guangzhou, 4-2).
+- **Map zoom**: CH+ 2× then 4× on the selected pin, CH− and Back out; OK still tunes to news or the cam (the prompt
+  said OK, but OK already does that on the map). Land is redrawn sharp from Natural Earth, skipping shapes out of
+  view.
+
+| Key response (`tools/intelbench.sh`, 3 passes, frame times) | Before | After |
+|---|---|---|
+| World map ◀▶ ×20 | p99 13–14 ms (one pass 65 ms) | p99 14–40 ms, 0–1 janky |
+| World map zoomed 4×, ◀▶ ×20 (first version: redraw on the main thread) | — | p99 **150 ms**, 13 of 20 frames janky |
+| World map zoomed 4×, ◀▶ ×20 (redraw off the main thread, old picture moved and scaled meanwhile) | — | **p99 12–16 ms, 0 janky**; sharp land ~97 ms later |
+| Sports now ▼ ×12 | p99 16 ms | p99 20 ms (24 leagues possible, 5 new off by default) |
+
+| Home, 3 cold starts, 100 s settle | Time to first frame | Glow memory |
+|---|---|---|
+| Before (Kids/Thai build) | 0.950–0.977 s | 93–100 MB |
+| After, with Kodi left running in the background by a test | 1.09–1.27 s | 83–90 MB |
+| After, Kodi closed | **0.963 / 0.973 / 1.003 s** | **88.0 / 91.8 / 92.2 MB** |
+
+Kodi had been open since a Kids mode test (6 % CPU, 64 MB all the time): it, not Glow, made those starts slower.
+APK 1,291,265 → 1,303,553 bytes.

@@ -51,8 +51,12 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
   results for UFC, F1, Premier League, Champions League, NBA and NFL, with free sports channels to watch), a weather
   page with air quality and 7 days, a rain radar for the last two hours, rain across the world on the map, and what
   prediction markets expect. While you watch TV, small banners show goals, kick-offs and results in your leagues
-  (19 to choose from in Settings).
-  OK on anything on the map tunes to a news channel covering that part of the world. All from free public sources.
+  (24 to choose from in Settings, including ATP and WTA tennis and three golf tours).
+  OK on anything on the map tunes to a news channel covering that part of the world; CH+ zooms in on it (2×, 4×),
+  CH− or Back zooms out. **Overview** puts the top of every source on one screen; **Markets** has Bitcoin, Ether
+  and gold (CoinGecko) and the baht, pound and euro (European Central Bank) with their last days; OK on F1 in
+  Sports now opens the **F1 timing sheet** of the latest session (OpenF1: positions, gaps, laps, tyres; their live
+  timing is paid, so it arrives after each session). All from free public sources.
 - **World**: top stories and alerts by region from [World Monitor](https://github.com/koala73/worldmonitor), with
   article pictures, a QR code to read the story on your phone, and OK to watch a news channel covering that region.
 - **My IPTV**: sign in with your own Xtream-style provider details to browse and play their channels.
@@ -89,7 +93,9 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
 | ![Photo on the screensaver](docs/screenshots/41_screensaver_photo.jpg) | ![Player menu](docs/screenshots/42_player_menu.jpg) | ![Corner picture](docs/screenshots/43_corner_picture.jpg) |
 | ![Stats overlay](docs/screenshots/44_stats_overlay.jpg) | ![Remote buttons](docs/screenshots/45_remote_buttons.jpg) | ![Quick settings](docs/screenshots/46_quick_settings.jpg) |
 | ![Kids mode Home](docs/screenshots/47_kids_home.jpg) | ![Kids mode PIN](docs/screenshots/48_kids_pin.jpg) | ![Home in Thai](docs/screenshots/49_thai_home.jpg) |
-| ![TV Guide in Thai](docs/screenshots/50_thai_guide.jpg) | ![Guide grid in Thai](docs/screenshots/51_thai_guide_grid.jpg) | |
+| ![TV Guide in Thai](docs/screenshots/50_thai_guide.jpg) | ![Guide grid in Thai](docs/screenshots/51_thai_guide_grid.jpg) | ![Intelligence overview](docs/screenshots/52_intel_overview.jpg) |
+| ![Markets](docs/screenshots/53_intel_markets.jpg) | ![F1 timing sheet](docs/screenshots/54_f1_timing.jpg) | ![World map zoomed in](docs/screenshots/55_map_zoom.jpg) |
+| ![Tennis and golf](docs/screenshots/56_tennis_golf.jpg) | ![Overview in Thai](docs/screenshots/57_thai_overview.jpg) | |
 
 ## Measured on the box
 
@@ -153,7 +159,7 @@ switched off.
 
 | Path | What's there |
 |---|---|
-| `src/com/tv98/glow/` | The app. `HomeActivity`, `ClassicGuideActivity` + `GuideGridView` (guide, drawn as one view), `GuideLineup` + `Genres` (numbers and ranking), `PlayerActivity` + `Sources` + `OfficialLive` (playback and fallbacks), `FreeTv` + `Health` (channel lists and link checks), `Guide` (listings), `Remote` (phone remote), `World`, `Weather`, `IntelActivity` + `Intel` + `WorldMapView` + `Sports` + `ScoreAlerts` + `Cams` + `RadarView` + `Rain` (Intelligence) |
+| `src/com/tv98/glow/` | The app. `HomeActivity`, `ClassicGuideActivity` + `GuideGridView` (guide, drawn as one view), `GuideLineup` + `Genres` (numbers and ranking), `PlayerActivity` + `Sources` + `OfficialLive` (playback and fallbacks), `FreeTv` + `Health` (channel lists and link checks), `Guide` (listings), `Remote` (phone remote), `World`, `Weather`, `IntelActivity` + `Intel` + `WorldMapView` + `Sports` + `ScoreAlerts` + `Cams` + `RadarView` + `Rain` + `Markets` + `F1Timing` (Intelligence), `Kids` + `PinActivity` (Kids mode), `L` (menu language) |
 | `res/raw/remote.html` | The phone remote's web page |
 | `res/raw/lang_th.tsv` | Thai menus: one English phrase and its Thai per line (see Translating) |
 | `.github/workflows/` | `release.yml` (signed releases), `guide.yml` (nightly listings + channel facts to the `data` branch) |

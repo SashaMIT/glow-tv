@@ -20,8 +20,8 @@ import java.util.TimeZone;
 final class Sports {
     /**
      * {ESPN path, short name, badge colour, on by default}. Order = priority: fights, motorsport, football, US sports.
-     * Chosen in Glow ▸ Settings ▸ Sports leagues. (ESPN has no boxing or MotoGP scoreboards; tennis and golf are
-     * whole tournaments rather than games.)
+     * Chosen in Glow ▸ Settings ▸ Sports leagues. ESPN has no boxing or MotoGP scoreboards. Tennis and golf are
+     * whole tournaments: one row each, with the match on now (or the latest result) or the leaders.
      */
     static final String[][] LEAGUES = {
             {"mma/ufc", "UFC", "D20A0A", "1"},
@@ -43,6 +43,11 @@ final class Sports {
             {"football/college-football", "College football", "4B2E83", ""},
             {"hockey/nhl", "NHL", "111111", ""},
             {"baseball/mlb", "MLB", "041E42", ""},
+            {"tennis/atp", "ATP tennis", "1F6F3F", ""},
+            {"tennis/wta", "WTA tennis", "6B2C91", ""},
+            {"golf/pga", "PGA Tour", "0A2A66", ""},
+            {"golf/eur", "DP World Tour", "00205B", ""},
+            {"golf/lpga", "LPGA", "C8102E", ""},
     };
 
     /** Which leagues are on (by default the fights, F1, the Premier and Champions Leagues, NBA and NFL). */
@@ -209,6 +214,11 @@ final class Sports {
     }
 
     private static Game parse(int league, JSONObject e, Context c) throws Exception {
+        if (LEAGUES[league][0].startsWith("tennis/")) {
+            Game t = new Game();
+            t.league = league;
+            return tennis(t, e, c);
+        }
         JSONArray comps = e.optJSONArray("competitions");
         if (comps == null || comps.length() == 0) return null;
         Game g = new Game();
@@ -216,6 +226,7 @@ final class Sports {
         String path = LEAGUES[league][0];
         if (path.startsWith("mma/")) return fightCard(g, e, comps, c);
         if (path.startsWith("racing/")) return raceWeekend(g, e, comps, c);
+        if (path.startsWith("golf/")) return golf(g, e, comps, c);
 
         JSONObject comp = comps.getJSONObject(0);
         g.start = time(comp.optString("date", e.optString("date")));
@@ -334,6 +345,112 @@ final class Sports {
         return g;
     }
 
+    /**
+     * A tennis tournament: the singles match on now (the latest round if several), else the next one, else the
+     * latest result. "Semifinal: J. Sinner v C. Alcaraz  6-4 3-6 2-1".
+     */
+    private static Game tennis(Game g, JSONObject e, Context c) {
+        g.title = e.optString("name");
+        JSONArray groups = e.optJSONArray("groupings");
+        JSONObject live = null, done = null, next = null;
+        int liveCount = 0;
+        for (int i = 0; groups != null && i < groups.length(); i++) {
+            JSONObject grp = groups.optJSONObject(i);
+            JSONObject name = grp == null ? null : grp.optJSONObject("grouping");
+            if (name == null || !name.optString("displayName").contains("Singles")) continue;
+            JSONArray ms = grp.optJSONArray("competitions");
+            for (int k = 0; ms != null && k < ms.length(); k++) {
+                JSONObject m = ms.optJSONObject(k);
+                if (m == null) continue;
+                int st = state(m.optJSONObject("status"));
+                long t = time(m.optString("date"));
+                if (st == LIVE) {
+                    liveCount++;
+                    if (live == null || t > time(live.optString("date"))) live = m;
+                } else if (st == DONE) {
+                    if (done == null || t >= time(done.optString("date"))) done = m;
+                } else if (next == null || t < time(next.optString("date"))) {
+                    next = m;
+                }
+            }
+        }
+        JSONObject m = live != null ? live : next != null && state(e.optJSONObject("status")) != DONE ? next : done;
+        if (m == null) return null;
+        g.state = live != null ? LIVE : m == next ? PRE : DONE;
+        g.start = time(m.optString("date"));
+        String[] p = players(m);
+        JSONObject round = m.optJSONObject("round");
+        String r = round == null ? "" : round.optString("displayName");
+        r = r.isEmpty() ? "" : r + ": ";
+        if (g.state == DONE && p[2] != null) {
+            boolean firstWon = p[2].equals(p[0]);
+            g.line2 = r + p[2] + " beat " + (firstWon ? p[1] : p[0]) + "  " + sets(m, !firstWon);
+        } else {
+            g.line2 = r + p[0] + " v " + p[1] + (g.state == LIVE ? "  " + sets(m, false) : "");
+        }
+        // "Final" only once the tournament is over; before that it's the latest result.
+        g.status = g.state == LIVE ? (liveCount > 1 ? liveCount + " live" : "Live") : g.state == PRE ? when(c, g.start)
+                : state(e.optJSONObject("status")) == DONE ? "Final" : "Result";
+        return g;
+    }
+
+    private static String[] players(JSONObject match) {
+        String[] p = {"", "", null};
+        JSONArray cs = match.optJSONArray("competitors");
+        for (int k = 0; cs != null && k < cs.length() && k < 2; k++) {
+            JSONObject x = cs.optJSONObject(k);
+            JSONObject a = x == null ? null : x.optJSONObject("athlete");
+            p[k] = a == null ? "?" : shortName(a.optString("displayName", a.optString("shortName")));
+            if (x != null && x.optBoolean("winner")) p[2] = p[k];
+        }
+        return p;
+    }
+
+    /** "Pablo Carreno Busta" -> "P. Carreno Busta". */
+    private static String shortName(String full) {
+        int sp = full.indexOf(' ');
+        return sp > 0 ? full.charAt(0) + ". " + full.substring(sp + 1) : full;
+    }
+
+    /** Set scores, "6-4 3-6 7-6", from the winner's side when {@code flip}. */
+    private static String sets(JSONObject match, boolean flip) {
+        JSONArray cs = match.optJSONArray("competitors");
+        if (cs == null || cs.length() < 2) return "";
+        JSONArray a = cs.optJSONObject(flip ? 1 : 0).optJSONArray("linescores"), b = cs.optJSONObject(flip ? 0 : 1).optJSONArray("linescores");
+        StringBuilder out = new StringBuilder();
+        for (int i = 0; a != null && b != null && i < Math.min(a.length(), b.length()); i++) {
+            if (out.length() > 0) out.append(' ');
+            out.append(a.optJSONObject(i).optInt("value")).append('-').append(b.optJSONObject(i).optInt("value"));
+        }
+        return out.toString();
+    }
+
+    /** A golf tournament: the top three and their scores to par. */
+    private static Game golf(Game g, JSONObject e, JSONArray comps, Context c) throws Exception {
+        g.title = e.optString("name");
+        JSONObject type = e.optJSONObject("status") == null ? null : e.getJSONObject("status").optJSONObject("type");
+        String detail = type == null ? "" : type.optString("shortDetail");
+        if (detail.isEmpty() && type != null) detail = type.optString("description"); // "Play Complete"
+        int st = state(e.optJSONObject("status"));
+        // Between rounds ESPN still says "in": only play in progress counts as live.
+        g.state = st == LIVE && !detail.contains("In Progress") && !detail.contains("Playoff") ? PRE : st;
+        g.start = time(g.state == DONE ? e.optString("endDate", e.optString("date")) : e.optString("date"));
+        JSONArray cs = comps.getJSONObject(0).optJSONArray("competitors");
+        List<JSONObject> board = new ArrayList<>();
+        for (int k = 0; cs != null && k < cs.length(); k++) if (cs.optJSONObject(k) != null) board.add(cs.optJSONObject(k));
+        Collections.sort(board, (x, y) -> x.optInt("order", 999) - y.optInt("order", 999));
+        StringBuilder top = new StringBuilder();
+        for (int k = 0; k < Math.min(3, board.size()) && st != PRE; k++) {
+            JSONObject a = board.get(k).optJSONObject("athlete");
+            if (top.length() > 0) top.append("   ");
+            top.append(k + 1).append(' ').append(a == null ? "?" : shortName(a.optString("displayName"))).append(' ')
+                    .append(board.get(k).optString("score").replace('-', '−'));
+        }
+        g.line2 = top.length() > 0 ? top.toString() : "";
+        g.status = g.state == LIVE ? "Live" : g.state == DONE ? "Final" : st == LIVE ? detail : when(c, g.start);
+        return g;
+    }
+
     private static String lastResult(JSONArray sessions) {
         String out = "";
         for (int i = 0; i < sessions.length(); i++) {
@@ -429,7 +546,7 @@ final class Sports {
         boolean[] on = chosen(c);
         for (int i = 0; i < LEAGUES.length; i++) {
             String path = LEAGUES[i][0];
-            if (!on[i] || path.startsWith("mma/") || path.startsWith("racing/")) continue;
+            if (!on[i] || path.startsWith("mma/") || path.startsWith("racing/") || path.startsWith("tennis/") || path.startsWith("golf/")) continue;
             String s = Intel.cached(c, "espn-teams-" + path.replace('/', '-'),
                     "https://site.api.espn.com/apis/site/v2/sports/" + path + "/teams", 7 * 86_400_000L);
             if (s == null) continue;

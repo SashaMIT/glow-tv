@@ -91,11 +91,12 @@ final class L {
 
     /** t() with {} filled in: f("Sleep in {} min", 30). */
     static String f(String template, Object... parts) {
-        String s = t(template);
+        // The Thai side only has {}; the English template can say {n} or {t}.
+        String s = thai ? t(template) : template;
         for (Object p : parts) {
-            int at = s.indexOf("{}");
-            if (at < 0) break;
-            s = s.substring(0, at) + p + s.substring(at + 2);
+            Matcher m = SLOT.matcher(s);
+            if (!m.find()) break;
+            s = s.substring(0, m.start()) + p + s.substring(m.end());
         }
         return s;
     }

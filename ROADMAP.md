@@ -18,7 +18,7 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 | Player menu (hold OK) | Pause, back 10 s, back to live, picture size, night sound, stats, corner picture, sleep timer |
 | Remote & alerts | Remote buttons (press/hold jobs), Quick settings panel, score banners over other apps (overlay allowed with owner's OK) |
 | Family & language | Kids mode (picked apps + Kids channels, PIN with lockout, everything else closed); Thai menus (Settings ▸ Language), one translation file |
-| Intelligence | World map (quakes, alerts, EONET, news hotspots, ISS, day/night, rain); live cams + health; weather + air quality; rain radar; predictions; Sports now (19 leagues, favourite teams) |
+| Intelligence | Overview page; world map (quakes, alerts, EONET, news hotspots, ISS, day/night, rain, 2×/4× zoom); live cams + health; weather + air quality; rain radar; predictions; Markets (BTC, ETH, gold, baht/pound/euro); Sports now (24 leagues incl. tennis + golf, favourite teams); F1 timing sheet |
 | Other | World news with pictures + QR; phone remote (+ photos to screensaver, backup/restore); screensaver; Settings; My IPTV; Extra apps (SmartTube, Jellyfin, Kodi, NewPipe) |
 
 ### To do
@@ -32,7 +32,7 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 | TV Guide | Radio favourites + album art; F1 live timing (OpenF1); Trending (TMDB, free key) | later |
 | Home & box | ~~Photos to the screensaver from the phone~~ ✅; ~~settings backup~~ ✅ | done |
 | Home & box | ~~Remote remapping + quick settings~~ ✅; ~~banners over other apps~~ ✅ (notification access off by choice); ~~Thai menus~~ ✅; ~~parental PIN / Kids mode~~ ✅; data usage + Wi-Fi | later |
-| Intelligence | Markets ticker (CoinGecko), overview page, tennis/golf, map zoom | later |
+| Intelligence | ~~Markets~~ ✅; ~~overview page~~ ✅; ~~tennis/golf~~ ✅; ~~map zoom~~ ✅; ~~F1 timing (after each session)~~ ✅; F1 live timing ✖ (paid) | done |
 | Smart home | Home Assistant card, doorbell pop-ups, AirPlay (test first) | later |
 | Privacy (owner's call) | Private DNS ad/tracker blocking; vendor-app audit | needs OK |
 | Sharing | ~~Extra apps installer~~ ✅; ~~tour on the repo page~~ ✅ (GIF); Obtainium note ✅; ~~signed releases~~ ✅ (v1.0.0, v1.1.0, v1.2.0, signed on the owner's Mac, box updated itself each time); awesome-list PR (after v1.0.0, owner's OK) | next |
@@ -46,6 +46,7 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 | Samsung TV Plus / Plex / Roku channels | no legal keyless channel lists any more (schedules only) |
 | World Monitor AI brief, summaries, fact-checks | paid key; not worked around |
 | Boxing / MotoGP scores | no ESPN feed |
+| F1 live timing during sessions | OpenF1's live data is their paid tier (€9.90/month); Glow shows each session's sheet once it ends |
 | Unlicensed aggregators; SmartTube built in | legal-only rule (SmartTube stays a user install) |
 
 ## Done: Intelligence, batch 1 (25 Oct 2026)

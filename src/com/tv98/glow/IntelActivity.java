@@ -37,15 +37,16 @@ import java.util.Locale;
  */
 public class IntelActivity extends Activity {
     static final String EXTRA_SECTION = "section";
-    static final int MAP = 0, SPORTS = 1, CAMS = 2, WEATHER = 3, RADAR = 4, PREDICTIONS = 5;
-    private static final String[] SECTIONS = {"World map", "Sports now", "Live cams", "Weather", "Rain radar", "Predictions"};
+    static final int OVERVIEW = 0, MAP = 1, SPORTS = 2, MARKETS = 3, CAMS = 4, WEATHER = 5, RADAR = 6, PREDICTIONS = 7;
+    private static final String[] SECTIONS = {"Overview", "World map", "Sports now", "Markets", "Live cams", "Weather",
+            "Rain radar", "Predictions"};
     private static final String RAIN = "rain";
     private static final String[][] FILTERS = {{"All", ""}, {"Earthquakes", Intel.QUAKE}, {"Disaster alerts", Intel.ALERT},
             {"Natural events", Intel.NATURAL}, {"News hotspots", Intel.NEWS}, {"Live cams", Intel.CAM}, {"Rain", RAIN}};
 
     private ListView rail;
     private FrameLayout content;
-    private View mapPane, sportsPane, camsPane, weatherPane, radarPane, marketsPane;
+    private View mapPane, sportsPane, camsPane, weatherPane, radarPane, marketsPane, overviewPane, moneyPane;
     private WorldMapView map;
     private TextView mapHeading, evTitle, evDetail, evMeta, evHint;
     private LinearLayout chips;
@@ -109,7 +110,7 @@ public class IntelActivity extends Activity {
         rail.setOnItemClickListener((p, v, i, id) -> focusContent());
         left.addView(rail, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
         TextView credit = Ui.text(this, 9.5f, Ui.TEXT_DIM, 400);
-        credit.setText("USGS · GDACS · NASA EONET · World Monitor · ESPN · Open-Meteo · RainViewer · Polymarket · Natural Earth · wheretheiss.at");
+        credit.setText("USGS · GDACS · NASA EONET · World Monitor · ESPN · OpenF1 · CoinGecko · ECB · Open-Meteo · RainViewer · Polymarket · Natural Earth · wheretheiss.at");
         credit.setLineSpacing(0, 1.15f);
         credit.setPadding(Ui.dp(10), Ui.dp(8), Ui.dp(6), Ui.dp(2));
         left.addView(credit);
@@ -124,13 +125,15 @@ public class IntelActivity extends Activity {
         weatherPane = new LinearLayout(this);
         radarPane = new LinearLayout(this);
         marketsPane = new LinearLayout(this);
-        for (View v : new View[] {mapPane, sportsPane, camsPane, weatherPane, radarPane, marketsPane}) {
+        overviewPane = new LinearLayout(this);
+        moneyPane = new LinearLayout(this);
+        for (View v : new View[] {mapPane, sportsPane, camsPane, weatherPane, radarPane, marketsPane, overviewPane, moneyPane}) {
             v.setVisibility(View.GONE);
             content.addView(v, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         }
         setContentView(root);
 
-        int start = getIntent().getIntExtra(EXTRA_SECTION, MAP);
+        int start = getIntent().getIntExtra(EXTRA_SECTION, OVERVIEW);
         rail.setSelection(start);
         show(start);
         if (getIntent().hasExtra(EXTRA_SECTION)) content.post(this::focusContent);
@@ -147,6 +150,8 @@ public class IntelActivity extends Activity {
         weatherPane.setVisibility(i == WEATHER ? View.VISIBLE : View.GONE);
         marketsPane.setVisibility(i == PREDICTIONS ? View.VISIBLE : View.GONE);
         radarPane.setVisibility(i == RADAR ? View.VISIBLE : View.GONE);
+        overviewPane.setVisibility(i == OVERVIEW ? View.VISIBLE : View.GONE);
+        moneyPane.setVisibility(i == MARKETS ? View.VISIBLE : View.GONE);
         // The radar holds its frames only while it's on screen (~3 MB).
         ((LinearLayout) radarPane).removeAllViews();
         if (i == RADAR) fillRadar();
@@ -154,11 +159,13 @@ public class IntelActivity extends Activity {
         if (i == SPORTS) sportsTick.run();
         if (i == WEATHER) loadWeather();
         if (i == PREDICTIONS) loadMarkets();
+        if (i == OVERVIEW) loadOverview();
+        if (i == MARKETS) loadMoney();
     }
 
     private void focusContent() {
         View target = section == MAP ? mapPane : section == SPORTS ? sportsPane : section == CAMS ? camsPane
-                : section == PREDICTIONS ? marketsPane : null;
+                : section == PREDICTIONS ? marketsPane : section == OVERVIEW ? overviewPane : section == MARKETS ? moneyPane : null;
         if (target == null || !target.requestFocus()) rail.requestFocus();
     }
 
@@ -369,13 +376,14 @@ public class IntelActivity extends Activity {
             return;
         }
         Intel.Event e = shown.get(pos);
+        if (map.zoom() > 1 && !map.inView(e.lat, e.lon)) map.zoomTo(e.lat, e.lon, map.zoom());
         map.setSelected(e);
         evTitle.setText(e.title);
         evTitle.setTextColor(WorldMapView.colour(e));
         evDetail.setText(e.detail);
         evMeta.setText(e.source + (e.at > 0 ? "   ·   " + World.ago(e.at) : "") + "   ·   " + (pos + 1) + " of " + shown.size());
         String ok = e.kind.equals(Intel.CAM) ? "OK  watch this live cam" : "OK  watch live news about this";
-        evHint.setText("◀ ▶ next   ·   ▲ ▼ " + nextFilterName() + "…   ·   " + ok);
+        evHint.setText("◀ ▶ next   ·   ▲ ▼ " + nextFilterName() + "…   ·   " + ok + "   ·   " + (map.zoom() > 1 ? "CH− zoom out" : "CH+ zoom in"));
     }
 
     private boolean onMapKey(int code) {
@@ -401,9 +409,39 @@ public class IntelActivity extends Activity {
             case KeyEvent.KEYCODE_ENTER:
                 if (!shown.isEmpty()) act(shown.get(pos));
                 return true;
+            case KeyEvent.KEYCODE_CHANNEL_UP:
+            case KeyEvent.KEYCODE_PAGE_UP:
+            case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
+                zoom(Math.min(4, map.zoom() * 2));
+                return true;
+            case KeyEvent.KEYCODE_CHANNEL_DOWN:
+            case KeyEvent.KEYCODE_PAGE_DOWN:
+            case KeyEvent.KEYCODE_MEDIA_REWIND:
+                zoom(map.zoom() / 2);
+                return true;
             default:
                 return false;
         }
+    }
+
+    /** CH+ zooms in on the selected place (2×, 4×), CH− and Back zoom out. OK still watches news or the cam. */
+    private void zoom(float z) {
+        z = Math.max(1, z);
+        Intel.Event e = shown.isEmpty() || pos >= shown.size() ? null : shown.get(pos);
+        long t0 = android.os.SystemClock.uptimeMillis();
+        if (e != null) map.zoomTo(e.lat, e.lon, z);
+        else map.zoomTo(13, 0, z);
+        android.util.Log.i("GlowPerf", "map zoom " + z + "x in " + (android.os.SystemClock.uptimeMillis() - t0) + " ms");
+        select();
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (section == MAP && map.zoom() > 1 && mapPane.hasFocus()) {
+            zoom(map.zoom() / 2);
+            return;
+        }
+        super.onBackPressed();
     }
 
     /** OK on a pin: a cam opens; anything else tunes to a news channel covering that part of the world. */
@@ -499,6 +537,10 @@ public class IntelActivity extends Activity {
             row.setFocusable(true);
             row.setOnFocusChangeListener((v, has) -> v.setBackground(Ui.glass(Ui.dp(12), has)));
             row.setOnClickListener(v -> {
+                if (Sports.LEAGUES[g.league][0].equals("racing/f1")) { // the full timing sheet
+                    startActivity(new Intent(this, F1Activity.class));
+                    return;
+                }
                 Channel ch = Sports.freeChannel(g);
                 if (ch != null) play(ch, null);
                 else if (freeRow.getChildCount() > 1) freeRow.getChildAt(1).requestFocus();
@@ -623,7 +665,9 @@ public class IntelActivity extends Activity {
         right.addView(st, slp);
         Channel free = Sports.freeChannel(g);
         TextView tv = Ui.text(this, 10.5f, free != null ? Ui.ACCENT : Ui.TEXT_DIM, free != null ? 600 : 400);
-        tv.setText(free != null ? "OK  watch on " + free.name : g.tv.isEmpty() ? "" : "US TV: " + g.tv);
+        boolean f1 = Sports.LEAGUES[g.league][0].equals("racing/f1");
+        tv.setText(f1 ? "OK  timing sheet" : free != null ? "OK  watch on " + free.name : g.tv.isEmpty() ? "" : "US TV: " + g.tv);
+        if (f1) tv.setTextColor(Ui.ACCENT);
         tv.setSingleLine();
         tv.setEllipsize(TextUtils.TruncateAt.END);
         tv.setGravity(Gravity.END);
@@ -989,6 +1033,267 @@ public class IntelActivity extends Activity {
             }
         });
         pane.addView(list, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
+    }
+
+    // ---- overview: the top item from each source on one screen ----
+
+    private final TextView[][] cardText = new TextView[8][];
+    private final Runnable[] cardAction = new Runnable[8];
+
+    private void loadOverview() {
+        LinearLayout pane = (LinearLayout) overviewPane;
+        if (pane.getChildCount() == 0) buildOverview(pane);
+        final long t0 = android.os.SystemClock.uptimeMillis();
+        Net.IO.execute(() -> {
+            final String[][] c = new String[8][];
+            // Each card shows as soon as its source answers (the slowest, F1 timing, can take a few seconds).
+            Runnable post = () -> Net.MAIN.post(() -> { if (!isFinishing()) fillOverview(c.clone(), false); });
+            Intel.Weather w = Intel.weather(this);
+            if (w.code >= 0) {
+                String rain = w.daily.isEmpty() ? "" : "   ·   " + L.f("rain {n}%", w.daily.get(0)[4]);
+                c[0] = new String[] {"Weather", com.tv98.glow.Weather.symbol(w.code) + "  " + Math.round(w.temp) + "°  " + w.city,
+                        "H " + Math.round(w.max) + "°  L " + Math.round(w.min) + "°" + rain + (w.aqi >= 0 ? "   ·   air " + Intel.aqiBand(w.aqi)[0] : "")};
+            }
+            post.run();
+            List<Sports.Game> games = Sports.load(this);
+            if (!games.isEmpty()) {
+                Sports.Game g = Sports.headline(games);
+                String what = g.teams() ? g.home + (g.state == Sports.PRE ? " v " : "  " + g.homeScore + "–" + g.awayScore + "  ") + g.away : g.title;
+                c[1] = new String[] {"Sports now", what, Sports.LEAGUES[g.league][1] + "   ·   "
+                        + (g.state == Sports.LIVE ? "LIVE" : g.status) + (g.teams() || g.line2.isEmpty() ? "" : "\n" + g.line2)};
+            }
+            post.run();
+            List<Markets.Quote> q = Markets.load(this);
+            if (!q.isEmpty()) {
+                Markets.Quote first = q.get(0);
+                c[2] = new String[] {"Markets", (first.symbol.equals("XAU") ? "Gold" : first.symbol) + "  " + Markets.price(first) + "  " + Markets.change(first),
+                        Markets.line(q.subList(1, q.size())) + "\n" + Markets.baht(q)};
+            }
+            post.run();
+            List<Intel.Event> ev;
+            synchronized (IntelActivity.class) {
+                ev = recent;
+            }
+            if (ev == null) ev = collect();
+            for (Intel.Event e : ev) {
+                if (e.kind.equals(Intel.CAM) || e.kind.equals(Intel.NEWS)) continue;
+                c[3] = new String[] {e.kind.equals(Intel.QUAKE) ? "Biggest earthquake" : e.kind.equals(Intel.ALERT) ? "Disaster alert" : "Natural event",
+                        e.title, e.detail};
+                break;
+            }
+            List<World.Story> top = World.section(World.cached(this), "__top");
+            if (!top.isEmpty()) c[4] = new String[] {"Top story", top.get(0).title, top.get(0).source + "   ·   " + World.ago(top.get(0).at)};
+            List<Intel.Market> m = Intel.markets(this);
+            if (!m.isEmpty()) c[5] = new String[] {"Predictions", Math.round(m.get(0).yes * 100) + "%", m.get(0).question};
+            for (int i = 0; i < WmCams.CAMS.length; i++) {
+                if (!Cams.live(this, i)) continue;
+                c[6] = new String[] {"Live cam", WmCams.CAMS[i][1], String.valueOf(i)};
+                break;
+            }
+            post.run();
+            F1Timing.Sheet f1 = F1Timing.latest(this);
+            if (f1 != null && f1.rows.size() >= 3) {
+                StringBuilder podium = new StringBuilder();
+                for (int i = 0; i < 3; i++) podium.append(i == 0 ? "" : "\n").append(i + 1).append("  ").append(f1.rows.get(i).name);
+                c[7] = new String[] {"F1 timing", f1.rows.get(0).code + "  " + f1.rows.get(1).code + "  " + f1.rows.get(2).code,
+                        f1.session + "   ·   " + f1.place + "\n" + podium};
+            }
+            Net.MAIN.post(() -> {
+                if (isFinishing()) return;
+                fillOverview(c, true);
+                android.util.Log.i("GlowPerf", "overview in " + (android.os.SystemClock.uptimeMillis() - t0) + " ms");
+            });
+        });
+    }
+
+    private static final String[] CARD_LABELS = {"Weather", "Sports now", "Markets", "World", "Top story", "Predictions", "Live cam", "F1 timing"};
+
+    private void buildOverview(LinearLayout pane) {
+        pane.setOrientation(LinearLayout.VERTICAL);
+        TextView h = Ui.text(this, 21, Ui.TEXT, 300);
+        h.setText("Overview   ·   the top of every source");
+        h.setPadding(0, 0, 0, Ui.dp(10));
+        pane.addView(h);
+        final int[] go = {WEATHER, SPORTS, MARKETS, MAP, -1, PREDICTIONS, -1, -1};
+        for (int r = 0; r < 2; r++) {
+            LinearLayout row = new LinearLayout(this);
+            pane.addView(row, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
+            for (int k = 0; k < 4; k++) {
+                final int i = r * 4 + k;
+                LinearLayout card = new LinearLayout(this);
+                card.setOrientation(LinearLayout.VERTICAL);
+                card.setFocusable(true);
+                card.setPadding(Ui.dp(16), Ui.dp(14), Ui.dp(14), Ui.dp(12));
+                card.setBackground(Ui.glass(Ui.dp(16), false));
+                card.setOnFocusChangeListener((v, has) -> v.setBackground(Ui.glass(Ui.dp(16), has)));
+                TextView label = Ui.text(this, 11, Ui.ACCENT, 600);
+                label.setText(CARD_LABELS[i].toUpperCase(Locale.ROOT));
+                label.setLetterSpacing(0.1f);
+                TextView big = Ui.text(this, i == 5 ? 34 : 19, Ui.TEXT, 600);
+                big.setMaxLines(i == 4 ? 4 : 2);
+                big.setEllipsize(TextUtils.TruncateAt.END);
+                big.setPadding(0, Ui.dp(8), 0, Ui.dp(4));
+                big.setText("…");
+                TextView sub = Ui.text(this, 13, Ui.TEXT_DIM, 400);
+                sub.setMaxLines(5);
+                sub.setEllipsize(TextUtils.TruncateAt.END);
+                sub.setLineSpacing(0, 1.12f);
+                card.addView(label);
+                card.addView(big);
+                card.addView(sub);
+                cardText[i] = new TextView[] {label, big, sub};
+                card.setOnClickListener(v -> {
+                    if (cardAction[i] != null) cardAction[i].run();
+                    else if (go[i] >= 0) open(go[i]);
+                });
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1);
+                lp.setMargins(0, 0, k < 3 ? Ui.dp(12) : 0, Ui.dp(12));
+                row.addView(card, lp);
+            }
+        }
+    }
+
+    /** {@code done}: every source has answered, so a card still empty has nothing to show. */
+    private void fillOverview(String[][] c, boolean done) {
+        for (int i = 0; i < 8; i++) {
+            if (c[i] == null) {
+                if (done && cardText[i][1].getText().toString().equals("…")) cardText[i][1].setText("—");
+                continue;
+            }
+            cardText[i][0].setText(c[i][0].toUpperCase(Locale.ROOT));
+            cardText[i][1].setText(c[i][1]);
+            cardText[i][2].setText(i == 6 ? "OK to watch it live" : c[i][2]);
+        }
+        if (c[4] != null) cardAction[4] = () -> startActivity(new Intent(this, WorldActivity.class));
+        if (c[6] != null) {
+            final int cam = Integer.parseInt(c[6][2]);
+            cardAction[6] = () -> openCam(this, cam);
+        }
+        cardAction[7] = () -> startActivity(new Intent(this, F1Activity.class));
+    }
+
+    /** Jump to a section from the Overview, as if picked in the menu. */
+    private void open(int i) {
+        rail.setSelection(i);
+        show(i);
+        content.post(this::focusContent);
+    }
+
+    // ---- markets: coins, gold and exchange rates ----
+
+    private void loadMoney() {
+        Net.IO.execute(() -> {
+            List<Markets.Quote> q = Markets.load(this);
+            Net.MAIN.post(() -> { if (!isFinishing() && section == MARKETS) fillMoney(q); });
+        });
+    }
+
+    private void fillMoney(List<Markets.Quote> qs) {
+        LinearLayout pane = (LinearLayout) moneyPane;
+        pane.removeAllViews();
+        pane.setOrientation(LinearLayout.VERTICAL);
+        TextView h = Ui.text(this, 21, Ui.TEXT, 300);
+        h.setText("Markets");
+        pane.addView(h);
+        TextView note = Ui.text(this, 11.5f, Ui.TEXT_DIM, 400);
+        note.setText("Bitcoin, Ether and gold (PAX Gold, backed by one troy ounce) from CoinGecko, every 10 minutes; exchange rates from the European Central Bank, each working day. For information only.");
+        note.setLineSpacing(0, 1.15f);
+        note.setPadding(0, Ui.dp(4), 0, Ui.dp(6));
+        pane.addView(note);
+        if (qs.isEmpty()) {
+            TextView none = Ui.text(this, 15, Ui.TEXT_DIM, 400);
+            none.setText("Markets aren't available right now. Check the internet connection.");
+            pane.addView(none);
+            return;
+        }
+        double baht = 0;
+        for (Markets.Quote q : qs) if (q.symbol.equals("USD/THB")) baht = q.price;
+        ScrollView sv = new ScrollView(this);
+        sv.setVerticalScrollBarEnabled(false);
+        LinearLayout rows = new LinearLayout(this);
+        rows.setOrientation(LinearLayout.VERTICAL);
+        sv.addView(rows);
+        boolean fxLabel = false;
+        rows.addView(sectionLabel("Crypto and gold · 7 days"));
+        for (Markets.Quote q : qs) {
+            if (q.currency && !fxLabel) {
+                rows.addView(sectionLabel("Exchange rates · 3 weeks"));
+                fxLabel = true;
+            }
+            rows.addView(quoteRow(q, baht));
+        }
+        pane.addView(sv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
+    }
+
+    private View quoteRow(Markets.Quote q, double baht) {
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setFocusable(true);
+        row.setBackground(Ui.glass(Ui.dp(12), false));
+        row.setOnFocusChangeListener((v, has) -> v.setBackground(Ui.glass(Ui.dp(12), has)));
+        row.setPadding(Ui.dp(16), Ui.dp(10), Ui.dp(16), Ui.dp(10));
+        LinearLayout words = new LinearLayout(this);
+        words.setOrientation(LinearLayout.VERTICAL);
+        TextView n = Ui.text(this, 15, Ui.TEXT, 600);
+        n.setText(q.name);
+        TextView sym = Ui.text(this, 11, Ui.TEXT_DIM, 400);
+        sym.setText(q.symbol + (!q.currency && baht > 0 ? "   ·   ≈ ฿" + String.format(Locale.US, "%,.0f", q.price * baht) : ""));
+        words.addView(n);
+        words.addView(sym);
+        row.addView(words, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        int col = q.change >= 0 ? 0xFF6BE3A0 : 0xFFFF8A7A;
+        row.addView(new Spark(this, q.history, col), new LinearLayout.LayoutParams(Ui.dp(220), Ui.dp(34)));
+        TextView p = Ui.text(this, 18, Ui.TEXT, 600);
+        p.setText(Markets.price(q));
+        p.setGravity(Gravity.END);
+        row.addView(p, new LinearLayout.LayoutParams(Ui.dp(150), ViewGroup.LayoutParams.WRAP_CONTENT));
+        TextView ch = Ui.text(this, 14, col, 600);
+        ch.setText(Markets.change(q));
+        ch.setGravity(Gravity.END);
+        row.addView(ch, new LinearLayout.LayoutParams(Ui.dp(80), ViewGroup.LayoutParams.WRAP_CONTENT));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.bottomMargin = Ui.dp(6);
+        row.setLayoutParams(lp);
+        return row;
+    }
+
+    /** A small price line: the shape of the last days, no axes. */
+    static final class Spark extends View {
+        private final double[] v;
+        private final android.graphics.Paint p = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        private final android.graphics.Path path = new android.graphics.Path();
+
+        Spark(Context c, double[] values, int colour) {
+            super(c);
+            v = values;
+            p.setColor(colour);
+            p.setStyle(android.graphics.Paint.Style.STROKE);
+            p.setStrokeWidth(Ui.dp(1.6f));
+            p.setStrokeJoin(android.graphics.Paint.Join.ROUND);
+        }
+
+        @Override
+        protected void onSizeChanged(int w, int h, int ow, int oh) {
+            path.reset();
+            if (v.length < 2) return;
+            double lo = Double.MAX_VALUE, hi = -Double.MAX_VALUE;
+            for (double x : v) {
+                lo = Math.min(lo, x);
+                hi = Math.max(hi, x);
+            }
+            double span = hi - lo == 0 ? 1 : hi - lo;
+            float pad = Ui.dp(3);
+            for (int i = 0; i < v.length; i++) {
+                float x = pad + (w - 2 * pad) * i / (float) (v.length - 1), y = (float) (h - pad - (h - 2 * pad) * (v[i] - lo) / span);
+                if (i == 0) path.moveTo(x, y);
+                else path.lineTo(x, y);
+            }
+        }
+
+        @Override
+        protected void onDraw(android.graphics.Canvas c) {
+            c.drawPath(path, p);
+        }
     }
 
     private static String money(double v) {

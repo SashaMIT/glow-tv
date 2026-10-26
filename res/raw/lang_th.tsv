@@ -479,3 +479,41 @@ New York	นิวยอร์ก
 Los Angeles	ลอสแอนเจลิส
 Sydney	ซิดนีย์
 Automatic (time zone)	อัตโนมัติ (ตามเขตเวลา)
+
+# ---- Intelligence 4: Overview, Markets, F1 timing, map zoom ----
+Overview	ภาพรวม
+the top of every source	เรื่องเด่นจากทุกแหล่ง
+Markets	ตลาด
+Biggest earthquake	แผ่นดินไหวใหญ่สุด
+Disaster alert	เตือนภัยพิบัติ
+Natural event	เหตุการณ์ธรรมชาติ
+Top story	ข่าวเด่น
+OK to watch it live	OK เพื่อดูสด
+F1 timing	ผลจับเวลา F1
+Bitcoin, gold and the baht	บิตคอยน์ ทองคำ และเงินบาท
+Bitcoin	บิตคอยน์
+Ether	อีเธอร์
+Gold, 1 oz	ทองคำ 1 ออนซ์
+Gold	ทองคำ
+US dollar in baht	ดอลลาร์สหรัฐเป็นบาท
+Pound in baht	ปอนด์เป็นบาท
+Euro in baht	ยูโรเป็นบาท
+Pound in dollars	ปอนด์เป็นดอลลาร์
+Crypto and gold · 7 days	คริปโตและทองคำ · 7 วัน
+Exchange rates · 3 weeks	อัตราแลกเปลี่ยน · 3 สัปดาห์
+Bitcoin, Ether and gold (PAX Gold, backed by one troy ounce) from CoinGecko, every 10 minutes; exchange rates from the European Central Bank, each working day. For information only.	บิตคอยน์ อีเธอร์ และทองคำ (PAX Gold หนุนด้วยทองหนึ่งทรอยออนซ์) จาก CoinGecko ทุก 10 นาที อัตราแลกเปลี่ยนจากธนาคารกลางยุโรป ทุกวันทำการ เพื่อเป็นข้อมูลเท่านั้น
+Markets aren't available right now. Check the internet connection.	ตอนนี้ดูข้อมูลตลาดไม่ได้ ตรวจการเชื่อมต่ออินเทอร์เน็ต
+Loading the latest session…	กำลังโหลดเซสชันล่าสุด…
+Couldn't load F1 timing right now. Check the internet connection.	ตอนนี้โหลดผลจับเวลา F1 ไม่ได้ ตรวจการเชื่อมต่ออินเทอร์เน็ต
+Ended {}. OpenF1's free data arrives after each session; live timing is their paid tier, so during a race Sports now shows ESPN's running order.	จบเมื่อ {} ข้อมูลฟรีของ OpenF1 มาหลังจบแต่ละเซสชัน การจับเวลาสดเป็นบริการแบบเสียเงิน ระหว่างแข่งกีฬาตอนนี้จึงแสดงลำดับจาก ESPN
+{n} laps	{} รอบ
+OK  timing sheet	OK  ผลจับเวลา
+Result	ผลล่าสุด
+{n} live	สด {} คู่
+Race	การแข่งขัน
+Qualifying	รอบคัดเลือก
+Sprint	สปรินต์
+Practice {n}	ซ้อม {}
+CH+ zoom in	CH+ ซูมเข้า
+CH− zoom out	CH− ซูมออก
+{} beat {}	{} ชนะ {}

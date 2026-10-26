@@ -17,39 +17,63 @@ import java.util.TimeZone;
 /**
  * The world, drawn by Glow: Natural Earth land (public domain) in a flat projection from 84°N to 58°S, today's
  * day/night line from the sun's position, and live pins (earthquakes, disaster alerts, natural events, news
- * hotspots, webcams, the ISS). The land is drawn once into a bitmap; pins are drawn on top each frame.
+ * hotspots, webcams, the ISS). The land is drawn into a bitmap once per view; pins are drawn on top each frame. It
+ * can zoom in 2× or 4× on a place: the land is redrawn sharp at that scale (only the shapes in view), off the main
+ * thread, while the last picture is shown moved and scaled into place, so a key press answers at once.
  */
 class WorldMapView extends View {
     static final double TOP = 84, BOTTOM = -58;
     private static short[][] land; // shared: lon*100, lat*100 pairs per polygon
+    private static float[][] bounds; // each polygon's {west, east, south, north}, to skip shapes out of view
+    private float zoom = 1;
+    private double centreLon = 0, centreLat = (TOP + BOTTOM) / 2;
 
-    private final Paint landFill = new Paint(Paint.ANTI_ALIAS_FLAG), coast = new Paint(Paint.ANTI_ALIAS_FLAG),
-            grid = new Paint(), night = new Paint(Paint.ANTI_ALIAS_FLAG), pin = new Paint(Paint.ANTI_ALIAS_FLAG),
-            label = new Paint(Paint.ANTI_ALIAS_FLAG), labelBg = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private Bitmap base;
-    private final Path nightPath = new Path();
-    private long nightAt;
+    private final Paint pin = new Paint(Paint.ANTI_ALIAS_FLAG), label = new Paint(Paint.ANTI_ALIAS_FLAG),
+            labelBg = new Paint(Paint.ANTI_ALIAS_FLAG), scaled = new Paint(Paint.FILTER_BITMAP_FLAG);
     private List<Intel.Event> events = new ArrayList<>();
     private Intel.Event selected;
     private double[] iss;
     private boolean compact;
     private Bitmap rain;
-    // Land + night + rain in one opaque picture, so a frame is one bitmap and the pins. Two of them (rain under the
-    // pins, rain on its own) so switching to the rain view is instant.
-    private final Bitmap[] baked = new Bitmap[2];
-    private boolean bakedStale = true;
     private boolean rainOnly;
-    private final Paint rainPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
+    // Land + night + rain in one opaque picture per view, so a frame is one bitmap and the pins: [0] with the rain
+    // under the pins, [1] the rain on its own (so switching to the rain view is instant).
+    private Bitmap[] shown;
+    private Proj shownProj, wantedProj;
+    private volatile int wanted;
+    private boolean dirty = true; // the rain arrived or the night line moved
+    private long nightAt;
+    private final android.graphics.Matrix move = new android.graphics.Matrix();
+
+    /** What the map shows: its size, zoom and centre. */
+    static final class Proj {
+        final int w, h;
+        final float zoom;
+        final double lon, lat;
+
+        Proj(int w, int h, float zoom, double lon, double lat) {
+            this.w = w;
+            this.h = h;
+            this.zoom = zoom;
+            this.lon = lon;
+            this.lat = lat;
+        }
+
+        float x(double lo) {
+            return (float) (((lo - lon) * zoom / 360 + 0.5) * w);
+        }
+
+        float y(double la) {
+            return (float) (((lat - la) * zoom / (TOP - BOTTOM) + 0.5) * h);
+        }
+
+        boolean same(Proj o) {
+            return o != null && o.w == w && o.h == h && o.zoom == zoom && o.lon == lon && o.lat == lat;
+        }
+    }
 
     WorldMapView(Context c) {
         super(c);
-        landFill.setColor(0xFF22325A);
-        coast.setColor(0x885577C0);
-        coast.setStyle(Paint.Style.STROKE);
-        coast.setStrokeWidth(Math.max(1, Ui.dp(0.7f)));
-        grid.setColor(0x14FFFFFF);
-        grid.setStrokeWidth(1);
-        night.setColor(0x66000614);
         label.setColor(0xFFFFFFFF);
         label.setTextSize(Ui.dp(12));
         label.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
@@ -61,7 +85,6 @@ class WorldMapView extends View {
     /** Home's small card: smaller pins, no labels. */
     void setCompact(boolean on) {
         compact = on;
-        landFill.setColor(on ? 0xFF2E4377 : 0xFF22325A); // a small card needs the land to read at a glance
     }
 
     void setEvents(List<Intel.Event> e) {
@@ -77,7 +100,7 @@ class WorldMapView extends View {
     /** Today's rain (from Rain.world, same size and projection as the map); drawn under the pins. */
     void setRain(Bitmap b) {
         rain = b;
-        bakedStale = true;
+        dirty = true;
         invalidate();
     }
 
@@ -93,7 +116,38 @@ class WorldMapView extends View {
     }
 
     private static synchronized void loadLand(Context c) {
-        if (land == null) land = shapes(c, "world_land");
+        if (land != null) return;
+        land = shapes(c, "world_land");
+        bounds = new float[land.length][];
+        for (int i = 0; i < land.length; i++) {
+            float w = 999, e = -999, so = 999, no = -999;
+            for (int j = 0; j < land[i].length; j += 2) {
+                float lon = land[i][j] / 100f, lat = land[i][j + 1] / 100f;
+                w = Math.min(w, lon);
+                e = Math.max(e, lon);
+                so = Math.min(so, lat);
+                no = Math.max(no, lat);
+            }
+            bounds[i] = new float[] {w, e, so, no};
+        }
+    }
+
+    float zoom() {
+        return zoom;
+    }
+
+    /** Zoom to {@code z} (1, 2 or 4) around a place; the view stays inside the map's edges. */
+    void zoomTo(double lat, double lon, float z) {
+        zoom = z;
+        double halfLon = 180 / z, halfLat = (TOP - BOTTOM) / 2 / z;
+        centreLon = Math.max(-180 + halfLon, Math.min(180 - halfLon, lon));
+        centreLat = Math.max(BOTTOM + halfLat, Math.min(TOP - halfLat, lat));
+        invalidate();
+    }
+
+    boolean inView(double lat, double lon) {
+        float px = x(lon), py = y(lat);
+        return px >= 0 && px <= getWidth() && py >= 0 && py <= getHeight();
     }
 
     /** A res/raw shape file from tools/gen_world_map.py: count, then per shape n and n (lon*100, lat*100) pairs. */
@@ -115,82 +169,121 @@ class WorldMapView extends View {
     }
 
     float x(double lon) {
-        return (float) ((lon + 180) / 360 * getWidth());
+        return (float) (((lon - centreLon) * zoom / 360 + 0.5) * getWidth());
     }
 
     float y(double lat) {
-        return (float) ((TOP - lat) / (TOP - BOTTOM) * getHeight());
+        return (float) (((centreLat - lat) * zoom / (TOP - BOTTOM) + 0.5) * getHeight());
     }
 
     @Override
     protected void onSizeChanged(int w, int h, int ow, int oh) {
-        base = null;
-        baked[0] = baked[1] = null;
-        nightAt = 0;
+        shown = null;
+        shownProj = wantedProj = null;
+        dirty = true;
     }
 
-    private void drawBase() {
-        int w = getWidth(), h = getHeight();
-        if (w <= 0 || h <= 0) return;
-        base = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-        Canvas c = new Canvas(base);
-        for (int lon = -150; lon < 180; lon += 30) c.drawLine(x(lon), 0, x(lon), h, grid);
-        for (int lat = -30; lat <= 60; lat += 30) c.drawLine(0, y(lat), w, y(lat), grid);
-        Path p = new Path();
-        for (short[] poly : land) {
-            p.reset();
+    /** Land, grid, night and rain for one view; [1] is the rain on its own (null without rain). Any thread. */
+    private static Bitmap[] render(Proj p, Bitmap rain, boolean compact) {
+        Paint landFill = new Paint(Paint.ANTI_ALIAS_FLAG), coast = new Paint(Paint.ANTI_ALIAS_FLAG), grid = new Paint(),
+                night = new Paint(Paint.ANTI_ALIAS_FLAG);
+        landFill.setColor(compact ? 0xFF2E4377 : 0xFF22325A); // a small card needs the land to read at a glance
+        coast.setColor(0x885577C0);
+        coast.setStyle(Paint.Style.STROKE);
+        coast.setStrokeWidth(Math.max(1, Ui.dp(0.7f)));
+        grid.setColor(0x14FFFFFF);
+        grid.setStrokeWidth(1);
+        night.setColor(0x66000614);
+        Bitmap b0 = Bitmap.createBitmap(p.w, p.h, Bitmap.Config.RGB_565);
+        Canvas c = new Canvas(b0);
+        c.drawColor(0xFF0B1226);
+        for (int lon = -150; lon < 180; lon += 30) c.drawLine(p.x(lon), 0, p.x(lon), p.h, grid);
+        for (int lat = -30; lat <= 60; lat += 30) c.drawLine(0, p.y(lat), p.w, p.y(lat), grid);
+        double west = p.lon - 180 / p.zoom, east = p.lon + 180 / p.zoom;
+        double south = p.lat - (TOP - BOTTOM) / 2 / p.zoom, north = p.lat + (TOP - BOTTOM) / 2 / p.zoom;
+        Path path = new Path();
+        for (int i = 0; i < land.length; i++) {
+            short[] poly = land[i];
+            float[] b = bounds[i];
+            if (b[1] < west || b[0] > east || b[3] < south || b[2] > north) continue; // out of view
+            path.reset();
             for (int j = 0; j < poly.length; j += 2) {
-                float px = x(poly[j] / 100.0), py = y(poly[j + 1] / 100.0);
-                if (j == 0) p.moveTo(px, py);
-                else p.lineTo(px, py);
+                float px = p.x(poly[j] / 100.0), py = p.y(poly[j + 1] / 100.0);
+                if (j == 0) path.moveTo(px, py);
+                else path.lineTo(px, py);
             }
-            p.close();
-            c.drawPath(p, landFill);
-            if (!compact) c.drawPath(p, coast);
+            path.close();
+            c.drawPath(path, landFill);
+            if (!compact) c.drawPath(path, coast);
         }
+        c.drawPath(nightPath(p), night);
+        Bitmap b1 = null;
+        if (rain != null && rain.getWidth() == p.w) {
+            b1 = b0.copy(Bitmap.Config.RGB_565, true);
+            drawRain(c, p, rain, 150); // under the pins it's context, not the story
+            drawRain(new Canvas(b1), p, rain, 255);
+        }
+        return new Bitmap[] {b0, b1};
+    }
+
+    /** The part of the whole-world rain picture that's in view, scaled up when zoomed. */
+    private static void drawRain(Canvas c, Proj p, Bitmap rain, int alpha) {
+        Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG);
+        paint.setAlpha(alpha);
+        if (p.zoom == 1) {
+            c.drawBitmap(rain, 0, 0, paint);
+            return;
+        }
+        float left = (float) ((p.lon - 180 / p.zoom + 180) / 360 * p.w);
+        float top = (float) ((TOP - (p.lat + (TOP - BOTTOM) / 2 / p.zoom)) / (TOP - BOTTOM) * p.h);
+        android.graphics.Rect src = new android.graphics.Rect(Math.round(left), Math.round(top),
+                Math.round(left + p.w / p.zoom), Math.round(top + p.h / p.zoom));
+        c.drawBitmap(rain, src, new android.graphics.Rect(0, 0, p.w, p.h), paint);
     }
 
     /** The night side, from the sun's position now (declination and the longitude where it's noon). */
-    private void buildNight() {
-        long now = System.currentTimeMillis();
-        nightAt = now;
+    private static Path nightPath(Proj p) {
         Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-        cal.setTimeInMillis(now);
+        cal.setTimeInMillis(System.currentTimeMillis());
         int day = cal.get(Calendar.DAY_OF_YEAR);
         double hours = cal.get(Calendar.HOUR_OF_DAY) + cal.get(Calendar.MINUTE) / 60.0;
         double decl = -23.44 * Math.cos(2 * Math.PI / 365 * (day + 10));
         if (Math.abs(decl) < 0.1) decl = 0.1;
         double sunLon = -15 * (hours - 12);
         double tanD = Math.tan(Math.toRadians(decl));
-        nightPath.reset();
-        int w = getWidth();
-        for (int px = 0; px <= w; px += 4) {
-            double lon = px * 360.0 / w - 180;
+        Path night = new Path();
+        for (int px = 0; px <= p.w; px += 4) {
+            double lon = p.lon + (px / (double) p.w - 0.5) * 360 / p.zoom;
             double lat = Math.toDegrees(Math.atan(-Math.cos(Math.toRadians(lon - sunLon)) / tanD));
-            if (px == 0) nightPath.moveTo(px, y(lat));
-            else nightPath.lineTo(px, y(lat));
+            if (px == 0) night.moveTo(px, p.y(lat));
+            else night.lineTo(px, p.y(lat));
         }
         // Northern summer: night is south of the line; northern winter: north of it.
-        float edge = decl > 0 ? getHeight() : 0;
-        nightPath.lineTo(w, edge);
-        nightPath.lineTo(0, edge);
-        nightPath.close();
+        float edge = decl > 0 ? p.h : 0;
+        night.lineTo(p.w, edge);
+        night.lineTo(0, edge);
+        night.close();
+        return night;
     }
 
-    /** Rebuilt when the rain arrives, the rain view toggles or the night line moves (once a minute). */
-    private void bake() {
-        for (int k = 0; k < (rain != null ? 2 : 1); k++) {
-            if (baked[k] == null) baked[k] = Bitmap.createBitmap(getWidth(), getHeight(), Bitmap.Config.RGB_565);
-            Canvas b = new Canvas(baked[k]);
-            b.drawColor(0xFF0B1226);
-            b.drawBitmap(base, 0, 0, null);
-            b.drawPath(nightPath, night);
-            if (rain != null && rain.getWidth() == getWidth()) {
-                rainPaint.setAlpha(k == 1 ? 255 : 150); // under the pins it's context, not the story
-                b.drawBitmap(rain, 0, 0, rainPaint);
-            }
-        }
-        bakedStale = false;
+    /** Draws a new view off the main thread; only the newest one asked for is drawn and shown. */
+    private void requestRender(final Proj p) {
+        dirty = false;
+        wantedProj = p;
+        final int gen = ++wanted;
+        final Bitmap r = rain;
+        Net.WORK.execute(() -> {
+            if (gen != wanted) return; // a newer view was asked for meanwhile
+            long t0 = android.os.SystemClock.uptimeMillis();
+            final Bitmap[] out = render(p, r, false);
+            android.util.Log.i("GlowPerf", "map " + p.zoom + "x drawn in " + (android.os.SystemClock.uptimeMillis() - t0) + " ms");
+            Net.MAIN.post(() -> {
+                if (gen != wanted) return;
+                shown = out;
+                shownProj = p;
+                invalidate();
+            });
+        });
     }
 
     static int colour(Intel.Event e) {
@@ -217,18 +310,30 @@ class WorldMapView extends View {
 
     @Override
     protected void onDraw(Canvas c) {
-        if (base == null) drawBase();
-        if (base == null) return;
+        Proj p = new Proj(getWidth(), getHeight(), zoom, centreLon, centreLat);
+        if (p.w <= 0 || p.h <= 0) return;
         if (System.currentTimeMillis() - nightAt > 60_000) {
-            buildNight();
-            bakedStale = true;
+            nightAt = System.currentTimeMillis();
+            dirty = true;
         }
-        if (compact) { // Home's one-off snapshot: no need to keep a baked copy
-            c.drawBitmap(base, 0, 0, null);
-            c.drawPath(nightPath, night);
-        } else {
-            if (baked[0] == null || bakedStale) bake();
-            c.drawBitmap(baked[rainOnly && rain != null ? 1 : 0], 0, 0, null);
+        if (shown == null || compact) { // the first picture (and Home's one-off snapshot) is drawn now
+            shown = render(p, rain, compact);
+            shownProj = wantedProj = p;
+            dirty = false;
+        } else if (dirty || !p.same(wantedProj)) {
+            requestRender(p);
+        }
+        Bitmap b = rainOnly && shown[1] != null ? shown[1] : shown[0];
+        if (p.same(shownProj)) {
+            c.drawBitmap(b, 0, 0, null);
+        } else { // the last picture, moved and scaled to where the new one will be
+            Proj o = shownProj;
+            float k = p.zoom / o.zoom;
+            move.setTranslate(-o.w / 2f, -o.h / 2f);
+            move.postScale(k, k);
+            move.postTranslate(p.w / 2f + (float) ((o.lon - p.lon) * p.zoom / 360 * p.w),
+                    p.h / 2f + (float) ((p.lat - o.lat) * p.zoom / (TOP - BOTTOM) * p.h));
+            c.drawBitmap(b, move, scaled);
         }
 
         for (Intel.Event e : events) {

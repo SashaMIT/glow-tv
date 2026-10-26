@@ -685,7 +685,7 @@ public class HomeActivity extends Activity {
     // The Intelligence row's cards, kept between visits and refreshed in place.
     private ImageView intelImg;
     private TextView intelSub;
-    private Tile intelSports, intelWeather, intelOdds;
+    private Tile intelSports, intelWeather, intelOdds, intelMoney;
     private String intelSig;
 
     private void fillIntel() {
@@ -728,6 +728,9 @@ public class HomeActivity extends Activity {
         final Tile sportsTile = actionTile("●", "Sports now", Sports.chosenNames(this));
         sportsTile.setOnClickListener(v -> openIntel(IntelActivity.SPORTS));
         intel.addView(sportsTile);
+        final Tile moneyTile = actionTile("$", "Markets", "Bitcoin, gold and the baht");
+        moneyTile.setOnClickListener(v -> openIntel(IntelActivity.MARKETS));
+        intel.addView(moneyTile);
         final Tile weatherTile = actionTile("☀", "Weather", Weather.cityName(this));
         weatherTile.setOnClickListener(v -> openIntel(IntelActivity.WEATHER));
         intel.addView(weatherTile);
@@ -755,18 +758,20 @@ public class HomeActivity extends Activity {
         intelSports = sportsTile;
         intelWeather = weatherTile;
         intelOdds = odds;
+        intelMoney = moneyTile;
     }
 
     /** New weather, odds, scores and (every 10 min) map picture into the existing cards. */
     private void refreshIntel() {
         final ImageView img = intelImg;
         final TextView sub = intelSub;
-        final Tile sportsTile = intelSports, weatherTile = intelWeather, odds = intelOdds;
+        final Tile sportsTile = intelSports, weatherTile = intelWeather, odds = intelOdds, moneyTile = intelMoney;
         final int h = Ui.dp(99), w = h * 5 / 2; // the map's own shape; the card crops the far Pacific
         Net.WORK.execute(() -> {
             Intel.Weather wx = Intel.weather(this);
             List<Intel.Market> m = Intel.markets(this);
             List<Sports.Game> games = Sports.load(this);
+            List<Markets.Quote> quotes = Markets.load(this);
             Cams.checkIfDue(this);
             Bitmap shot = null;
             String line = null;
@@ -808,6 +813,17 @@ public class HomeActivity extends Activity {
                             ? g.home + (g.state == Sports.PRE ? " v " : " " + g.homeScore + "–" + g.awayScore + " ") + g.away : g.title;
                     sub2.setMaxLines(2);
                     sub2.setText((g.state == Sports.LIVE ? "LIVE  " : g.status + "  ") + what);
+                }
+                if (!quotes.isEmpty()) { // "BTC $79,939 −0.7%" / "Gold $4,013  ·  $1 = ฿33.75"
+                    String coin = "", gold = "";
+                    for (Markets.Quote q : quotes) {
+                        if (q.symbol.equals("BTC")) coin = "BTC " + Markets.price(q) + " " + Markets.change(q);
+                        if (q.symbol.equals("XAU")) gold = "Gold " + Markets.price(q);
+                    }
+                    String baht = Markets.baht(quotes);
+                    TextView s = (TextView) ((LinearLayout) moneyTile.card.getChildAt(0)).getChildAt(2);
+                    s.setMaxLines(2);
+                    s.setText(coin + "\n" + gold + (baht.isEmpty() ? "" : "  ·  " + baht));
                 }
                 if (!m.isEmpty()) {
                     Intel.Market top = m.get(0);
