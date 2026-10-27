@@ -749,7 +749,7 @@ Part VIII (Pluto), The Rat Race, Indecent Proposal, The Early Line Live… Remin
 | Time to first frame (ActivityTaskManager "Displayed") | 0.96–1.0 s | **0.949 / 0.957 / 1.005 s** |
 | Glow at 4 min | 71–88 MB | 80.3 / 86.1 / 81.0 MB (Java heap 20–26 MB) |
 
-**What's new video** (`docs/glow-whatsnew.mp4`, 56 s, 3.0 MB): recorded on the box with `tools/video/whatsnew.sh`.
+**What's new video** (`docs/glow-whatsnew.mp4`, 76 s, 4.3 MB: Tonight, Overview, world map, live cams, weather and rain radar, predictions, Sports now and F1 timing, score banners, Markets, rewind, radio, Kids mode, the doorbell, the speed test): recorded on the box with `tools/video/whatsnew.sh`.
 The box's screen recorder saves a frame only when the picture changes, so a still screen (Markets, a radio station)
 came out as one frame with no length, and cutting it hung for 45 minutes; such scenes are now cut as stills. Scripted
 key presses sometimes landed too early on the box (the player menu, F1 timing, the speed test result), so three moments

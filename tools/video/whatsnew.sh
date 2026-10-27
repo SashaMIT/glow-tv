@@ -48,6 +48,18 @@ rec map 13 s_map
 want markets && { go .IntelActivity --ei section 3; sleep 8; }
 s_markets() { sleep 4; }
 rec markets 5 s_markets
+want cams && { go .IntelActivity --ei section 4; sleep 10; }
+s_cams() { sleep 1; k DPAD_RIGHT DPAD_RIGHT DPAD_RIGHT DPAD_DOWN DPAD_RIGHT DPAD_RIGHT; sleep 1; }
+rec cams 9 s_cams
+want weather && { go .IntelActivity --ei section 5; sleep 8; }
+s_weather() { sleep 4; }
+rec weather 5 s_weather
+want radar && { go .IntelActivity --ei section 6; sleep 10; }
+s_radar() { sleep 7; }
+rec radar 8 s_radar
+want predictions && { go .IntelActivity --ei section 7; sleep 8; }
+s_pred() { sleep 1; k DPAD_RIGHT DPAD_DOWN DPAD_DOWN DPAD_DOWN DPAD_DOWN; sleep 1; }
+rec predictions 8 s_pred
 want sports && { go .IntelActivity --ei section 2; sleep 10; go .F1Activity; sleep 6; a input keyevent KEYCODE_BACK; sleep 2; }
 s_sports() { sleep 1; k DPAD_RIGHT DPAD_DOWN DPAD_DOWN DPAD_DOWN; sleep 0.6; go .F1Activity; sleep 3; k DPAD_DOWN DPAD_DOWN DPAD_DOWN DPAD_DOWN; sleep 1.5; }
 rec sports 12 s_sports
@@ -73,16 +85,6 @@ if want radio; then
   sleep 3; a input keyevent KEYCODE_HOME; sleep 3
 fi
 cool
-# Thai menus: switched on for the scene, then back to what it was.
-if want thai; then
-LANG_WAS=$(root "grep -o '<string name=\"language\">[a-z]*' $P/display.xml" | sed 's/.*>//' | tr -d '\r')
-root "sed -i '/name=\"language\"/d' $P/display.xml; sed -i 's|</map>|    <string name=\"language\">th</string>\n</map>|' $P/display.xml; am force-stop com.tv98.glow"
-sleep 3; a input keyevent KEYCODE_HOME; sleep 8
-s_thai() { sleep 2; go .ClassicGuideActivity; sleep 4.5; }
-rec thai 8 s_thai
-root "sed -i '/name=\"language\"/d' $P/display.xml; am force-stop com.tv98.glow"
-[ -n "$LANG_WAS" ] && root "sed -i 's|</map>|    <string name=\"language\">$LANG_WAS</string>\n</map>|' $P/display.xml; am force-stop com.tv98.glow"
-fi
 # Kids mode: on for the scene (no apps picked), the PIN screen, then the box's own Kids settings put back.
 if want kids; then
 root "rm -f /data/local/tmp/kids.bak; [ -f $P/kids.xml ] && cp -p $P/kids.xml /data/local/tmp/kids.bak
@@ -120,18 +122,26 @@ stillc() { # a picture with its caption, slow push-in
     "[0:v]scale=1280:720,zoompan=z='1+0.04*on/($2*30)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1280x720:fps=30,setsar=1[v];[v][1:v]overlay=x='min(0,-120+t*800)':y=0" -t "$2"
 }
 still() { enc -loop 1 -t "$2" -i "$1" -vf "scale=1280:720,zoompan=z='1+0.03*on/($2*30)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1280x720:fps=30,setsar=1" -t "$2"; }
+SHOTS=$(cd "$HERE/../../docs/screenshots" && pwd)
 still "$C/newtitle.png" 2.2
-clip home     0.5 9   1.6 new1
-clip tonight  0.3 5.5 1.3 new1
-clip overview 0.3 5.5 1.2 new2
-clip map      0.3 12  1.8 new3
-clip markets  0.3 4.5 1.0 new4
-clip sports   0.3 11  1.6 new5
-clip rewind   0.3 13  1.6 new6
-clip radio    0.3 6   1.0 new7
-clip thai     1.5 6.5 1.2 new8
-clip kids     1.5 6.5 1.2 new9
-clip network  0.3 21  3.5 new10
+clip home        0.5 9   1.6 new1
+clip tonight     0.3 5.5 1.3 new1
+clip overview    0.3 5.5 1.2 new2
+clip map         0.3 11  1.8 new3
+clip cams        0.3 8   1.6 new4
+clip weather     0.3 2.5 1.0 new5
+clip radar       0.3 7.5 1.2 new5
+clip predictions 0.3 7   1.5 new6
+clip sports      0.3 5   1.4 new7
+stillc "$SHOTS/54_f1_timing.jpg" 2.3 new7
+stillc "$SHOTS/31_score_banner.jpg" 3 new8
+clip markets     0.3 3   1.0 new9
+clip rewind      1.0 4.5 1.0 new10
+stillc "$SHOTS/58_rewind_minute.jpg" 2.5 new10
+clip radio       0.3 3.2 1.0 new11
+clip kids        1.5 4.4 1.0 new12
+stillc "$SHOTS/64_doorbell.jpg" 3 new13
+stillc "$SHOTS/62_network.jpg" 3 new14
 still "$C/newend.png" 3.5
 ls "$W"/[0-9]*.mp4 | sed "s/^/file '/; s/$/'/" > "$W/list.txt"
 ffmpeg -loglevel error -y -f concat -safe 0 -i "$W/list.txt" -vf "fade=t=in:st=0:d=0.3" \
