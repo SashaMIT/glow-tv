@@ -8,7 +8,7 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
 
 ![Glow in 20 seconds: Home with Intelligence, the live world map and rain, live sport, cams, rain radar, the TV guide with listings, Now & Next, subtitles and a score banner](docs/glow-tour.gif)
 
-**[Watch the 28-second video (MP4)](docs/glow-promo.mp4)** · [The TV guide in motion (GIF)](docs/glow-guide.gif) · [All screenshots](docs/screenshots) · [Measured results](docs/BENCHMARKS.md) · [Roadmap](ROADMAP.md)
+**[What's new in 1.5: a 56-second video (MP4)](docs/glow-whatsnew.mp4)** · [The first video (MP4)](docs/glow-promo.mp4) · [The TV guide in motion (GIF)](docs/glow-guide.gif) · [All screenshots](docs/screenshots) · [Measured results](docs/BENCHMARKS.md) · [Roadmap](ROADMAP.md)
 
 ## What it does
 
