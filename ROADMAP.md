@@ -9,7 +9,7 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 
 | Area | Feature |
 |---|---|
-| Box | Debloat, Glow as Home, undo scripts, developer-access shield; Gradle-free build, MIT repo, signed releases (v1.0.0 → v1.3.0, `tools/release.sh`), in-app updates (box updated itself to 1.3.0) |
+| Box | Debloat, Glow as Home, undo scripts, developer-access shield; Gradle-free build, MIT repo, signed releases (v1.0.0 → v1.4.0, `tools/release.sh`), in-app updates (box updated itself to 1.4.0) |
 | Home | Clock, weather, headline ticker, icon header (Search, World, Phone remote, Cast, IPTV, Settings); full-colour app cards; app order; smooth scrolling (29.5 % → 1.1 % late) |
 | Home | Live TV row (TV Guide, favourites, recents, white/black logo cards, Resume badge); Intelligence row; Cast from phone |
 | TV Guide | Numbered genre menu, ranking, fixed numbers; classic grid with logos, info panel, preview, reminders, search; Radio tab |
@@ -17,6 +17,8 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 | Player | Fallbacks → official stream → official YouTube; ▲ 0.32 s / ▼ 0.28 s (two standby players); 1080p; last channel; typed numbers; audio + subtitles; score banners; sleep timer |
 | Player menu (hold OK) | Pause, back 10 s, back to live, picture size, night sound, stats, corner picture, sleep timer |
 | Remote & alerts | Remote buttons (press/hold jobs), Quick settings panel, score banners over other apps (overlay allowed with owner's OK) |
+| Player & radio (1.4) | Rewind for minutes (kept on storage), dialogue boost; radio favourites, song covers, Home Radio card |
+| Home & network (1.4) | Settings ▸ Network & data; Home Assistant card + doorbell pop-up; CONTRIBUTING.md |
 | Family & language | Kids mode (picked apps + Kids channels, PIN with lockout, everything else closed); Thai menus (Settings ▸ Language), one translation file |
 | Intelligence | Overview page; world map (quakes, alerts, EONET, news hotspots, ISS, day/night, rain, 2×/4× zoom); live cams + health; weather + air quality; rain radar; predictions; Markets (BTC, ETH, gold, baht/pound/euro); Sports now (24 leagues incl. tennis + golf, favourite teams); F1 timing sheet |
 | Other | World news with pictures + QR; phone remote (+ photos to screensaver, backup/restore); screensaver; Settings; My IPTV; Extra apps (SmartTube, Jellyfin, Kodi, NewPipe) |
@@ -35,7 +37,7 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 | Intelligence | ~~Markets~~ ✅; ~~overview page~~ ✅; ~~tennis/golf~~ ✅; ~~map zoom~~ ✅; ~~F1 timing (after each session)~~ ✅; F1 live timing ✖ (paid) | done |
 | Smart home | ~~Home Assistant card, doorbell pop-ups~~ ✅ (tested with a stand-in server); AirPlay (test first) | partly |
 | Privacy (owner's call) | Private DNS ad/tracker blocking; vendor-app audit | needs OK |
-| Sharing | ~~Extra apps installer~~ ✅; ~~tour on the repo page~~ ✅ (GIF); Obtainium note ✅; ~~signed releases~~ ✅ (v1.0.0 → v1.3.0, signed on the owner's Mac, box updated itself each time); awesome-list PR (after v1.0.0, owner's OK) | next |
+| Sharing | ~~Extra apps installer~~ ✅; ~~tour on the repo page~~ ✅ (GIF); Obtainium note ✅; ~~signed releases~~ ✅ (v1.0.0 → v1.4.0, signed on the owner's Mac, box updated itself each time); awesome-list PR (after v1.0.0, owner's OK) | next |
 | Sharing | ~~Contributors' guide~~ ✅ (CONTRIBUTING.md); more languages (one file each) | later |
 
 ### Ruled out
