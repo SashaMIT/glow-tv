@@ -53,7 +53,8 @@ public class HomeActivity extends Activity {
             headline.postDelayed(this, 9000);
         }
     };
-    private LinearLayout apps, live, quick, intel;
+    private LinearLayout apps, live, quick, intel, tonight;
+    private View tonightLabel, tonightShelf;
     private View appsLabel, appsShelf;
     /** Kids mode and the menu language this screen was built for: rebuilt when either changes. */
     private boolean kids;
@@ -103,6 +104,13 @@ public class HomeActivity extends Activity {
         col.addView(appsShelf = shelf(apps = row()));
         col.addView(Ui.label(this, kids ? "Kids TV" : "Live TV"));
         col.addView(shelf(live = row()));
+        tonight = row();
+        if (!kids) { // tonight's films, live sport, premieres (from the listings), shown once there are some
+            col.addView(tonightLabel = Ui.label(this, "Tonight"));
+            col.addView(tonightShelf = shelf(tonight));
+            tonightLabel.setVisibility(View.GONE);
+            tonightShelf.setVisibility(View.GONE);
+        }
         intel = row();
         if (!kids) { // Kids mode leaves out news, disasters and markets
             col.addView(Ui.label(this, "Intelligence"));
@@ -138,10 +146,12 @@ public class HomeActivity extends Activity {
         fillApps();
         fillLive();
         if (!kids) fillIntel();
+        if (!kids) fillTonight();
         fillQuick();
         Tile.restore(apps);
         Tile.restore(live);
         Tile.restore(intel);
+        Tile.restore(tonight);
         restoreFocus();
         headline.removeCallbacks(rotateHeadline);
         if (!kids) {
@@ -169,7 +179,7 @@ public class HomeActivity extends Activity {
         super.onPause();
         View f = getCurrentFocus();
         leftRow = null;
-        for (LinearLayout row : new LinearLayout[] {apps, live, intel, quick}) {
+        for (LinearLayout row : new LinearLayout[] {apps, live, tonight, intel, quick}) {
             if (f != null && row != null && f.getParent() == row) {
                 leftRow = row;
                 leftIndex = row.indexOfChild(f);
@@ -179,6 +189,7 @@ public class HomeActivity extends Activity {
         Tile.release(apps);
         Tile.release(live);
         Tile.release(intel);
+        Tile.release(tonight);
         Tile.release(quick);
         clock.removeCallbacks(tick);
         headline.removeCallbacks(rotateHeadline);
@@ -854,6 +865,43 @@ public class HomeActivity extends Activity {
                     s.setMaxLines(2);
                     s.setText(Math.round(top.yes * 100) + "%  " + top.question);
                 }
+            });
+        });
+    }
+
+    // ---- Tonight: picks from the listings ----
+
+    private String tonightSig;
+
+    private void fillTonight() {
+        Net.WORK.execute(() -> {
+            final List<Tonight.Pick> picks = Tonight.picks(this, 8);
+            StringBuilder sig = new StringBuilder();
+            for (Tonight.Pick k : picks) sig.append(k.channel.key()).append(k.prog.start).append(k.onNow()).append('|');
+            Net.MAIN.post(() -> {
+                if (isFinishing() || sig.toString().equals(tonightSig)) return;
+                tonightSig = sig.toString();
+                tonight.removeAllViews();
+                for (final Tonight.Pick k : picks) {
+                    int n = GuideLineup.numberOf(k.channel);
+                    Tile t = actionTile("", k.prog.title, Tonight.line(this, k));
+                    TextView top = (TextView) ((LinearLayout) t.card.getChildAt(0)).getChildAt(0);
+                    top.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11);
+                    top.setText((n > 0 ? n + "  " : "") + k.channel.name);
+                    top.setSingleLine();
+                    TextView title = (TextView) ((LinearLayout) t.card.getChildAt(0)).getChildAt(1);
+                    title.setMaxLines(2);
+                    title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                    t.setOnClickListener(v -> TonightActivity.act(this, k, picks, null));
+                    tonight.addView(t);
+                }
+                if (!picks.isEmpty()) {
+                    Tile all = actionTile("☾", "All of tonight", "Films, sport, premieres");
+                    all.setOnClickListener(v -> startActivity(new Intent(this, TonightActivity.class)));
+                    tonight.addView(all);
+                }
+                tonightLabel.setVisibility(picks.isEmpty() ? View.GONE : View.VISIBLE);
+                tonightShelf.setVisibility(picks.isEmpty() ? View.GONE : View.VISIBLE);
             });
         });
     }

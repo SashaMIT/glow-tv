@@ -710,3 +710,41 @@ not in backups).
 link checks, headlines) still running: 73–91 MB, Java heap 11–20 MB. Read again at 4 minutes, the same starts were
 71.0 / 72.6 / 73.1 / 78.0 / 80.3 MB (Java heap 9.6–17.3 MB): **under 80 MB in 4 of 5**. Tried and undone (no
 measurable effect): a clean-up 45 s after start (74–91 MB), halving the shared picture cache (79–97 MB).
+
+## TV Guide ◀ ▶, Home memory, Tonight — 27 Oct 2026
+
+**Benchmark fixed first.** `guidebench.sh` used to bring an already-open guide forward, which can sit on its menu
+(one run moved the menu's focus instead of the grid: 20 frames for 40 presses). It now force-stops Glow, opens the
+guide fresh, waits for the section, reports ▲▼ and ◀▶ separately and prints the box's temperature (it warns above
+70 °C; the box throttles when hot).
+
+| Guide, All Channels (3 passes) | ▲▼ late frames | ◀▶ late frames |
+|---|---|---|
+| Before (1.4.0) | 28.7 / 23.3 / 17.8 % | 43.0 / 39.3 / 36.3 % (≈120 frames for 16 presses) |
+| Shifted pictures + 3 windows drawn ahead + one redraw per batch | 28.9 / 11.5 / 13.9 %, 25.2 / 13.9 / 11.5 % | 50.8 / 44.1 / 38.3 %, 41.5 / 42.9 / 41.0 % (≈60 frames) |
+| + info panel text without shadows (undone: no change) | 25.2 / 12.8 / 15.4 % | 42.9 / 43.5 / 41.3 % |
+
+When ◀ ▶ moves the time window, each row's picture from the window next to it now slides into place until the new
+one arrives (a copy, instead of drawing the row), and arriving pictures share one redraw: ◀▶ needs half the frames.
+What's left per ◀▶ frame is the graphics chip (framestats: "sync" p90 6.5 ms uploading new pictures, GPU p90 11 ms);
+the preview isn't playing then (each press restarts its 1.2 s wait). **Under 10 % isn't reached**; ▲▼ after the
+first pass is 11–15 %.
+
+**Home memory, 4 minutes after a cold start.** Earlier today 71.0 / 72.6 / 73.1 / 78.0 / 80.3 MB. A clean-up 150 s after
+start: 74.0 / 88.4 / 74.9 / 79.8 / 82.4 MB (no better; undone). The swing is the Java heap (10–21 MB) at the moment of
+reading, i.e. garbage not yet collected. **Under 80 MB every time isn't reached.**
+
+**Tonight on free TV** (Home row + TV Guide ▸ TONIGHT). The listings have titles and times but no categories, so a
+pick is judged from the channel's genre, the length and the title: films (80–200 min on film channels), live sport
+("live" in the title on a sport channel; other matches as "Sport"), premieres, news specials, long documentaries.
+First version labelled replays as live sport (Bellator 199 from 2018, "ODI HLs", a 2019 World Cup match): now
+highlights, replays and titles naming a past year are left out. It also picked two pay channels' re-streams (Star
+Sports Select, Match! Boets): the never-promote list gained Star Sports, Sony Sports, SuperSport, TSN, Sportsnet,
+BT Sport, Premier Sports, Viaplay, Astro, Canal+, Movistar, Match! and Setanta, and other-language channels are left
+out. Tonight's picks on the box: Tennis Today Live, a Bellator fight night, Dominique (MovieSphere), Friday the 13th
+Part VIII (Pluto), The Rat Race, Indecent Proposal, The Early Line Live… Reminder set and cleared from the Home card.
+
+| Home with the Tonight row (3 cold starts) | Before | After |
+|---|---|---|
+| Time to first frame (ActivityTaskManager "Displayed") | 0.96–1.0 s | **0.949 / 0.957 / 1.005 s** |
+| Glow at 4 min | 71–88 MB | 80.3 / 86.1 / 81.0 MB (Java heap 20–26 MB) |

@@ -3,7 +3,7 @@
 Everything Glow could still do, roughly in the order it's worth doing. Each item gets measured on the box before and
 after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published sources only.
 
-## Status at a glance (27 Oct 2026)
+## Status at a glance (27 Oct 2026, evening)
 
 ### Done
 
@@ -18,6 +18,7 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 | Player menu (hold OK) | Pause, back 10 s, back to live, picture size, night sound, stats, corner picture, sleep timer |
 | Remote & alerts | Remote buttons (press/hold jobs), Quick settings panel, score banners over other apps (overlay allowed with owner's OK) |
 | Player & radio (1.4) | Rewind for minutes (kept on storage), dialogue boost; radio favourites, song covers, Home Radio card |
+| Tonight (1.5) | Tonight on free TV: Home row + TV Guide tab, from the listings (films, live sport, premieres, news specials), reminders |
 | Home & network (1.4) | Settings ▸ Network & data; Home Assistant card + doorbell pop-up; CONTRIBUTING.md |
 | Family & language | Kids mode (picked apps + Kids channels, PIN with lockout, everything else closed); Thai menus (Settings ▸ Language), one translation file |
 | Intelligence | Overview page; world map (quakes, alerts, EONET, news hotspots, ISS, day/night, rain, 2×/4× zoom); live cams + health; weather + air quality; rain radar; predictions; Markets (BTC, ETH, gold, baht/pound/euro); Sports now (24 leagues incl. tennis + golf, favourite teams); F1 timing sheet |
@@ -31,7 +32,7 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 | Player | ~~Corner picture (PiP)~~ ✅; ~~pause & rewind (stream's window)~~ ✅; ~~night sound / levelling~~ ✅; ~~picture size, stats~~ ✅; ~~dialogue boost~~ ✅; ~~longer rewind (kept on storage)~~ ✅ | done |
 | TV Guide | ~~Now & Next~~ ✅; ~~Live sport now~~ ✅; smoother first pass (logos off the main thread ✅; rows still drawn on demand) | done / partly |
 | Memory | ~~Listings' descriptions on disk, rows updated in place~~ ✅; Home settled (4 min) **71–80 MB, under 80 in 4 of 5**; at 100 s 73–91 MB while start-up jobs run | partly |
-| TV Guide | ~~Radio favourites + album art~~ ✅; ~~smoother browsing~~ (53 → 17–22 % late frames; under 10 % not reached: ◀▶ window moves); Trending (TMDB, free key) | partly |
+| TV Guide | ~~Radio favourites + album art~~ ✅; ~~Tonight picks~~ ✅; smoother browsing: ▲▼ 11–15 % late (was 18–29), ◀▶ ~42 % with half the frames; under 10 % not reached; Trending (TMDB, free key) | partly |
 | Home & box | ~~Photos to the screensaver from the phone~~ ✅; ~~settings backup~~ ✅ | done |
 | Home & box | ~~Remote remapping + quick settings~~ ✅; ~~banners over other apps~~ ✅ (notification access off by choice); ~~Thai menus~~ ✅; ~~parental PIN / Kids mode~~ ✅; ~~data usage + Wi-Fi~~ ✅ | done |
 | Intelligence | ~~Markets~~ ✅; ~~overview page~~ ✅; ~~tennis/golf~~ ✅; ~~map zoom~~ ✅; ~~F1 timing (after each session)~~ ✅; F1 live timing ✖ (paid) | done |

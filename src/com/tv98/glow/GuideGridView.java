@@ -169,7 +169,9 @@ class GuideGridView extends View {
             if (bm != null) {
                 c.drawBitmap(bm, 0, y, null);
             } else {
-                live.row(c, ch, y, false, f, logoFor(ch));
+                // ◀ ▶ moved the time window: until this window's picture arrives, the row's picture from a window
+                // nearby slides into place (the same programmes, moved by the time between), which costs one copy.
+                if (!shifted(c, ch, y, f)) live.row(c, ch, y, false, f, logoFor(ch));
                 want(ch, f, true);
             }
         }
@@ -181,6 +183,39 @@ class GuideGridView extends View {
     }
 
     // ---- row pictures, drawn on a background thread ----
+
+    private final Paint lines = new Paint();
+    private final android.graphics.Rect src = new android.graphics.Rect();
+    private final RectF dst = new RectF();
+
+    /** Draws a row from its picture for a nearby time window, shifted to this one; false when there's none. */
+    private boolean shifted(Canvas c, Channel ch, float y, Frame f) {
+        if (f.nowNext) return false;
+        Bitmap near = null;
+        long at = 0;
+        for (long d : new long[] {-SLOT, SLOT, -2 * SLOT, 2 * SLOT, -3 * SLOT, 3 * SLOT}) {
+            near = rowCache.get(ch.key() + "@" + (f.windowStart + d));
+            if (near != null) {
+                at = f.windowStart + d;
+                break;
+            }
+        }
+        if (near == null || near.getWidth() != f.w) return false;
+        int gridX = (int) (chanW + gap), bh = near.getHeight();
+        float dx = (f.w - gridX) * (at - f.windowStart) / (float) WINDOW;
+        src.set(0, 0, gridX, bh); // the channel cell doesn't move
+        dst.set(0, y, gridX, y + bh);
+        c.drawBitmap(near, src, dst, null);
+        lines.setColor(LINES);
+        c.drawRect(gridX, y, f.w, y + bh, lines);
+        c.save();
+        c.clipRect(gridX, y, f.w, y + bh);
+        src.set(gridX, 0, f.w, bh);
+        dst.set(gridX + dx, y, f.w + dx, y + bh);
+        c.drawBitmap(near, src, dst, null);
+        c.restore();
+        return true;
+    }
 
     /** What a row picture shows: the width, time window, cursor (for Now & Next), and what time it is. */
     private static final class Frame {
@@ -216,6 +251,7 @@ class GuideGridView extends View {
         }
     };
     private final ArrayList<Bitmap> spare = new ArrayList<>();
+    private boolean redrawPosted;
     private final java.util.HashSet<String> pending = new java.util.HashSet<>();
     /** Bumped when listings, favourites or the size change: pictures being drawn for the old data are dropped. */
     private volatile int generation;
@@ -254,7 +290,14 @@ class GuideGridView extends View {
                 pending.remove(key);
                 if (gen != generation) return;
                 rowCache.put(key, done);
-                invalidate();
+                // Pictures arrive one after another: one redraw for the lot rather than one each.
+                if (!redrawPosted) {
+                    redrawPosted = true;
+                    postOnAnimationDelayed(() -> {
+                        redrawPosted = false;
+                        invalidate();
+                    }, 24);
+                }
             });
         };
         if (first) painter().postAtFrontOfQueue(job);
@@ -270,7 +313,8 @@ class GuideGridView extends View {
         int from = Math.max(0, top - 4), to = Math.min(rows.size(), top + vis + 4);
         for (int i = from; i < to; i++) if (i != sel) want(rows.get(i), f, false);
         if (nowNext) return;
-        for (long other : new long[] {windowStart + SLOT, windowStart - SLOT}) {
+        // ◀ ▶ moves the window by up to an hour and a half at a time (a programme's length): the next three windows.
+        for (long other : new long[] {windowStart + SLOT, windowStart - SLOT, windowStart + 2 * SLOT, windowStart + 3 * SLOT}) {
             if (other + WINDOW < now - now % SLOT) continue; // the guide doesn't go back before now
             Frame g = new Frame(w, other, cursor, false, now);
             for (int i = top; i < Math.min(rows.size(), top + vis); i++) want(rows.get(i), g, false);

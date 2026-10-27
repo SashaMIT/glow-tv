@@ -336,6 +336,7 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
             if (lineup != null) showMenu(false, 0);
         });
         tabs.addView(nowNextTab);
+        tabs.addView(tab("☾", "TONIGHT", false, () -> startActivity(new Intent(this, TonightActivity.class))));
         tabs.addView(radio);
         tabs.addView(tab("⌕", "SEARCH", false, () -> startActivity(new Intent(this, SearchActivity.class))));
         tabs.addView(tab("◍", "WORLD NEWS", false, () -> startActivity(new Intent(this, WorldActivity.class))));

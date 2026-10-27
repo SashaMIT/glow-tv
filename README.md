@@ -70,6 +70,9 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
 - **Remote buttons & Quick settings** (Settings): give spare remote buttons a job (an app, TV Guide, Sports now,
   Quick settings…) for press and hold; Quick settings has night sound, subtitles, picture size, sleep timer, Wi-Fi.
   Score alerts can show over other apps once "display over other apps" is allowed.
+- **Tonight on free TV** (Home row, TV Guide ▸ TONIGHT): films, live sport, premieres and news specials from 18:00
+  to midnight, picked from the listings Glow already has (no keys), favourite channels and teams first. Replays,
+  highlights, loop channels and pay-TV re-streams are left out. OK watches what's on now or sets a reminder.
 - **Network & data** (Settings): Wi-Fi signal and link speed, a speed test, data used today and this month.
 - **Home Assistant** (phone remote ▸ More): connect your own Home Assistant (address + long-lived token, kept on the
   box) for a Home card with the sensors you pick, and the door camera over whatever's on when the doorbell rings.
@@ -106,6 +109,7 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
 | ![Tennis and golf](docs/screenshots/56_tennis_golf.jpg) | ![Overview in Thai](docs/screenshots/57_thai_overview.jpg) | ![Rewound a minute](docs/screenshots/58_rewind_minute.jpg) |
 | ![Radio with the song's cover](docs/screenshots/59_radio_cover.jpg) | ![Radio, dimmed](docs/screenshots/60_radio_dimmed.jpg) | ![TV Guide rows](docs/screenshots/61_guide_rows.jpg) |
 | ![Network & data](docs/screenshots/62_network.jpg) | ![Home Assistant card](docs/screenshots/63_home_assistant_card.jpg) | ![Doorbell pop-up](docs/screenshots/64_doorbell.jpg) |
+| ![Tonight on free TV](docs/screenshots/65_tonight_page.jpg) | ![Tonight row on Home](docs/screenshots/66_tonight_row.jpg) | |
 
 ## Measured on the box
 

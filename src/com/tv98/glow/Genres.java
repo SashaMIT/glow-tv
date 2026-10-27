@@ -116,7 +116,9 @@ final class Genres {
     private static final String[] NEVER_PROMOTE = {"espn", "espnu", "cnn", "fox news channel", "fox business", "fox sports",
             "nba tv", "nfl network", "nhl network", "golf channel", "eurosport", "sky sports", "sky racing", "bein sports",
             "willow", "ten cricket", "mutv", "bbc america", "cctv-", "tnt sports", "hbo", "showtime", "starz", "cinemax",
-            "amc", "discovery", "national geographic", "nat geo", "disney", "cartoon network", "nickelodeon", "nick jr"};
+            "amc", "discovery", "national geographic", "nat geo", "disney", "cartoon network", "nickelodeon", "nick jr",
+            "star sports", "sony sports", "sony ten", "sony six", "supersport", "tsn", "sportsnet", "bt sport", "premier sports",
+            "viaplay", "astro", "canal+", "movistar", "match!", "setanta"};
     /** Free channels whose names start like a pay one. */
     private static final String[] FREE_EXCEPTIONS = {"espn8", "cnn originals", "bein sports xtra", "nickelodeon pluto tv",
             "nick jr. pluto tv", "tennis channel 2", "tennis channel +2"};

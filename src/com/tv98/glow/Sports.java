@@ -539,6 +539,15 @@ final class Sports {
         invalidate();
     }
 
+    /** Off the main thread. My favourite teams' names ("Liverpool"), from the cached team lists. */
+    static List<String> favouriteNames(Context c) {
+        java.util.Set<String> favs = favourites(c);
+        List<String> out = new ArrayList<>();
+        if (favs.isEmpty()) return out;
+        for (String[] t : teams(c)) if (favs.contains(t[0])) out.add(t[1]);
+        return out;
+    }
+
     /** Off the main thread. {key, team name, league} for every team in the chosen team-sport leagues (lists cached a week). */
     static List<String[]> teams(Context c) {
         List<String[]> out = new ArrayList<>();
