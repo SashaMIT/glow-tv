@@ -517,3 +517,52 @@ Practice {n}	ซ้อม {}
 CH+ zoom in	CH+ ซูมเข้า
 CH− zoom out	CH− ซูมออก
 {} beat {}	{} ชนะ {}
+Dialogue boost	เสียงพูดชัด
+Dialogue boost: {}   (clearer voices)	เสียงพูดชัด: {}   (ให้เสียงพูดชัดขึ้น)
+Dialogue boost isn't available on this box	กล่องนี้ใช้เสียงพูดชัดไม่ได้
+Dialogue boost {}	เสียงพูดชัด{}
+Rewind live TV	ย้อนดูทีวีสด
+needs space	ต้องการพื้นที่
+Back 1 minute   (up to {n} min)	ย้อนกลับ 1 นาที   (ได้ถึง {} นาที)
+a USB stick lets Glow keep more	เสียบแฟลชไดรฟ์ USB เพื่อให้ Glow เก็บได้มากขึ้น
+That's as far back as {} keeps ({n} s)	ย้อนได้เท่านี้สำหรับ {} ({} วินาที)
+Pause and rewind only as far as each channel's own stream allows (usually 10–30 s).	หยุดและย้อนได้เท่าที่สตรีมของแต่ละช่องอนุญาต (ปกติ 10–30 วินาที)
+{n} min kept	เก็บไว้ {} นาที
+My stations	สถานีของฉัน
+No favourite stations yet: hold OK on a station to add it	ยังไม่มีสถานีโปรด: กด OK ค้างที่สถานีเพื่อเพิ่ม
+Hold OK ★ favourite	กด OK ค้าง ★ รายการโปรด
+My stations and music, news and talk worldwide	สถานีของฉัน และเพลง ข่าว ทอล์กทั่วโลก
+Home	บ้าน
+Pick sensors on the phone remote ▸ More	เลือกเซนเซอร์ในรีโมตมือถือ ▸ More
+Someone's at the door	มีคนมาที่ประตู
+Doorbell (test)	กริ่งประตู (ทดสอบ)
+
+# ---- Network & data ----
+Network & data	เครือข่ายและการใช้ข้อมูล
+Wi-Fi signal, a speed test, and the data used today and this month.	สัญญาณ Wi-Fi ทดสอบความเร็ว และข้อมูลที่ใช้วันนี้และเดือนนี้
+Network	เครือข่าย
+Speed test	ทดสอบความเร็ว
+Press OK to measure the box's download speed (about 10 seconds, up to 50 MB).	กด OK เพื่อวัดความเร็วดาวน์โหลดของกล่อง (ประมาณ 10 วินาที ไม่เกิน 50 MB)
+Data used	ข้อมูลที่ใช้
+{} today, {} this month	วันนี้ {} เดือนนี้ {}
+Since the box started: {} (Glow itself {}). Counted by Glow from when it was installed; per app would need Android's usage access for Glow.	ตั้งแต่เปิดกล่อง: {} (Glow เอง {}) Glow นับตั้งแต่ติดตั้ง ถ้าต้องการแยกตามแอป Glow ต้องได้รับสิทธิ์การเข้าถึงการใช้งานของ Android
+Wi-Fi settings	การตั้งค่า Wi-Fi
+Change network, forget a network, or set a fixed address (Android settings).	เปลี่ยนเครือข่าย ลืมเครือข่าย หรือตั้งที่อยู่คงที่ (การตั้งค่า Android)
+Not connected	ไม่ได้เชื่อมต่อ
+The box has no network right now. Check the Wi-Fi or the cable.	ตอนนี้กล่องไม่มีเครือข่าย ตรวจ Wi-Fi หรือสาย
+Cable (Ethernet)	สาย LAN (อีเทอร์เน็ต)
+strong signal	สัญญาณแรง
+good signal	สัญญาณดี
+fair signal	สัญญาณพอใช้
+weak signal	สัญญาณอ่อน
+link {n} Mbit/s	ลิงก์ {} Mbit/s
+A weak signal can make channels stutter: a cable, or the box nearer the router, helps.	สัญญาณอ่อนทำให้ภาพกระตุกได้ ใช้สาย LAN หรือวางกล่องใกล้เราเตอร์จะดีขึ้น
+Measuring…	กำลังวัด…
+delay {n} ms	หน่วง {} ms
+enough for 4K	พอสำหรับ 4K
+enough for HD and full HD	พอสำหรับ HD และ Full HD
+enough for standard quality	พอสำหรับความคมชัดมาตรฐาน
+too slow for smooth TV	ช้าเกินไปสำหรับดูทีวีลื่นๆ
+Press OK to measure again.	กด OK เพื่อวัดอีกครั้ง
+The test server didn't answer. Check the internet connection.	เซิร์ฟเวอร์ทดสอบไม่ตอบ ตรวจการเชื่อมต่ออินเทอร์เน็ต
+signal unknown	ไม่ทราบความแรงสัญญาณ

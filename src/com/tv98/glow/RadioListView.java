@@ -24,6 +24,9 @@ class RadioListView extends View {
     interface Listener {
         void onSelect(Radio.Station s, int number);
         void onPlay(Radio.Station s, int number);
+
+        /** Held OK (or the blue key): add or remove a favourite. */
+        void onFavourite(Radio.Station s, int number);
     }
 
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG), bitmapPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
@@ -33,6 +36,14 @@ class RadioListView extends View {
     private List<Radio.Station> rows = new ArrayList<>();
     private int base, sel, top;
     private String playingUuid, song;
+    private java.util.Set<String> favs = new java.util.HashSet<>();
+    private boolean held;
+
+    /** Stations shown with a star. */
+    void setFavourites(java.util.Set<String> uuids) {
+        favs = uuids;
+        invalidate();
+    }
     private Listener listener;
     private final HashMap<String, Bitmap> logos = new HashMap<>();
     private final HashSet<String> asked = new HashSet<>();
@@ -121,7 +132,7 @@ class RadioListView extends View {
             c.drawText(label(base + idx + 1), pad, baseline, bold);
             float numW = bold.measureText("0000") + pad;
             float lw = drawLogo(c, s, y);
-            fit(c, s.name, pad + numW, baseline, chanW - pad * 2 - numW - lw, text);
+            fit(c, favs.contains(s.uuid) ? "★ " + s.name : s.name, pad + numW, baseline, chanW - pad * 2 - numW - lw, text);
 
             r.set(rightX, y, w, y + rowH);
             cell(c, hl);
@@ -197,7 +208,14 @@ class RadioListView extends View {
                 return true;
             case KeyEvent.KEYCODE_DPAD_CENTER:
             case KeyEvent.KEYCODE_ENTER:
-                if (listener != null) listener.onPlay(rows.get(sel), base + sel + 1);
+                // OK plays on release; held, it stars the station instead.
+                if (e.getRepeatCount() == 0) {
+                    e.startTracking();
+                    held = false;
+                }
+                return true;
+            case KeyEvent.KEYCODE_PROG_BLUE: // from the phone remote (the box's own blue key opens its file manager)
+                if (listener != null) listener.onFavourite(rows.get(sel), base + sel + 1);
                 return true;
             default:
                 if (code >= KeyEvent.KEYCODE_0 && code <= KeyEvent.KEYCODE_9 && digits.length() < 4) {
@@ -208,6 +226,26 @@ class RadioListView extends View {
                 }
                 return super.onKeyDown(code, e);
         }
+    }
+
+    @Override
+    public boolean onKeyLongPress(int code, KeyEvent e) {
+        if ((code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER) && !rows.isEmpty()) {
+            held = true;
+            if (listener != null) listener.onFavourite(rows.get(sel), base + sel + 1);
+            return true;
+        }
+        return super.onKeyLongPress(code, e);
+    }
+
+    @Override
+    public boolean onKeyUp(int code, KeyEvent e) {
+        if ((code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER) && !rows.isEmpty()) {
+            if (!held && !e.isCanceled() && listener != null) listener.onPlay(rows.get(sel), base + sel + 1);
+            held = false;
+            return true;
+        }
+        return super.onKeyUp(code, e);
     }
 
     private void jumpToTypedNumber() {

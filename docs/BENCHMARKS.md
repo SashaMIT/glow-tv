@@ -650,3 +650,63 @@ APK 1,270,720 → 1,291,265 bytes (+20 KB, mostly the Thai table).
 
 Kodi had been open since a Kids mode test (6 % CPU, 64 MB all the time): it, not Glow, made those starts slower.
 APK 1,291,265 → 1,303,553 bytes.
+
+## Player and radio, network, Home Assistant — 26–27 Oct 2026
+
+**Dialogue boost** (player menu, Quick settings): DynamicsProcessing pre-EQ (≤150 Hz −4 dB, 1–4 kHz +6 dB) with a
+limiter at −1 dB catching the extra level; works on its own or with night sound (compressor + limiter).
+
+**Rewind further back.** Free streams keep 8–30 s of live window. Glow now keeps the segments the player downloads
+anyway (no extra internet) in a store on storage, remembers their order from the playlists it reads, and when you go
+back past the stream's window it plays a playlist built from what it kept (`Timeshift.java`, HLS only).
+- Storage: this box had **366 MB free** on a 3.5 GB /data; Android warns at 5 % (~175 MB). Glow uses a USB stick if
+  one is plugged in, else internal storage keeping Android's line + 100 MB free (73 MB here ≈ 1.5 min of 6 Mbit/s
+  1080p, ~3 min at 3 Mbit/s), and gives it back when the player closes. A 150 MB internal store would have pushed
+  the box to its warning line.
+- On the box (Al Jazeera English, 1080p): 2 min live, Back 1 minute → "61 s behind live", playing from the store;
+  a minute later still 66 s behind (steady); Back to live; then paused 60 s (past the stream's window) and resumed
+  49 s behind with no error. First version showed "114 s behind": the formula added the stream's delay instead of
+  taking off the 3 segments live playback sits behind the newest.
+- Zapping (`zapbench.sh`, 20 ▲): before median 338 ms / p75 390; after **279 / 308**; with rewinding switched off
+  289 / 312. Memory while playing 91 / 108 / 129 MB across those runs: it follows the channel, not the store.
+
+**Radio**: favourites (hold OK, or blue from the phone; "★ My stations" first in the radio menu), the song's cover
+from Apple's iTunes Search (no key) in the preview and on the dimmed screen, a Radio card on Home. Song titles are
+cleaned before searching ("Jungle River Boat by Les Baxter - Classic Vinyl on walmradio.com" found nothing; "Les
+Baxter Jungle River Boat" found the album).
+
+**TV Guide rows drawn off the main thread.** Row pictures are now drawn on a background thread, kept per time
+window (48), and the rows around the screen and the next/previous windows are drawn while the remote is idle.
+Rows are opaque RGB_565 (a dark line colour between programmes), and the three full-screen screens no longer
+draw the window background under their own.
+
+| `guidebench.sh guide` (3 passes; ▲▼ and ◀▶) | Late frames (per pass) | p90 |
+|---|---|---|
+| Before | 53.6 % (62 / 48 / 48), 54.5 % | 25–29 ms |
+| Rows drawn in the background | 26.7 %, 26.4 % (first pass 30 %) | 19–23 ms |
+| + opaque rows | 19.1 % (25 / 16 / 13); after the box restarted 26–35 % | 17–30 ms |
+| + no hidden window background | **21.8 %, 17.2 %** | 17–24 ms |
+
+Frame stages (▲▼ ◀▶, framestats): GPU issue 6.0 → 4.2 ms median, whole frame 13.8 → 10.7 ms. The 10 % target
+isn't reached: what's left is mostly ◀▶ moving the time window before the next window's rows are drawn.
+
+**The box restarted itself** during a guide benchmark on 26 Oct (after hours of benchmarks at 80–82 °C), then stayed
+off the network until it was unplugged and plugged back in. No crash record of any kind was left (no tombstone, no
+kernel record; Glow crashing restarts Glow, not the box); its Wi-Fi driver logs impossible signal values (+9 dBm).
+Benchmarks now check the temperature first (61–68 °C since).
+
+**Network & data** (Settings): Wi-Fi band, link speed, address; speed test against Cloudflare's public test server
+(**107 Mbit/s, delay 71 ms** on the box; the first version measured 117 ms because every small request opened a new
+secure connection); data used today/this month from Android's counter, added up every 15 min (the counter restarts
+with the box). The driver's impossible signal values show as "signal unknown". Per-app data would need usage access.
+
+**Home Assistant** (phone remote ▸ More): address + long-lived token (checked against the server; a wrong token gets
+"The token wasn't accepted"), up to 6 sensors on a Home card, a doorbell and a camera. Tested against
+`tools/mock_ha.py`: Home card "Living room 23.3 °C / Front door Locked"; the doorbell pop-up with the camera picture
+showed ~3 s after the ring (checked every 3 s), over Home. The token stays on the box (never sent back to the phone,
+not in backups).
+
+**Home memory, measured properly.** The usual reading 100 s after a cold start caught start-up jobs (listings,
+link checks, headlines) still running: 73–91 MB, Java heap 11–20 MB. Read again at 4 minutes, the same starts were
+71.0 / 72.6 / 73.1 / 78.0 / 80.3 MB (Java heap 9.6–17.3 MB): **under 80 MB in 4 of 5**. Tried and undone (no
+measurable effect): a clean-up 45 s after start (74–91 MB), halving the shared picture cache (79–97 MB).

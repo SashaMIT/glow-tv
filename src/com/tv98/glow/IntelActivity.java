@@ -132,6 +132,8 @@ public class IntelActivity extends Activity {
             content.addView(v, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         }
         setContentView(root);
+        // The screen paints its own full background: the window's own is never seen, and costs a full-screen fill per frame.
+        getWindow().setBackgroundDrawable(null);
 
         int start = getIntent().getIntExtra(EXTRA_SECTION, OVERVIEW);
         rail.setSelection(start);

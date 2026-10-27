@@ -33,6 +33,66 @@ final class Overlay {
         next(c.getApplicationContext());
     }
 
+    /**
+     * A bigger card with a picture (the doorbell camera), shown at once for 20 s, over Glow or any other app.
+     * Without "display over other apps" it still shows while Glow is on screen, as a dialog. Main thread.
+     */
+    static void picture(Context c, String headline, String line, android.graphics.Bitmap pic) {
+        Context app = c.getApplicationContext();
+        LinearLayout box = new LinearLayout(app);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(Ui.dp(14), Ui.dp(14), Ui.dp(14), Ui.dp(12));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(Ui.dp(16));
+        bg.setColor(0xF20B0E1C);
+        bg.setStroke(Ui.dp(2), Ui.ACCENT);
+        box.setBackground(bg);
+        if (pic != null) {
+            android.widget.ImageView iv = new android.widget.ImageView(app);
+            iv.setImageBitmap(pic);
+            iv.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+            box.addView(iv, new LinearLayout.LayoutParams(Ui.dp(480), Ui.dp(270)));
+        }
+        TextView h = Ui.text(app, 18, Ui.TEXT, 600);
+        h.setText("🔔  " + L.t(headline));
+        h.setPadding(Ui.dp(4), Ui.dp(10), 0, 0);
+        TextView l = Ui.text(app, 13, Ui.TEXT_DIM, 400);
+        l.setText(line);
+        l.setPadding(Ui.dp(4), Ui.dp(2), 0, 0);
+        box.addView(h);
+        box.addView(l);
+        final WindowManager wm = (WindowManager) app.getSystemService(Context.WINDOW_SERVICE);
+        WindowManager.LayoutParams lp;
+        if (allowed(app)) {
+            lp = new WindowManager.LayoutParams(WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE, PixelFormat.TRANSLUCENT);
+        } else {
+            android.app.Activity front = GlowApp.front();
+            if (front == null) return;
+            android.app.AlertDialog d = new android.app.AlertDialog.Builder(front, android.R.style.Theme_DeviceDefault_Dialog)
+                    .setView(box).show();
+            box.postDelayed(() -> { if (d.isShowing()) d.dismiss(); }, 20_000);
+            return;
+        }
+        lp.gravity = Gravity.TOP | Gravity.END;
+        lp.x = Ui.dp(32);
+        lp.y = Ui.dp(28);
+        try {
+            wm.addView(box, lp);
+        } catch (Exception e) {
+            return;
+        }
+        box.setAlpha(0f);
+        box.animate().alpha(1f).setDuration(250).start();
+        box.postDelayed(() -> box.animate().alpha(0f).setDuration(400).withEndAction(() -> {
+            try {
+                wm.removeView(box);
+            } catch (Exception ignored) {
+            }
+        }).start(), 20_000);
+    }
+
     private static void next(final Context c) {
         if (showing || queue.isEmpty()) return;
         String[] b = queue.poll();

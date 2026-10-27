@@ -92,6 +92,7 @@ public class PlayerActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        Net.IO.execute(() -> Timeshift.ready(getApplicationContext())); // storage for rewinding, set up off screen
         Ui.init(this);
         acct = Xtream.load(this);
         if (Xtream.playlist.isEmpty()) {
@@ -194,7 +195,7 @@ public class PlayerActivity extends Activity {
     private static final String[] PICTURE_MODES = {"Fit", "Fill", "Stretch", "Zoom"};
     private int pictureMode, lastW, lastH, dropped;
     private float lastRatio = 1f;
-    private boolean nightSound, showStats, settingsRead;
+    private boolean nightSound, dialogue, showStats, settingsRead;
     private android.media.audiofx.DynamicsProcessing night;
     private TextView stats;
 
@@ -204,6 +205,7 @@ public class PlayerActivity extends Activity {
         android.content.SharedPreferences p = getSharedPreferences("player", MODE_PRIVATE);
         pictureMode = p.getInt("picture_mode", 0);
         nightSound = p.getBoolean("night_sound", false);
+        dialogue = p.getBoolean("dialogue", false);
         showStats = p.getBoolean("stats", false);
     }
 
@@ -218,13 +220,14 @@ public class PlayerActivity extends Activity {
             actions.add(this::togglePause);
             labels.add("↺  Back 10 seconds");
             actions.add(this::rewind);
+            double kept = Timeshift.seconds(current().key());
+            if (kept >= 75) {
+                labels.add("↺↺  Back 1 minute   (up to " + (int) (kept / 60) + " min)");
+                actions.add(() -> rewind(60_000));
+            }
             if (behind > 5_000) {
                 labels.add("⇥  Back to live (" + behind / 1000 + " s behind)");
-                actions.add(() -> {
-                    exo.seekToDefaultPosition();
-                    exo.setPlayWhenReady(true);
-                    note("Live");
-                });
+                actions.add(this::backToLive);
             }
         }
         labels.add("▭  Picture: " + PICTURE_MODES[pictureMode] + "   (next: " + PICTURE_MODES[(pictureMode + 1) % PICTURE_MODES.length] + ")");
@@ -241,6 +244,14 @@ public class PlayerActivity extends Activity {
             applyNight(exo);
             if (nightSound && night == null) note("Night sound isn't available on this box");
             else note("Night sound " + (nightSound ? "on" : "off"));
+        });
+        labels.add("☊  Dialogue boost: " + (dialogue ? "on" : "off") + "   (clearer voices)");
+        actions.add(() -> {
+            dialogue = !dialogue;
+            getSharedPreferences("player", MODE_PRIVATE).edit().putBoolean("dialogue", dialogue).apply();
+            applyNight(exo);
+            if (dialogue && night == null) note("Dialogue boost isn't available on this box");
+            else note("Dialogue boost " + (dialogue ? "on" : "off"));
         });
         if (corner == null) {
             labels.add("◳  Keep " + current().name + " in the corner");
@@ -279,16 +290,27 @@ public class PlayerActivity extends Activity {
 
     private long behindLive() {
         if (exo == null) return 0;
+        if (shifted) { // playing what's been kept: how far from its newest part, less where live playback sits
+            long d = exo.getDuration();
+            return d == androidx.media3.common.C.TIME_UNSET ? 0 : Math.max(0, d - exo.getCurrentPosition() - Timeshift.edgeMs(current().key()));
+        }
         long off = exo.getCurrentLiveOffset();
         if (off == androidx.media3.common.C.TIME_UNSET) return 0;
         if (liveBaseline < 0) liveBaseline = off; // each stream's normal delay (8–30 s) counts as live
         return Math.max(0, off - liveBaseline);
     }
 
-    /** Pause live TV: it waits where you left it, as far back as the channel's own live window reaches. */
+    /**
+     * Pause live TV: it waits where you left it. With rewinding on, the paused picture moves onto what's being kept,
+     * so it can wait longer than the channel's own window.
+     */
     private void togglePause() {
         if (exo == null) return;
         boolean play = !exo.getPlayWhenReady();
+        if (!play && !shifted && shiftBack(0, false)) {
+            note("Paused  ·  hold OK for the menu");
+            return;
+        }
         exo.setPlayWhenReady(play);
         long behind = behindLive();
         note(play ? (behind > 3_000 ? "Playing  ·  " + behind / 1000 + " s behind live   ·   hold OK ▸ Back to live" : "Playing")
@@ -297,12 +319,18 @@ public class PlayerActivity extends Activity {
 
     /** Back 10 s, but never before the oldest part of the channel's live window that's safely still there. */
     private void rewind() {
+        rewind(10_000);
+    }
+
+    private void rewind(long step) {
         if (exo == null) return;
-        long pos = exo.getCurrentPosition(); // from the start of the live window
-        long earliest = 8_000; // the window's first segments may already be gone by the time they'd load
-        long target = Math.max(earliest, pos - 10_000);
-        if (target >= pos - 1_000) {
-            note("That's as far back as " + current().name + " keeps (" + Math.max(0, pos / 1000) + " s)");
+        long pos = exo.getCurrentPosition(); // from the start of the live window (or of what's been kept)
+        long earliest = shifted ? 1_000 : 8_000; // a live window's first segments may already be gone when they'd load
+        long target = Math.max(earliest, pos - step);
+        if (target >= pos - 1_000 || (!shifted && pos - step < earliest)) {
+            if (!shifted && shiftBack(step, true)) return; // further back, from what Glow has kept
+            note("That's as far back as " + current().name + " keeps (" + Math.max(0, pos / 1000) + " s)"
+                    + (Timeshift.status(this).startsWith("no room") ? "  ·  a USB stick lets Glow keep more" : ""));
             return;
         }
         exo.seekTo(target);
@@ -310,20 +338,78 @@ public class PlayerActivity extends Activity {
         root.postDelayed(() -> note("Back " + (pos - target) / 1000 + " s  ·  " + behindLive() / 1000 + " s behind live"), 600);
     }
 
-    /** Night sound: a compressor and limiter on the audio (Android DynamicsProcessing): quiet lifted, loud held back. */
+    /** Playing from what's been kept (rewound or paused past the channel's own window) rather than the live link. */
+    private boolean shifted;
+
+    /**
+     * Moves playback onto what Glow has kept of this channel, {@code step} ms before the picture now. False when
+     * there isn't enough kept (or rewinding is off, or the stream isn't HLS).
+     */
+    private boolean shiftBack(long step, boolean play) {
+        if (exo == null || attempt < 0 || attempt >= attempts.size()) return false;
+        String key = current().key();
+        long kept = (long) (Timeshift.seconds(key) * 1000);
+        long ahead = Math.max(0, exo.getBufferedPosition() - exo.getCurrentPosition()); // kept already, not yet shown
+        long start = kept - ahead - step;
+        if (kept < 20_000 || start < 0) return false;
+        Sources.Attempt a = attempts.get(attempt);
+        if (a.builtIn || a.url == null) return false;
+        long behind = behindLive();
+        exo.setMediaSource(recording(a, key), start);
+        exo.prepare();
+        exo.setPlayWhenReady(play);
+        shifted = true;
+        android.util.Log.i("GlowPlayer", current().name + ": playing from what's kept, " + kept / 1000 + " s kept, start " + start / 1000 + " s");
+        if (play) note("Back " + step / 1000 + " s  ·  " + (behind + step) / 1000 + " s behind live");
+        return true;
+    }
+
+    /** Back to the live link after playing from what's been kept. */
+    private void backToLive() {
+        if (exo == null) return;
+        if (shifted && attempt >= 0 && attempt < attempts.size()) {
+            shifted = false;
+            exo.setMediaSource(source(attempts.get(attempt), current().key()));
+            exo.prepare();
+        } else {
+            exo.seekToDefaultPosition();
+        }
+        exo.setPlayWhenReady(true);
+        note("Live");
+    }
+
+    /** Dialogue boost: rumble down, the voice range (1–4 kHz) up 6 dB. {cutoff Hz, gain dB} per band. */
+    private static final float[][] VOICE_EQ = {{150, -4}, {1_000, 0}, {4_000, 6}, {20_000, 1}};
+
+    /**
+     * Night sound: a compressor and limiter on the audio (Android DynamicsProcessing): quiet lifted, loud held back.
+     * Dialogue boost: an EQ in front that lifts voices, with the limiter catching the extra level. Either or both.
+     */
     private void applyNight(ExoPlayer p) {
         readPlayerSettings();
         if (night != null) {
             night.release();
             night = null;
         }
-        if (!nightSound || p == null) return;
+        if ((!nightSound && !dialogue) || p == null) return;
         try {
             android.media.audiofx.DynamicsProcessing.Config cfg = new android.media.audiofx.DynamicsProcessing.Config.Builder(
                     android.media.audiofx.DynamicsProcessing.VARIANT_FAVOR_FREQUENCY_RESOLUTION, 2,
-                    false, 0, true, 1, false, 0, true).build();
+                    dialogue, VOICE_EQ.length, nightSound, 1, false, 0, true).build();
             android.media.audiofx.DynamicsProcessing dp = new android.media.audiofx.DynamicsProcessing(0, p.getAudioSessionId(), cfg);
             for (int ch = 0; ch < 2; ch++) {
+                if (dialogue) {
+                    for (int b = 0; b < VOICE_EQ.length; b++) {
+                        dp.setPreEqBandByChannelIndex(ch, b,
+                                new android.media.audiofx.DynamicsProcessing.EqBand(true, VOICE_EQ[b][0], VOICE_EQ[b][1]));
+                    }
+                }
+                android.media.audiofx.DynamicsProcessing.Limiter lim = dp.getLimiterByChannelIndex(ch);
+                lim.setThreshold(nightSound ? -3f : -1f);
+                lim.setRatio(10f);
+                lim.setEnabled(true);
+                dp.setLimiterByChannelIndex(ch, lim);
+                if (!nightSound) continue;
                 android.media.audiofx.DynamicsProcessing.MbcBand band = dp.getMbcBandByChannelIndex(ch, 0);
                 band.setCutoffFrequency(20_000f);
                 band.setThreshold(-32f);
@@ -334,15 +420,11 @@ public class PlayerActivity extends Activity {
                 band.setPostGain(12f);
                 band.setEnabled(true);
                 dp.setMbcBandByChannelIndex(ch, 0, band);
-                android.media.audiofx.DynamicsProcessing.Limiter lim = dp.getLimiterByChannelIndex(ch);
-                lim.setThreshold(-3f);
-                lim.setRatio(10f);
-                lim.setEnabled(true);
-                dp.setLimiterByChannelIndex(ch, lim);
             }
             dp.setEnabled(true);
             night = dp;
-            android.util.Log.i("GlowPlayer", "night sound on (session " + p.getAudioSessionId() + ")");
+            android.util.Log.i("GlowPlayer", (nightSound ? "night sound " : "") + (dialogue ? "dialogue boost " : "")
+                    + "on (session " + p.getAudioSessionId() + ")");
         } catch (Throwable t) {
             android.util.Log.i("GlowPlayer", "night sound unavailable: " + t);
         }
@@ -645,12 +727,12 @@ public class PlayerActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        boolean wasNight = nightSound;
+        boolean wasNight = nightSound, wasDialogue = dialogue;
         int wasPicture = pictureMode;
         settingsRead = false;
         readPlayerSettings();
         if (exo == null) return;
-        if (wasNight != nightSound) applyNight(exo);
+        if (wasNight != nightSound || wasDialogue != dialogue) applyNight(exo);
         if (wasPicture != pictureMode) fit(lastW, lastH, lastRatio);
         String subs = getSharedPreferences("player", MODE_PRIVATE).getString("subs_lang", null);
         if (tracks != null) {
@@ -679,6 +761,7 @@ public class PlayerActivity extends Activity {
     @Override
     protected void onStop() {
         super.onStop();
+        Net.IO.execute(Timeshift::stop); // what was kept for rewinding is let go (it needs the space)
         root.removeCallbacks(alertTick);
         root.removeCallbacks(sleepTick);
         root.removeCallbacks(statsTick);
@@ -923,7 +1006,7 @@ public class PlayerActivity extends Activity {
                 slot.player = buildPlayer(slot.tracks, true);
                 slot.player.setVolume(0f);
                 slot.player.setPlayWhenReady(false);
-                slot.player.setMediaSource(source(list.get(k)));
+                slot.player.setMediaSource(source(list.get(k), ch.key()));
                 slot.player.prepare();
                 slot.index = ni;
                 slot.attempt = k;
@@ -977,6 +1060,7 @@ public class PlayerActivity extends Activity {
 
     private void play(int i, boolean zapped) {
         liveBaseline = -1; // a new channel: its own normal delay will count as live (not reset by pausing or seeking)
+        shifted = false;
         root.removeCallbacks(uncap);
         if (tracks != null) tracks.setParameters(tracks.buildUponParameters().setMaxVideoBitrate(START_CAP_BPS));
         int n = Xtream.playlist.size();
@@ -995,6 +1079,7 @@ public class PlayerActivity extends Activity {
         curtain.setAlpha(1f);
         spinner.setVisibility(View.VISIBLE);
         Channel.markWatched(this, ch);
+        Timeshift.record(this, ch.key()); // keep what this channel plays, for rewinding past its own window
         nowPlaying = ch.name;
         nowChannel = ch;
 
@@ -1074,7 +1159,7 @@ public class PlayerActivity extends Activity {
         } else {
             builtIn.setVisibility(View.GONE);
             surface.setVisibility(View.VISIBLE);
-            exo.setMediaSource(source(a));
+            exo.setMediaSource(source(a, current().key()));
             exo.prepare();
         }
         extended = false;
@@ -1082,6 +1167,11 @@ public class PlayerActivity extends Activity {
     }
 
     static MediaSource source(Sources.Attempt a) {
+        return source(a, null);
+    }
+
+    /** {@code channelKey}: the channel this source plays, so its segments can be kept for rewinding (null = never). */
+    static MediaSource source(Sources.Attempt a, String channelKey) {
         Map<String, String> extra = new HashMap<>();
         String ua = DEFAULT_UA;
         if (a.headers != null) {
@@ -1100,8 +1190,25 @@ public class PlayerActivity extends Activity {
         String path = Uri.parse(a.url).getPath();
         String p = path == null ? "" : path.toLowerCase();
         boolean progressive = p.endsWith(".ts") || p.endsWith(".mp4") || p.endsWith(".aac") || p.endsWith(".mp3") || p.endsWith(".mkv");
-        return progressive ? new ProgressiveMediaSource.Factory(http).createMediaSource(item)
-                : new HlsMediaSource.Factory(http).createMediaSource(item);
+        if (progressive) return new ProgressiveMediaSource.Factory(http).createMediaSource(item);
+        if (channelKey == null) return new HlsMediaSource.Factory(http).createMediaSource(item);
+        return new HlsMediaSource.Factory(() -> new Timeshift.Source(http.createDataSource(), channelKey, a.headers)).createMediaSource(item);
+    }
+
+    /** What's been kept of this channel, as a stream the player can go back through. */
+    private static MediaSource recording(Sources.Attempt a, String channelKey) {
+        DefaultHttpDataSource.Factory http = new DefaultHttpDataSource.Factory().setUserAgent(DEFAULT_UA)
+                .setAllowCrossProtocolRedirects(true).setConnectTimeoutMs(8_000).setReadTimeoutMs(10_000);
+        if (a.headers != null) {
+            Map<String, String> extra = new HashMap<>();
+            for (Map.Entry<String, String> h : a.headers.entrySet()) {
+                if (h.getKey().equalsIgnoreCase("User-Agent")) http.setUserAgent(h.getValue());
+                else extra.put(h.getKey(), h.getValue());
+            }
+            http.setDefaultRequestProperties(extra);
+        }
+        return new HlsMediaSource.Factory(() -> new Timeshift.Source(http.createDataSource(), channelKey, a.headers))
+                .createMediaSource(MediaItem.fromUri(Timeshift.uri(channelKey)));
     }
 
     /** Direct links failed: look up the broadcaster's YouTube live stream now, and hand over if it's on air. */
@@ -1155,9 +1262,9 @@ public class PlayerActivity extends Activity {
     private void onPicture() {
         // Night sound needs the stream's audio to exist on some boxes (this one says "Cannot initialize effect
         // engine" if it's switched on before): (re)apply once the picture is up, and once more a bit later.
-        if (nightSound && night == null) {
+        if ((nightSound || dialogue) && night == null) {
             applyNight(exo);
-            root.postDelayed(() -> { if (nightSound && night == null && exo != null) applyNight(exo); }, 2_000);
+            root.postDelayed(() -> { if ((nightSound || dialogue) && night == null && exo != null) applyNight(exo); }, 2_000);
         }
         root.postDelayed(() -> { if (exo != null) behindLive(); }, 1_500); // a new channel's own delay, once settled
         root.removeCallbacks(prepareStandby);

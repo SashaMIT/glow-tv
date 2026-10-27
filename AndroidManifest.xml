@@ -3,6 +3,9 @@
     package="com.tv98.glow">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Settings ▸ Network: Wi-Fi signal and link speed (granted at install; not location, so no network names) -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <!-- Granted once over adb (pm grant): lets Glow's settings switch developer access (ADB) off and on. -->
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
     <uses-feature android:name="android.software.leanback" android:required="false" />
@@ -63,6 +66,7 @@
         </service>
         <activity android:name=".QuickSettingsActivity" android:theme="@style/Glow.Panel" android:excludeFromRecents="true" />
         <activity android:name=".F1Activity" />
+        <activity android:name=".NetworkActivity" />
         <activity android:name=".PinActivity" android:theme="@style/Glow.Panel" android:excludeFromRecents="true" />
         <!-- "Glow remote buttons": the viewer's button jobs in every app. Switched on by the viewer in Android's
              Accessibility settings; it only acts on buttons they set in Glow and never reads the screen. -->

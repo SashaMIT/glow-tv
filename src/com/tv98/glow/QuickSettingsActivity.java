@@ -48,6 +48,8 @@ public class QuickSettingsActivity extends Activity {
         int pic = p.getInt("picture_mode", 0);
         long left = PlayerActivity.sleepAt == 0 ? 0 : Math.max(0, PlayerActivity.sleepAt - System.currentTimeMillis()) / 60_000;
         item("♪  Night sound: " + (night ? "on" : "off"), () -> p.edit().putBoolean("night_sound", !night).apply());
+        final boolean voice = p.getBoolean("dialogue", false);
+        item("☊  Dialogue boost: " + (voice ? "on" : "off"), () -> p.edit().putBoolean("dialogue", !voice).apply());
         item("⓪  Subtitles: " + (subs ? "on" : "off"), () -> {
             if (subs) p.edit().remove("subs_lang").apply();
             else p.edit().putString("subs_lang", "en").apply();

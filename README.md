@@ -27,7 +27,10 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
 - **Player** (ExoPlayer): if a link is dead it tries the channel's other links, then the broadcaster's official
   stream, then its official YouTube live. The channels above and below are prepared silently, so ▲ and ▼ change
   channel in about 0.3 s. Hold OK for the Player menu: pause and rewind, back to live, picture size, night sound
-  (evens out loud and quiet), a corner picture of another channel, stats. ◀ audio and subtitles, ▶ sleep timer.
+  (evens out loud and quiet), dialogue boost (clearer voices), a corner picture of another channel, stats. ◀ audio
+  and subtitles, ▶ sleep timer. **Rewind for minutes, not seconds**: Glow keeps what you watch (from what the player
+  downloads anyway) so you can pause and go back past the channel's own 10–30 s; on a USB stick if one is plugged in,
+  else in spare internal storage (never below Android's low-storage line), given back when you stop watching.
 - **Free TV**: about 2,300 working channels from the public [iptv-org](https://github.com/iptv-org/iptv) lists
   (Thailand, UK, US, world news, sports), link-checked every 12 hours so dead ones stay hidden.
 - **Programme listings**: about 1,000 channels. Every night a GitHub Actions job in this repo runs
@@ -38,7 +41,9 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
   closed, replaced, adult), so closed channels disappear and rankings use real languages.
 - **Radio** (the guide's RADIO tab): thousands of free stations from [radio-browser.info](https://www.radio-browser.info)
   in ten numbered sections (Thailand, Thai music, UK, US, top worldwide, news & talk, chill, jazz, classical, dance),
-  listed like TV channels with logos and the song on air; the screen dims while you listen.
+  listed like TV channels with logos and the song on air; hold OK to add a station to **My stations**; the song's
+  cover (Apple's iTunes search) shows while you listen and on the dimmed screen. A Radio card on Home goes straight
+  there.
 - **Favourite teams, Resume, Cast, sleep timer**: pick teams in Settings (their games first, score banners for them
   only if you like); the last channel watched is first in Live TV with a Resume badge; the Cast button opens the
   box's Miracast receiver so a phone can mirror to "TV98"; ▶ while watching sets a sleep timer (30–120 min) that
@@ -65,6 +70,9 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
 - **Remote buttons & Quick settings** (Settings): give spare remote buttons a job (an app, TV Guide, Sports now,
   Quick settings…) for press and hold; Quick settings has night sound, subtitles, picture size, sleep timer, Wi-Fi.
   Score alerts can show over other apps once "display over other apps" is allowed.
+- **Network & data** (Settings): Wi-Fi signal and link speed, a speed test, data used today and this month.
+- **Home Assistant** (phone remote ▸ More): connect your own Home Assistant (address + long-lived token, kept on the
+  box) for a Home card with the sensors you pick, and the door camera over whatever's on when the doorbell rings.
 - **Kids mode** (Settings): a simpler Home for children with only the apps you pick and the children's channels
   (PBS Kids, Nick Jr., cartoons…); the TV Guide opens on Kids, and Search, news, Intelligence and Settings stay
   closed until a 4-digit PIN is entered (five wrong tries, then a minute's wait). It's a friendly fence for young
@@ -95,7 +103,9 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
 | ![Kids mode Home](docs/screenshots/47_kids_home.jpg) | ![Kids mode PIN](docs/screenshots/48_kids_pin.jpg) | ![Home in Thai](docs/screenshots/49_thai_home.jpg) |
 | ![TV Guide in Thai](docs/screenshots/50_thai_guide.jpg) | ![Guide grid in Thai](docs/screenshots/51_thai_guide_grid.jpg) | ![Intelligence overview](docs/screenshots/52_intel_overview.jpg) |
 | ![Markets](docs/screenshots/53_intel_markets.jpg) | ![F1 timing sheet](docs/screenshots/54_f1_timing.jpg) | ![World map zoomed in](docs/screenshots/55_map_zoom.jpg) |
-| ![Tennis and golf](docs/screenshots/56_tennis_golf.jpg) | ![Overview in Thai](docs/screenshots/57_thai_overview.jpg) | |
+| ![Tennis and golf](docs/screenshots/56_tennis_golf.jpg) | ![Overview in Thai](docs/screenshots/57_thai_overview.jpg) | ![Rewound a minute](docs/screenshots/58_rewind_minute.jpg) |
+| ![Radio with the song's cover](docs/screenshots/59_radio_cover.jpg) | ![Radio, dimmed](docs/screenshots/60_radio_dimmed.jpg) | ![TV Guide rows](docs/screenshots/61_guide_rows.jpg) |
+| ![Network & data](docs/screenshots/62_network.jpg) | ![Home Assistant card](docs/screenshots/63_home_assistant_card.jpg) | ![Doorbell pop-up](docs/screenshots/64_doorbell.jpg) |
 
 ## Measured on the box
 

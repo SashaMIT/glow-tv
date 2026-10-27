@@ -123,6 +123,21 @@ public class SettingsActivity extends Activity {
                     build();
                 });
 
+        final boolean shiftOn = getSharedPreferences("player", MODE_PRIVATE).getBoolean("timeshift", true);
+        final String shift = shiftOn ? Timeshift.status(this) : "off";
+        row(shiftOn ? (shift.startsWith("no room") ? "Rewind live TV: needs space" : "Rewind live TV: on") : "Rewind live TV: off",
+                shiftOn && shift.startsWith("no room")
+                        ? "Glow keeps what you watch so you can go back minutes, not seconds, but the box is short of space (" + shift.substring(9)
+                        + "). Plug in a USB stick and it's used automatically."
+                        : shiftOn ? "Keeps the channel you're watching (" + shift + ") so you can pause and rewind for minutes; let go when you stop watching."
+                        : "Pause and rewind only as far as each channel's own stream allows (usually 10–30 s).",
+                shiftOn, v -> {
+                    getSharedPreferences("player", MODE_PRIVATE).edit().putBoolean("timeshift", !shiftOn).apply();
+                    Net.IO.execute(Timeshift::stop);
+                    build();
+                    focusRow("Rewind");
+                });
+
         final android.content.SharedPreferences display = getSharedPreferences("display", MODE_PRIVATE);
         final int city = display.getInt("weather_city", 0);
         row("Weather: " + Weather.CITIES[Math.min(city, Weather.CITIES.length - 1)][0], "Press OK to choose the next city.", null, v -> {
@@ -208,6 +223,9 @@ public class SettingsActivity extends Activity {
                     build();
                     focusRow("Score alerts");
                 });
+
+        row("Network & data", "Wi-Fi signal, a speed test, and the data used today and this month.", null,
+                v -> startActivity(new Intent(this, NetworkActivity.class)));
 
         row("Notifications & banners", "Other apps' notifications and score alerts as banners over anything you watch.",
                 null, v -> startActivity(new Intent(this, NotificationsActivity.class)));

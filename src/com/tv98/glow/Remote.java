@@ -222,6 +222,9 @@ final class Remote {
                 case "/api/backup": result = Backup.export(app); break;
                 case "/api/restore": result = new JSONObject().put("ok", true).put("restored", Backup.restore(app, in2)); break;
                 case "/api/photos": result = new JSONObject().put("count", Photos.all(app).length); break;
+                case "/api/ha": result = in2.length() == 0 ? HomeAssistant.config(app) : HomeAssistant.set(app, in2); break;
+                case "/api/ha/entities": result = HomeAssistant.entities(app); break;
+                case "/api/ha/test": HomeAssistant.ring(app, true); result = new JSONObject().put("ok", true); break;
                 default:
                     send(out, 404, "application/json", "{\"error\":\"not found\"}".getBytes(StandardCharsets.UTF_8));
                     return;

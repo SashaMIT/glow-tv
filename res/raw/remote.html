@@ -123,6 +123,24 @@
         <div class="row"><button id="backupBtn">Download backup</button><button id="restoreBtn">Restore from a file</button></div>
         <input type="file" id="restorePick" accept="application/json,.json" hidden>
       </div>
+      <div class="card">
+        <h3>Home Assistant</h3>
+        <p class="sub">Your own Home Assistant on the TV: a Home card with the sensors you pick, and the door camera when the doorbell rings, over whatever's on. The address and token stay on the TV box.</p>
+        <div id="haConnect">
+          <input id="haUrl" placeholder="http://192.168.1.20:8123" autocomplete="off" autocapitalize="off">
+          <input id="haToken" type="password" placeholder="Long-lived access token (your HA profile ▸ Security)" autocomplete="off">
+          <div class="row"><button class="primary" id="haConnectBtn">Connect</button></div>
+        </div>
+        <div id="haPick" hidden>
+          <div class="sub" id="haWhere"></div>
+          <p class="sub">On the TV's Home card (up to 6):</p>
+          <ul class="list" id="haList"></ul>
+          <p class="sub">Doorbell:</p><select id="haBell"></select>
+          <p class="sub">Camera shown when it rings:</p><select id="haCam"></select>
+          <div class="row"><button class="primary" id="haSave">Save</button><button id="haTest">Test the pop-up</button><button id="haForget">Disconnect</button></div>
+        </div>
+        <div class="sub" id="haState"></div>
+      </div>
     </section>
   </div>
 </main>
@@ -239,6 +257,7 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = async () => {
   document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
   ['remote', 'search', 'favs', 'more'].forEach(t => $('tab-' + t).hidden = t !== b.dataset.tab);
   if (b.dataset.tab === 'search') $('q').focus();
+  if (b.dataset.tab === 'more') haLoad();
   if (b.dataset.tab === 'favs') renderList($('favs'), await api('/api/favs').catch(() => []), 'No favourites yet — tap ★ on a channel in Search, or hold OK on one on the TV.');
 });
 
@@ -260,6 +279,49 @@ $('photoPick').onchange = async () => {
   $('photoState').textContent = sent ? `Sent ${sent} photo${sent > 1 ? 's' : ''}. They'll show on the screensaver.` : '';
   $('photoPick').value = '';
 };
+// ---- Home Assistant ----
+async function haLoad() {
+  const cfg = await api('/api/ha').catch(() => null);
+  if (!cfg) return;
+  $('haConnect').hidden = cfg.connected; $('haPick').hidden = !cfg.connected;
+  if (!cfg.connected) return;
+  $('haWhere').textContent = 'Connected to ' + cfg.url;
+  $('haState').textContent = 'Loading your entities…';
+  const r = await api('/api/ha/entities').catch(() => null);
+  if (!r || r.error) { $('haState').textContent = r ? r.error : 'The TV didn\'t answer.'; return; }
+  $('haState').textContent = '';
+  const chosen = new Set(cfg.entities), list = $('haList');
+  list.innerHTML = '';
+  const opts = (sel, kinds, cur) => {
+    sel.innerHTML = '<option value="">None</option>';
+    r.entities.filter(e => kinds.some(k => e.id.startsWith(k))).forEach(e => {
+      const o = document.createElement('option'); o.value = e.id; o.textContent = e.name; if (e.id === cur) o.selected = true; sel.appendChild(o);
+    });
+  };
+  r.entities.filter(e => !e.id.startsWith('camera.') && !e.id.startsWith('event.')).forEach(e => {
+    const li = document.createElement('li');
+    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = e.id; cb.checked = chosen.has(e.id);
+    const lab = document.createElement('label'); lab.textContent = ' ' + e.name + ' · ' + e.state + (e.unit ? ' ' + e.unit : '');
+    li.appendChild(cb); li.appendChild(lab); list.appendChild(li);
+  });
+  opts($('haBell'), ['binary_sensor.', 'event.'], cfg.doorbell);
+  opts($('haCam'), ['camera.'], cfg.camera);
+}
+$('haConnectBtn').onclick = async () => {
+  $('haState').textContent = 'Checking…';
+  const r = await api('/api/ha', { url: $('haUrl').value, token: $('haToken').value }).catch(() => null);
+  $('haToken').value = '';
+  if (!r || !r.ok) { $('haState').textContent = r ? r.error : 'The TV didn\'t answer.'; return; }
+  haLoad();
+};
+$('haSave').onclick = async () => {
+  const ids = [...document.querySelectorAll('#haList input:checked')].map(c => c.value).slice(0, 6);
+  const r = await api('/api/ha', { entities: ids, doorbell: $('haBell').value, camera: $('haCam').value }).catch(() => null);
+  $('haState').textContent = r && r.ok ? 'Saved. The Home card shows them on the TV.' : 'Couldn\'t save.';
+};
+$('haTest').onclick = async () => { await api('/api/ha/test', {}).catch(() => null); $('haState').textContent = 'Look at the TV.'; };
+$('haForget').onclick = async () => { await api('/api/ha', { forget: true }).catch(() => null); haLoad(); };
+
 $('backupBtn').onclick = async () => {
   try {
     const data = await api('/api/backup');

@@ -28,6 +28,33 @@ public class GlowApp extends Application {
      * Score alerts while another app (Netflix, YouTube…) is on: every minute, if banners over other apps are allowed.
      * Glow's own player shows its own banners.
      */
+    /** Data used, added up every 15 minutes (Android's own counter restarts with the box). */
+    private final Runnable dataTick = new Runnable() {
+        @Override
+        public void run() {
+            Net.MAIN.postDelayed(this, 15 * 60_000);
+            Net.IO.execute(() -> DataUsage.sample(GlowApp.this));
+        }
+    };
+
+    /** The doorbell (Home Assistant), checked every 3 s when one is set up; the check itself runs off the main thread. */
+    private volatile boolean ringing;
+    private final Runnable doorbell = new Runnable() {
+        @Override
+        public void run() {
+            Net.MAIN.postDelayed(this, 3_000);
+            if (ringing || !HomeAssistant.configured(GlowApp.this)) return;
+            ringing = true;
+            Net.IO.execute(() -> {
+                try {
+                    HomeAssistant.checkDoorbell(GlowApp.this);
+                } finally {
+                    ringing = false;
+                }
+            });
+        }
+    };
+
     private final Runnable alertsEverywhere = new Runnable() {
         @Override
         public void run() {
@@ -52,6 +79,8 @@ public class GlowApp extends Application {
         L.init(this);
         Reminders.start(this);
         Net.MAIN.postDelayed(alertsEverywhere, 90_000);
+        Net.MAIN.postDelayed(doorbell, 10_000);
+        Net.MAIN.post(dataTick);
         registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks() {
             @Override public void onActivityResumed(Activity a) { front = a; }
             @Override public void onActivityPaused(Activity a) { if (front == a) front = null; }

@@ -3,7 +3,7 @@
 Everything Glow could still do, roughly in the order it's worth doing. Each item gets measured on the box before and
 after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published sources only.
 
-## Status at a glance (26 Oct 2026)
+## Status at a glance (27 Oct 2026)
 
 ### Done
 
@@ -26,17 +26,17 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 | Area | Feature | When |
 |---|---|---|
 | Player | ~~▼ as instant as ▲~~ ✅ (2,353 → 276 ms); ~~audio + subtitle switching~~ ✅ | done |
-| Player | ~~Corner picture (PiP)~~ ✅; ~~pause & rewind (stream's window)~~ ✅; ~~night sound / levelling~~ ✅; ~~picture size, stats~~ ✅; dialogue boost; longer rewind (disk cache) | later |
+| Player | ~~Corner picture (PiP)~~ ✅; ~~pause & rewind (stream's window)~~ ✅; ~~night sound / levelling~~ ✅; ~~picture size, stats~~ ✅; ~~dialogue boost~~ ✅; ~~longer rewind (kept on storage)~~ ✅ | done |
 | TV Guide | ~~Now & Next~~ ✅; ~~Live sport now~~ ✅; smoother first pass (logos off the main thread ✅; rows still drawn on demand) | done / partly |
-| Memory | ~~Listings' descriptions on disk, rows updated in place~~ ✅ (Home 118 → 81–100 MB); under 80 MB every time needs fewer layered cards / smaller banners | later |
-| TV Guide | Radio favourites + album art; F1 live timing (OpenF1); Trending (TMDB, free key) | later |
+| Memory | ~~Listings' descriptions on disk, rows updated in place~~ ✅; Home settled (4 min) **71–80 MB, under 80 in 4 of 5**; at 100 s 73–91 MB while start-up jobs run | partly |
+| TV Guide | ~~Radio favourites + album art~~ ✅; ~~smoother browsing~~ (53 → 17–22 % late frames; under 10 % not reached: ◀▶ window moves); Trending (TMDB, free key) | partly |
 | Home & box | ~~Photos to the screensaver from the phone~~ ✅; ~~settings backup~~ ✅ | done |
-| Home & box | ~~Remote remapping + quick settings~~ ✅; ~~banners over other apps~~ ✅ (notification access off by choice); ~~Thai menus~~ ✅; ~~parental PIN / Kids mode~~ ✅; data usage + Wi-Fi | later |
+| Home & box | ~~Remote remapping + quick settings~~ ✅; ~~banners over other apps~~ ✅ (notification access off by choice); ~~Thai menus~~ ✅; ~~parental PIN / Kids mode~~ ✅; ~~data usage + Wi-Fi~~ ✅ | done |
 | Intelligence | ~~Markets~~ ✅; ~~overview page~~ ✅; ~~tennis/golf~~ ✅; ~~map zoom~~ ✅; ~~F1 timing (after each session)~~ ✅; F1 live timing ✖ (paid) | done |
-| Smart home | Home Assistant card, doorbell pop-ups, AirPlay (test first) | later |
+| Smart home | ~~Home Assistant card, doorbell pop-ups~~ ✅ (tested with a stand-in server); AirPlay (test first) | partly |
 | Privacy (owner's call) | Private DNS ad/tracker blocking; vendor-app audit | needs OK |
 | Sharing | ~~Extra apps installer~~ ✅; ~~tour on the repo page~~ ✅ (GIF); Obtainium note ✅; ~~signed releases~~ ✅ (v1.0.0 → v1.3.0, signed on the owner's Mac, box updated itself each time); awesome-list PR (after v1.0.0, owner's OK) | next |
-| Sharing | Contributors' guide; more languages (Translating section + one file each) | later |
+| Sharing | ~~Contributors' guide~~ ✅ (CONTRIBUTING.md); more languages (one file each) | later |
 
 ### Ruled out
 

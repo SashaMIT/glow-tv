@@ -112,6 +112,8 @@ public class HomeActivity extends Activity {
         }
 
         setContentView(root);
+        // The screen paints its own full background: the window's own is never seen, and costs a full-screen fill per frame.
+        getWindow().setBackgroundDrawable(null);
     }
 
     private String builtFor() {
@@ -416,10 +418,16 @@ public class HomeActivity extends Activity {
                     : actionTile("▤", "TV Guide", "TV and radio, channel by channel");
             guide.setOnClickListener(v -> startActivity(new Intent(this, ClassicGuideActivity.class)));
             live.addView(guide);
+            if (!kids) { // radio could be anything, so not in Kids mode
+                Tile radio = actionTile("♫", "Radio", "My stations and music, news and talk worldwide");
+                radio.setOnClickListener(v -> startActivity(new Intent(this, ClassicGuideActivity.class)
+                        .putExtra(ClassicGuideActivity.EXTRA_RADIO, true)));
+                live.addView(radio);
+            }
         }
 
         final Xtream.Account acct = Xtream.load(this);
-        sourceTiles = 1; // the TV Guide card; channel cards follow it
+        sourceTiles = kids ? 1 : 2; // the TV Guide and Radio cards; channel cards follow them
         showChannels();
 
         Genres.factsContext = getApplicationContext();
@@ -685,11 +693,11 @@ public class HomeActivity extends Activity {
     // The Intelligence row's cards, kept between visits and refreshed in place.
     private ImageView intelImg;
     private TextView intelSub;
-    private Tile intelSports, intelWeather, intelOdds, intelMoney;
+    private Tile intelSports, intelWeather, intelOdds, intelMoney, intelHome;
     private String intelSig;
 
     private void fillIntel() {
-        StringBuilder camSig = new StringBuilder(Sports.chosenNames(this)).append('|');
+        StringBuilder camSig = new StringBuilder(Sports.chosenNames(this)).append('|').append(HomeAssistant.configured(this)).append('|');
         for (String slot : HOME_CAMS) {
             for (int i = 0; i < WmCams.CAMS.length; i++) if (WmCams.CAMS[i][0].equals(slot) && Cams.live(this, i)) camSig.append(i).append(',');
         }
@@ -728,6 +736,12 @@ public class HomeActivity extends Activity {
         final Tile sportsTile = actionTile("●", "Sports now", Sports.chosenNames(this));
         sportsTile.setOnClickListener(v -> openIntel(IntelActivity.SPORTS));
         intel.addView(sportsTile);
+        Tile homeTile = null;
+        if (HomeAssistant.configured(this)) { // your own Home Assistant's sensors (set up from the phone remote)
+            homeTile = actionTile("⌂", "Home", "Loading…");
+            homeTile.setOnClickListener(v -> refreshIntel());
+            intel.addView(homeTile);
+        }
         final Tile moneyTile = actionTile("$", "Markets", "Bitcoin, gold and the baht");
         moneyTile.setOnClickListener(v -> openIntel(IntelActivity.MARKETS));
         intel.addView(moneyTile);
@@ -759,19 +773,21 @@ public class HomeActivity extends Activity {
         intelWeather = weatherTile;
         intelOdds = odds;
         intelMoney = moneyTile;
+        intelHome = homeTile;
     }
 
     /** New weather, odds, scores and (every 10 min) map picture into the existing cards. */
     private void refreshIntel() {
         final ImageView img = intelImg;
         final TextView sub = intelSub;
-        final Tile sportsTile = intelSports, weatherTile = intelWeather, odds = intelOdds, moneyTile = intelMoney;
+        final Tile sportsTile = intelSports, weatherTile = intelWeather, odds = intelOdds, moneyTile = intelMoney, homeTile = intelHome;
         final int h = Ui.dp(99), w = h * 5 / 2; // the map's own shape; the card crops the far Pacific
         Net.WORK.execute(() -> {
             Intel.Weather wx = Intel.weather(this);
             List<Intel.Market> m = Intel.markets(this);
             List<Sports.Game> games = Sports.load(this);
             List<Markets.Quote> quotes = Markets.load(this);
+            List<HomeAssistant.Entity> home = homeTile == null ? null : HomeAssistant.states(this);
             Cams.checkIfDue(this);
             Bitmap shot = null;
             String line = null;
@@ -813,6 +829,13 @@ public class HomeActivity extends Activity {
                             ? g.home + (g.state == Sports.PRE ? " v " : " " + g.homeScore + "–" + g.awayScore + " ") + g.away : g.title;
                     sub2.setMaxLines(2);
                     sub2.setText((g.state == Sports.LIVE ? "LIVE  " : g.status + "  ") + what);
+                }
+                if (home != null) { // "Living room 23.5 °C" / "Front door Locked"
+                    StringBuilder b = new StringBuilder();
+                    for (int i = 0; i < Math.min(2, home.size()); i++) b.append(i > 0 ? "\n" : "").append(HomeAssistant.describe(home.get(i)));
+                    TextView s = (TextView) ((LinearLayout) homeTile.card.getChildAt(0)).getChildAt(2);
+                    s.setMaxLines(2);
+                    s.setText(b.length() > 0 ? b.toString() : L.t("Pick sensors on the phone remote ▸ More"));
                 }
                 if (!quotes.isEmpty()) { // "BTC $79,939 −0.7%" / "Gold $4,013  ·  $1 = ฿33.75"
                     String coin = "", gold = "";
