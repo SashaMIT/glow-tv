@@ -37,18 +37,36 @@ jobs:
           # Sites that fail or time out just leave their channels without listings; the rest still publish.
           npm run grab --- --channels=../out/glow.channels.xml --output=../out/guide-full.xml \
             --days=2 --maxConnections=8 --timeout=20000 || true
-          # Second pass: channels with no programmes (e.g. a site that blocks GitHub) try their next source.
-          cd .. && python3 tools/build_guide_data.py --retry out/guide-full.xml out && cd epg
-          npm run grab --- --channels=../out/glow.channels.2.xml --output=../out/guide-2.xml \
-            --days=2 --maxConnections=8 --timeout=20000 || true
+          # More passes: channels with no programmes yet (e.g. a site that blocks GitHub) try their next source.
+          cd ..
+          GRABBED=out/guide-full.xml
+          for PASS in 2 3 4 5 6; do
+            python3 tools/build_guide_data.py --retry "$PASS" "$GRABBED" out || break
+            (cd epg && npm run grab --- --channels="../out/glow.channels.$PASS.xml" --output="../out/guide-$PASS.xml" \
+              --days=2 --maxConnections=8 --timeout=20000 || true)
+            GRABBED="$GRABBED,out/guide-$PASS.xml"
+          done
+          echo "GRABBED=$GRABBED" >> "$GITHUB_ENV"
 
       - name: Trim to the next 36 hours and pack
-        run: python3 tools/trim_guide.py out/guide-full.xml,out/guide-2.xml out/guide.xml.gz out/report.txt
+        run: python3 tools/trim_guide.py "$GRABBED" out/guide.xml.gz out/report.txt
+
+      - name: Sign what the box will use
+        env:
+          GLOW_DATA_KEY: ${{ secrets.GLOW_DATA_KEY }}
+        run: |
+          # A separate key that can only sign data, never an app. The box refuses a file whose signature doesn't match.
+          umask 077
+          printf '%s\n' "$GLOW_DATA_KEY" > /tmp/data.key
+          for f in out/guide.xml.gz out/facts.tsv; do
+            openssl dgst -sha256 -sign /tmp/data.key -out "$f.sig" "$f"
+          done
+          rm -f /tmp/data.key
 
       - name: Publish to the data branch
         run: |
           cd out
-          rm -f guide-full.xml guide-2.xml glow.channels.xml glow.channels.2.xml alternatives.json
+          rm -f guide-full.xml guide-[0-9].xml glow.channels.xml glow.channels.[0-9].xml alternatives.json
           git init -q -b data
           git config user.name "glow-data"
           git config user.email "actions@users.noreply.github.com"

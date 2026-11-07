@@ -6,8 +6,8 @@
                              blocked; so Glow can rank and hide channels from facts instead of guessing from names
 
 Usage: python3 tools/build_guide_data.py <out-dir>
-       python3 tools/build_guide_data.py --retry <grabbed guide.xml> <out-dir>
-         (second pass: channels that got no programmes, each with its next source -> <out>/glow.channels.2.xml)
+       python3 tools/build_guide_data.py --retry <pass> <grabbed.xml>[,<grabbed-2.xml>...] <out-dir>
+         (pass 2, 3...: channels with no programmes so far, each with its next source -> <out>/glow.channels.<pass>.xml)
 Only the box's own lists are covered (the same iptv-org playlists Glow downloads). Pluto TV channels are included
 too: Glow prefers Pluto's own schedules, and uses these where Pluto has none (e.g. Red Bull TV).
 """
@@ -82,12 +82,17 @@ def main(out):
         base, _, feed = sid.partition("@")
         if base not in channels or channels[base].get("closed") or base in blocked:
             continue
-        options = guides.get((base, feed)) or guides.get((base, "")) or []
+        rank = lambda g: PREFERRED.index(g["site"]) if g["site"] in PREFERRED else len(PREFERRED)
+        # The exact feed's sources first, then the channel's main entry's.
+        options, seen = [], set()
+        for g in sorted(guides.get((base, feed)) or [], key=rank) + sorted(guides.get((base, "")) or [], key=rank):
+            if (g["site"], g["site_id"]) not in seen:
+                seen.add((g["site"], g["site_id"]))
+                options.append(g)
         if not options:
             continue
-        options.sort(key=lambda g: PREFERRED.index(g["site"]) if g["site"] in PREFERRED else len(PREFERRED))
         picked.append((sid, options[0]))
-        alternatives[sid] = options[1:4]
+        alternatives[sid] = options[1:6]
     write_channels(out / "glow.channels.xml", picked)
     (out / "alternatives.json").write_text(json.dumps(alternatives))
     sites = collections.Counter(g["site"] for _, g in picked)
@@ -105,20 +110,23 @@ def write_channels(path, picked):
     pathlib.Path(path).write_text("\n".join(rows) + "\n")
 
 
-def retry(grabbed, out):
-    """Channels the first pass got nothing for, each with its next source (a site may block GitHub's servers)."""
+def retry(pass_no, grabbed, out):
+    """Channels no pass has got anything for yet, each with its next source (a site may block GitHub's servers)."""
     out = pathlib.Path(out)
-    got = set(re.findall(r'<programme[^>]*channel="([^"]+)"', open(grabbed, encoding="utf-8", errors="replace").read())) \
-        if pathlib.Path(grabbed).exists() else set()
+    got = set()
+    for f in grabbed.split(","):
+        if pathlib.Path(f).exists():
+            got |= set(re.findall(r'<programme[^>]*channel="([^"]+)"', open(f, encoding="utf-8", errors="replace").read()))
     alternatives = json.loads((out / "alternatives.json").read_text())
     failed = [sid for sid in alternatives if sid not in got]
-    second = [(sid, alternatives[sid][0]) for sid in failed if alternatives[sid]]
-    write_channels(out / "glow.channels.2.xml", second)
-    print(f"first pass: {len(got)} channels with listings, {len(failed)} without; retrying {len(second)} with another source")
+    next_up = [(sid, alternatives[sid][pass_no - 2]) for sid in failed if len(alternatives[sid]) > pass_no - 2]
+    write_channels(out / f"glow.channels.{pass_no}.xml", next_up)
+    print(f"before pass {pass_no}: {len(got)} channels with listings, {len(failed)} without; trying {len(next_up)} with another source")
+    return next_up
 
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--retry":
-        retry(sys.argv[2], sys.argv[3])
+        sys.exit(0 if retry(int(sys.argv[2]), sys.argv[3], sys.argv[4]) else 1)  # 1: nothing left to try
     else:
         main(sys.argv[1] if len(sys.argv) > 1 else "out")
