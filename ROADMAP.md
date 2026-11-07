@@ -22,7 +22,7 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 | Home & network (1.4) | Settings ▸ Network & data; Home Assistant card + doorbell pop-up; CONTRIBUTING.md |
 | Family & language | Kids mode (picked apps + Kids channels, PIN with lockout, everything else closed); Thai menus (Settings ▸ Language), one translation file |
 | Live cams (1.6) | 45 places (cities, nature, oceans), honest live check from each stream's own page, full-screen player with ◀ ▶ to the next cam, in its own process (all its memory goes on BACK) |
-| Memory (1.6) | Heap dumps of Home; listings and channel facts slimmed; a collection when Home is idle: **Home 72–74 MB at 4 minutes on five cold starts** (was 71–100) |
+| Memory (1.6) | Heap dumps of Home; listings and channel facts slimmed; a collection when Home is idle: **Home at 4 minutes 79–84 MB on released 1.6.0, 72–74 MB on a development build earlier that day** (was 71–100), with far less swing |
 | Video (1.6) | `tools/video/film.sh` films every scene waiting for what's on screen; one-minute promo with its own music; What's new with no screenshots |
 | Intelligence | Overview page; world map (quakes, alerts, EONET, news hotspots, ISS, day/night, rain, 2×/4× zoom); live cams + health; weather + air quality; rain radar; predictions; Markets (BTC, ETH, gold, baht/pound/euro); Sports now (24 leagues incl. tennis + golf, favourite teams); F1 timing sheet |
 | Other | World news with pictures + QR; phone remote (+ photos to screensaver, backup/restore); screensaver; Settings; My IPTV; Extra apps (SmartTube, Jellyfin, Kodi, NewPipe) |
@@ -34,7 +34,7 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 | Player | ~~▼ as instant as ▲~~ ✅ (2,353 → 276 ms); ~~audio + subtitle switching~~ ✅ | done |
 | Player | ~~Corner picture (PiP)~~ ✅; ~~pause & rewind (stream's window)~~ ✅; ~~night sound / levelling~~ ✅; ~~picture size, stats~~ ✅; ~~dialogue boost~~ ✅; ~~longer rewind (kept on storage)~~ ✅ | done |
 | TV Guide | ~~Now & Next~~ ✅; ~~Live sport now~~ ✅; smoother first pass (logos off the main thread ✅; rows still drawn on demand) | done / partly |
-| Memory | ~~Listings' descriptions on disk, rows updated in place~~ ✅; ~~Home under 80 MB at 4 min, all five~~ ✅ (72–74 MB); Home after the guide, player and cams still unmeasured since the fix | next |
+| Memory | ~~Listings' descriptions on disk, rows updated in place~~ ✅; Home under 80 MB at 4 min on all five: **4 of 5 on released 1.6.0** (79.0–79.3, one 83.6; a development build got 72–74): why Code + System grew 6 MB isn't proven. Home after the guide, player and cams unmeasured since the fix | next |
 | TV Guide | ~~Radio favourites + album art~~ ✅; ~~Tonight picks~~ ✅; smoother browsing: ▲▼ 11–15 % late (was 18–29), ◀▶ ~42 % with half the frames; under 10 % not reached (rows drawn straight after ◀ ▶ tried: worse, undone); Trending (TMDB, free key) | partly |
 | Home & box | ~~Photos to the screensaver from the phone~~ ✅; ~~settings backup~~ ✅ | done |
 | Home & box | ~~Remote remapping + quick settings~~ ✅; ~~banners over other apps~~ ✅ (notification access off by choice); ~~Thai menus~~ ✅; ~~parental PIN / Kids mode~~ ✅; ~~data usage + Wi-Fi~~ ✅ | done |

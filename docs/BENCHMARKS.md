@@ -779,9 +779,15 @@ whole lines.
 | Before (25–27 Oct; different days) | 71–88 | |
 | Top two holders fixed | 100.0 / 81.9 / 79.9 / 94.0 / 94.0 | ✅ kept (less data), but garbage hides the gain |
 | + idle `System.gc()` + `runFinalization()` every 30 s | 87.3 / 82.8 / 78.5 / 91.8 / 88.1 | ✖ replaced: **it collected nothing** |
-| + idle `Runtime.getRuntime().gc()` (off the main thread, ~160 ms) | **72.1 / 73.1 / 73.7 / 73.1 / 73.3** | ✅ **bar met: under 80 MB on all five** |
+| + idle `Runtime.getRuntime().gc()` (off the main thread, ~160 ms), development build | **72.1 / 73.1 / 73.7 / 73.1 / 73.3** | ✅ kept, under 80 on all five |
+| The same code as released 1.6.0, later that day, after filming and cam tests, full compile | **79.3 / 79.1 / 79.2 / 83.6 / 79.0** | **bar missed: 4 of 5** |
+| Released 1.6.0 straight after the box updated itself (`speed-profile`, not a full compile), one run | 81.1 | |
 
-Java 8.0–8.3 MB, native 35.0–35.5 MB. The swing that made this number so noisy for two weeks was garbage: `dumpsys
+Java and native are the same in both good rows (8.0–8.3 and 34.2–35.5 MB): the extra 6 MB is Code (18 → 21 MB) and System
+(10 → 14 MB), Glow's share of memory it has in common with other processes. Why it grew isn't proven: the likely cause is
+the state of the box after filming and cams, since the process list had changed, and not the release itself. The 83.6 run
+had 2.5 MB more native and 1 MB more Java, as if something was refreshing as it was read.
+The swing that made this number so noisy for two weeks was garbage: `dumpsys
 meminfo` showed up to 27 MB of Java heap, with 12 MB of it live. Three things only a measurement could show: on this box
 `System.gc()` + `runFinalization()` logged no collection at all, so Home's existing "tidy up after coming back"
 never did its collection either (it uses the real call now); `dumpsys meminfo` itself triggers a collection right after
