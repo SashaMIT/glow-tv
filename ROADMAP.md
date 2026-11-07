@@ -9,7 +9,7 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 
 | Area | Feature |
 |---|---|
-| Box | Debloat, Glow as Home, undo scripts, developer-access shield; Gradle-free build, MIT repo, signed releases (v1.0.0 → v1.6.0, `tools/release.sh`), in-app updates (box updated itself to 1.6.0) |
+| Box | Debloat, Glow as Home, undo scripts, developer-access shield; Gradle-free build, MIT repo, signed releases (v1.0.0 → v1.6.1, `tools/release.sh`), in-app updates (box updated itself to 1.6.1) |
 | Home | Clock, weather, headline ticker, icon header (Search, World, Phone remote, Cast, IPTV, Settings); full-colour app cards; app order; smooth scrolling (29.5 % → 1.1 % late) |
 | Home | Live TV row (TV Guide, favourites, recents, white/black logo cards, Resume badge); Intelligence row; Cast from phone |
 | TV Guide | Numbered genre menu, ranking, fixed numbers; classic grid with logos, info panel, preview, reminders, search; Radio tab |
@@ -22,7 +22,8 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 | Home & network (1.4) | Settings ▸ Network & data; Home Assistant card + doorbell pop-up; CONTRIBUTING.md |
 | Family & language | Kids mode (picked apps + Kids channels, PIN with lockout, everything else closed); Thai menus (Settings ▸ Language), one translation file |
 | Live cams (1.6) | 45 places (cities, nature, oceans), honest live check from each stream's own page, full-screen player with ◀ ▶ to the next cam, in its own process (all its memory goes on BACK) |
-| Memory (1.6) | Heap dumps of Home; listings and channel facts slimmed; a collection when Home is idle: **Home at 4 minutes 79–84 MB on released 1.6.0, 72–74 MB on a development build earlier that day** (was 71–100), with far less swing |
+| Memory (1.6) | Heap dumps of Home; listings and channel facts slimmed; a collection when Home is idle: **Home at 4 minutes 64.6–70.3 MB on released 1.6.1** (was 71–100) |
+| Reliability and data (1.6.1) | 128 tests on plain Java, run by every release; Box health (temperature, restarts, crashes); heat protection; source and age on Intelligence pages; failing sources on the Network page; signed nightly listings; listings on 1,115 of 2,394 channels (was 894); Tonight and reminders on the phone remote |
 | Video (1.6) | `tools/video/film.sh` films every scene waiting for what's on screen; one-minute promo with its own music; What's new with no screenshots |
 | Intelligence | Overview page; world map (quakes, alerts, EONET, news hotspots, ISS, day/night, rain, 2×/4× zoom); live cams + health; weather + air quality; rain radar; predictions; Markets (BTC, ETH, gold, baht/pound/euro); Sports now (24 leagues incl. tennis + golf, favourite teams); F1 timing sheet |
 | Other | World news with pictures + QR; phone remote (+ photos to screensaver, backup/restore); screensaver; Settings; My IPTV; Extra apps (SmartTube, Jellyfin, Kodi, NewPipe) |
@@ -34,15 +35,17 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 | Player | ~~▼ as instant as ▲~~ ✅ (2,353 → 276 ms); ~~audio + subtitle switching~~ ✅ | done |
 | Player | ~~Corner picture (PiP)~~ ✅; ~~pause & rewind (stream's window)~~ ✅; ~~night sound / levelling~~ ✅; ~~picture size, stats~~ ✅; ~~dialogue boost~~ ✅; ~~longer rewind (kept on storage)~~ ✅ | done |
 | TV Guide | ~~Now & Next~~ ✅; ~~Live sport now~~ ✅; smoother first pass (logos off the main thread ✅; rows still drawn on demand) | done / partly |
-| Memory | ~~Listings' descriptions on disk, rows updated in place~~ ✅; Home under 80 MB at 4 min on all five: **4 of 5 on released 1.6.0** (79.0–79.3, one 83.6; a development build got 72–74): why Code + System grew 6 MB isn't proven. Home after the guide, player and cams unmeasured since the fix | next |
+| Memory | ~~Listings' descriptions on disk, rows updated in place~~ ✅; ~~Home under 80 MB at 4 min on all five, released build~~ ✅ (64.6–70.3 MB on 1.6.1); ~~real clean-up after use~~ ✅ (89–95 MB against 127–131). How it grows over days isn't measured | done / later |
 | TV Guide | ~~Radio favourites + album art~~ ✅; ~~Tonight picks~~ ✅; smoother browsing: ▲▼ 11–15 % late (was 18–29), ◀▶ ~42 % with half the frames; under 10 % not reached (rows drawn straight after ◀ ▶ tried: worse, undone); Trending (TMDB, free key) | partly |
 | Home & box | ~~Photos to the screensaver from the phone~~ ✅; ~~settings backup~~ ✅ | done |
 | Home & box | ~~Remote remapping + quick settings~~ ✅; ~~banners over other apps~~ ✅ (notification access off by choice); ~~Thai menus~~ ✅; ~~parental PIN / Kids mode~~ ✅; ~~data usage + Wi-Fi~~ ✅ | done |
 | Intelligence | ~~Markets~~ ✅; ~~overview page~~ ✅; ~~tennis/golf~~ ✅; ~~map zoom~~ ✅; ~~F1 timing (after each session)~~ ✅; F1 live timing ✖ (paid) | done |
 | Smart home | ~~Home Assistant card, doorbell pop-ups~~ ✅ (tested with a stand-in server); AirPlay (test first) | partly |
 | Privacy (owner's call) | Private DNS ad/tracker blocking; vendor-app audit | needs OK |
-| Sharing | ~~Extra apps installer~~ ✅; ~~tour on the repo page~~ ✅ (GIF); Obtainium note ✅; ~~signed releases~~ ✅ (v1.0.0 → v1.6.0, signed on the owner's Mac, box updated itself each time); awesome-list PR (after v1.0.0, owner's OK) | next |
-| Live cams | Cams use a lot of the box while playing (WebView: 170 MB, 84 °C after 3 minutes, CPU 140–200 %) and take 10–15 s to start: try Glow's own player on the streams YouTube offers keyless, or a lower quality | next |
+| Sharing | ~~Extra apps installer~~ ✅; ~~tour on the repo page~~ ✅ (GIF); Obtainium note ✅; ~~signed releases~~ ✅ (v1.0.0 → v1.6.1, signed on the owner's Mac, box updated itself each time); awesome-list PR (after v1.0.0, owner's OK) | next |
+| Live cams | Under 75 °C and 100 % CPU not reached: WebView runs at 160 % and 83 °C after ten minutes (a smaller player was worse, undone). They close at 86 °C. Cam grid 10–23 % late | later |
+| Listings | About 1,500 channels have no source in iptv-org's database: find other sources | later |
+| Reliability | 24-hour test (`tools/soak.sh` written, not run) | later |
 | Sharing | ~~Contributors' guide~~ ✅ (CONTRIBUTING.md); more languages (one file each) | later |
 
 ### Ruled out

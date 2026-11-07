@@ -835,3 +835,58 @@ for "delay"). Filming the Apps scene with ▶ moved Netflix down the owner's she
 
 **Radio covers.** The first iTunes result was often someone else's song (Roger Whittaker's "It's Your Love" got Destiny's
 Child). Now the first of five results by an artist the station named, or none: no cover beats the wrong one.
+
+## Memory proven, cooler cams tried, reliability and honest data (1.6.1) — 7 Nov 2026
+
+**Home at 4 minutes, by the box's state** (5 cold starts each, MB). Java and native are nearly the same in all of them;
+what moves is Code and System, memory shared with other processes that's counted partly against Glow.
+
+| State | Home | Java / native / Code / System |
+|---|---|---|
+| Released 1.6.0, box up 2 days after heavy testing | 79.3 / 79.1 / 79.2 / 83.6 / 79.0 | 8 / 34 / 21 / 14 |
+| Fresh after a reboot | 65.7 / 66.2 / 66.3 / 65.9 / 66.4 | 8 / 34 / 12 / 10 |
+| After 3 minutes of a cam | 66.4 / 66.6 / 66.7 / 66.7 / 66.4 | 8 / 34 / 11 / 11 |
+| Without a full compile (`speed-profile`, as after a self-update) | 66.2 / 66.2 / 65.8 / 65.8 / 66.5 | 8 / 34 / 11 / 11 |
+| Development build with the bigger guide, 3 hours after a reboot and 40 minutes of cams | 80.6 / 80.6 / 80.5 / 80.3 / 80.4 | 9 / 34 / 17 / 18 |
+| **Released 1.6.1, straight after the box updated itself** | **68.5 / 70.0 / 70.1 / 70.3 / 69.9** | 9 / 34 / 5 / 19 |
+| **Released 1.6.1, after a reboot** | **64.8 / 64.7 / 64.6 / 64.9 / 64.6** | 9 / 34 / 8 / 11 |
+
+**Bar met on the released build: under 80 MB on all ten.** The shared rows grow with uptime and heavy use (the 79 and 80 MB rows came after days or hours of testing), and how long a normal box takes to get there hasn't been measured: that's what the 24-hour test is for. The 83.6 MB outlier on 1.6.0 hasn't come back in the 35 runs since.
+
+**Home after really using the box** (cold start, guide, a channel for 75 s, Intelligence pages, back Home for 40 s):
+
+| Home's clean-up | Home (MB) | Java / native |
+|---|---|---|
+| On, with `Runtime.gc()` | **89.2 / 95.4** | 10 / 41 |
+| Off | 131.0 / 127.4 | 19 / 65 |
+
+That's the old state: `System.gc()` collected nothing here, so for weeks Home kept 35 MB it could have given back.
+
+**Live cams: 854x480 player scaled up (undone).** Ten minutes each, twice, starting under 70 °C. Bar: under 75 °C and 100 % CPU.
+
+| Player | CPU avg | Hottest | Playback restarts | Memory | First picture |
+|---|---|---|---|---|---|
+| Full size (kept) | 159 / 170 % | 83 / 82 °C | 78 / 6 | 206 / 213 MB | 15 / 14 s |
+| 854x480 scaled up | 208 / 251 % | 85 / 84 °C | 3 / 6 | 248 / 242 MB | 16 / 15 s |
+
+**Bar missed.** The load is WebView itself. Heat protection instead: a cam closes and says why at 86 °C (tested with a low limit).
+Restart counts vary too much between runs to read much into them.
+
+**Cam grid, 8 ▼ from a fresh open** (6 runs each): 14.2 % late on average (10.5-23.5). `prepareToDraw` on each picture, undone: 15.3 % (10.5-25.0).
+**Under 10 % isn't reached.**
+
+**Listings.** The nightly job tried one fallback per channel; now up to six, plus the channel's main entry when a feed-specific source fails.
+Each pass adds fewer: 832, then 1,097, 1,133, 1,141, 1,142 channels. On the box, All Channels **894 to 1,115 of 2,394** (37 to 47 %).
+About 1,500 of the channels have no listing source in iptv-org's database, so retries can't reach them.
+
+**Black box.** Temperature and uptime every 5 minutes, and every crash's stack, in Settings ▸ Box health and `/api/health`. Tested with `am crash`:
+written down, and Glow came back. The thermal file is readable by the app on this box.
+
+**Tests.** `tools/test.sh`, plain Java on the computer, no box: 128 checks, run by every release. Three rules broken on purpose (film length, Tennis Channel, "the" in artist names): each caught, then restored.
+Found on the first run: "Close Encounters of the Third Kind" and other titles starting with "Close" were treated as filler and left out of Tonight. Parsers for USGS, GDACS, EONET and Polymarket are separate from the network and tested on real samples in `test/data`.
+
+**Signed listings.** Each nightly file has an ECDSA signature from a key that can only sign data. On the box: both files verified and loaded; a changed file or signature fails in the tests.
+
+**Other.** One way to open a connection (`Net.open`), failing data sources on the Network page, source and age on Sports, Markets, Weather and Predictions (it says so when an old copy is showing), Tonight and reminders on the phone remote, what's on now in phone search.
+A grown-up's reminder could open its channel from Kids mode: reminders now wait until Kids mode is off. Backups now include radio favourites.
+Not run: the 24-hour test (`tools/soak.sh` is written, and hasn't been run), and heat protection above 80 °C has only been exercised through its limit, not by a genuinely overheating box.
