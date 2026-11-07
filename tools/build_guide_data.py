@@ -27,6 +27,22 @@ PREFERRED = ["aljazeera.com", "tvtv.us", "tvpassport.com", "freeview.co.uk", "my
              "i.mjh.nz", "xumo.tv", "plex.tv", "distro.tv", "mewatch.sg", "trueid.net", "3bb.co.th", "tv.trueid.net"]
 
 
+# "ABC.us@KAAL": a local station's feed.
+LOCAL_STATION = re.compile(r"^[KW][A-Z]{2,}")
+# Channels that listing sites know by another name.
+ALIASES = {"Strongman": "Strongman Champions League"}
+
+
+def name_keys(name):
+    """Lower-case words, so names can be compared; "UK: Action Movies - Rakuten TV" also as "rakuten tv action movies"."""
+    name = re.sub(r"^[A-Za-z]{2}:\s*", "", name)
+    keys = [name]
+    m = re.match(r"(.+?)\s+-\s+(Rakuten TV)$", name)
+    if m:
+        keys = [m.group(2) + " " + m.group(1)]
+    return [re.sub(r"[^a-z0-9]+", " ", k.lower()).strip() for k in keys]
+
+
 def get(url):
     req = urllib.request.Request(url, headers={"User-Agent": "glow-tv data build", "Accept-Encoding": "gzip"})
     with urllib.request.urlopen(req, timeout=120) as r:
@@ -59,8 +75,15 @@ def main(out):
     feeds = {(f["channel"], f["id"]): f for f in json.loads(get(API + "feeds.json"))}
     blocked = {b["channel"]: b.get("reason", "") for b in json.loads(get(API + "blocklist.json"))}
     guides = collections.defaultdict(list)
+    feeds_of = collections.defaultdict(list)  # a channel's listing rows under any feed
+    by_name = collections.defaultdict(list)  # rows iptv-org hasn't tied to a channel, by their name
     for g in json.loads(get(API + "guides.json")):
-        guides[(g["channel"], g.get("feed") or "")].append(g)
+        if g.get("channel"):
+            guides[(g["channel"], g.get("feed") or "")].append(g)
+            feeds_of[g["channel"]].append(g)
+        else:
+            for key in name_keys(g.get("site_name") or ""):
+                by_name[key].append(g)
 
     # Facts, one line per stream id Glow knows.
     lines = []
@@ -82,17 +105,28 @@ def main(out):
         base, _, feed = sid.partition("@")
         if base not in channels or channels[base].get("closed") or base in blocked:
             continue
-        rank = lambda g: PREFERRED.index(g["site"]) if g["site"] in PREFERRED else len(PREFERRED)
-        # The exact feed's sources first, then the channel's main entry's.
+        rank = lambda g: (0 if (g.get("lang") or "en") == "en" else 1, PREFERRED.index(g["site"]) if g["site"] in PREFERRED else len(PREFERRED))
+        # The exact feed's sources first, then the channel's main entry's. After those: the same channel's other feeds
+        # (not for local stations of a network: their schedules differ), then rows with exactly this channel's name.
+        rows = sorted(guides.get((base, feed)) or [], key=rank) + sorted(guides.get((base, "")) or [], key=rank)
+        if not LOCAL_STATION.search(feed) and len({g.get("feed") for g in feeds_of[base]}) <= 8:
+            rows += sorted(feeds_of[base], key=rank)
+        name = channels[base].get("name") or ""
+        if name in ALIASES:
+            name = ALIASES[name]
+        for key in name_keys(name):
+            if len(key) >= 8 and " " in key:
+                # A row for this channel's own region comes first ("UK: Action Movies - Rakuten TV").
+                rows += sorted(by_name.get(key, []), key=lambda g: (0 if (g.get("site_name") or "").upper().startswith(feed.upper() + ":") else 1, rank(g)))
         options, seen = [], set()
-        for g in sorted(guides.get((base, feed)) or [], key=rank) + sorted(guides.get((base, "")) or [], key=rank):
+        for g in rows:
             if (g["site"], g["site_id"]) not in seen:
                 seen.add((g["site"], g["site_id"]))
                 options.append(g)
         if not options:
             continue
         picked.append((sid, options[0]))
-        alternatives[sid] = options[1:6]
+        alternatives[sid] = options[1:6]  # the workflow's passes try these in turn
     write_channels(out / "glow.channels.xml", picked)
     (out / "alternatives.json").write_text(json.dumps(alternatives))
     sites = collections.Counter(g["site"] for _, g in picked)
