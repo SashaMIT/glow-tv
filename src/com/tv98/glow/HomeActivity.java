@@ -34,8 +34,22 @@ public class HomeActivity extends Activity {
     private boolean resumedBefore;
     private final Runnable trimAfterReturn = () -> {
         Net.trim();
-        System.gc();
-        Runtime.getRuntime().runFinalization();
+        collect();
+    };
+    /** Runtime.gc(), not System.gc(): measured on the box, System.gc() + runFinalization() collected nothing. About 160 ms, so off the main thread. */
+    private static void collect() {
+        new Thread(() -> Runtime.getRuntime().gc(), "collect").start();
+    }
+
+    private long lastKey;
+    private int settles;
+    /** Home left alone: collect what the start and the refreshes left behind (bitmap pixels only go with their Java objects). */
+    private final Runnable settle = new Runnable() {
+        @Override
+        public void run() {
+            if (android.os.SystemClock.uptimeMillis() - lastKey > 20_000) collect();
+            clock.postDelayed(this, ++settles < 10 ? 30_000 : 300_000);
+        }
     };
     private List<World.Story> headlines = new ArrayList<>();
     private int headlineIndex;
@@ -138,6 +152,8 @@ public class HomeActivity extends Activity {
         // Back on Home after the guide, player or World: let go of their pictures and buffers once Home has drawn.
         if (resumedBefore) clock.postDelayed(trimAfterReturn, 3000);
         resumedBefore = true;
+        clock.removeCallbacks(settle);
+        clock.postDelayed(settle, 30_000);
         tick.run();
         Weather.load(this, t -> weather.setText(t));
         // Rows are only rebuilt when what they show has changed; otherwise they're updated in place. Rebuilding all
@@ -192,7 +208,13 @@ public class HomeActivity extends Activity {
         Tile.release(tonight);
         Tile.release(quick);
         clock.removeCallbacks(tick);
+        clock.removeCallbacks(settle);
         headline.removeCallbacks(rotateHeadline);
+    }
+
+    @Override
+    public void onUserInteraction() {
+        lastKey = android.os.SystemClock.uptimeMillis();
     }
 
     private final Buttons.InApp buttons = new Buttons.InApp();

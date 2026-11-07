@@ -36,7 +36,7 @@ def end():
     d.rectangle([W / 2 - tw / 2 - 28, 190, W / 2 + tw / 2 + 28, 262], fill=YELLOW)
     d.text((W / 2, 227), url, font=f, fill=INK, anchor="mm")
     rows = [("0.28 s", "to change channel"), ("1.0 s", "home screen from cold"),
-            ("2,300", "free channels, ~1,000 with listings"), ("1.3 MB", "the whole app")]
+            ("2,400", "free channels, ~900 with listings"), ("1.4 MB", "the whole app")]
     y = 318
     for big, small in rows:
         d.rectangle([250, y, 450, y + 70], fill="#3A66CC")

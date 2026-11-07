@@ -68,6 +68,8 @@
         <activity android:name=".F1Activity" />
         <activity android:name=".NetworkActivity" />
         <activity android:name=".TonightActivity" />
+        <activity android:name=".CamActivity" android:process=":cam" android:theme="@style/Glow.Player" android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
+        <receiver android:name=".SampleBanner" android:exported="false" />
         <activity android:name=".PinActivity" android:theme="@style/Glow.Panel" android:excludeFromRecents="true" />
         <!-- "Glow remote buttons": the viewer's button jobs in every app. Switched on by the viewer in Android's
              Accessibility settings; it only acts on buttons they set in Glow and never reads the screen. -->

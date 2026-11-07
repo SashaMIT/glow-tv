@@ -77,6 +77,7 @@ public class GlowApp extends Application {
     public void onCreate() {
         super.onCreate();
         L.init(this);
+        if (getProcessName().endsWith(":cam")) return; // the full-screen cam player's own process: just the player
         Reminders.start(this);
         Net.MAIN.postDelayed(alertsEverywhere, 90_000);
         Net.MAIN.postDelayed(doorbell, 10_000);

@@ -754,3 +754,78 @@ The box's screen recorder saves a frame only when the picture changes, so a stil
 came out as one frame with no length, and cutting it hung for 45 minutes; such scenes are now cut as stills. Scripted
 key presses sometimes landed too early on the box (the player menu, F1 timing, the speed test result), so three moments
 use screenshots taken on the box earlier instead.
+
+## Memory by evidence, guide ◀▶ trial, full-screen cams — 7 Nov 2026
+
+**Heap dumps of Home** (cold start, `am dumpheap`, `hprof-conv -z`, read with a small parser). The app's reachable Java
+data is only about 12 MB at both 100 s and 4 minutes (307,000 objects; 41 bitmaps hold 7.8 MB of pixels in native memory).
+
+| Biggest classes at 4 min | MB | | What holds them | MB |
+|---|---|---|---|---|
+| `byte[]` (99,456, mostly String contents) | 3.39 | | `Guide.byKey` (listings) | 3.53 |
+| `String` (102,174) | 2.86 | | `ChannelFacts.facts` | 1.39 |
+| `Guide$Prog` (27,948) | 1.57 | | `GuideLineup.last` | 0.59 |
+| `char[]` | 0.62 | | `FreeTv.memo` | 0.55 |
+| `int[]` | 0.55 | | ICU `CollationRoot` | 0.55 |
+| `HashMap$Node` | 0.40 | | `World.memo` | 0.53 |
+| `Object[]` | 0.26 | | `Health.results` | 0.49 |
+
+Fixes to the top two holders: listings share one object per index file and one String per repeated title, and programmes
+already over keep no text at all; channel facts keep only what's used (feed id → languages or "hidden") rather than
+whole lines.
+
+| Home, 4 min after a cold start (5 runs, awake, under 70 °C at start) | MB | Kept? |
+|---|---|---|
+| Before (25–27 Oct; different days) | 71–88 | |
+| Top two holders fixed | 100.0 / 81.9 / 79.9 / 94.0 / 94.0 | ✅ kept (less data), but garbage hides the gain |
+| + idle `System.gc()` + `runFinalization()` every 30 s | 87.3 / 82.8 / 78.5 / 91.8 / 88.1 | ✖ replaced: **it collected nothing** |
+| + idle `Runtime.getRuntime().gc()` (off the main thread, ~160 ms) | **72.1 / 73.1 / 73.7 / 73.1 / 73.3** | ✅ **bar met: under 80 MB on all five** |
+
+Java 8.0–8.3 MB, native 35.0–35.5 MB. The swing that made this number so noisy for two weeks was garbage: `dumpsys
+meminfo` showed up to 27 MB of Java heap, with 12 MB of it live. Three things only a measurement could show: on this box
+`System.gc()` + `runFinalization()` logged no collection at all, so Home's existing "tidy up after coming back"
+never did its collection either (it uses the real call now); `dumpsys meminfo` itself triggers a collection right after
+reading, so only the *first* reading after a start is honest; and the five runs above with `System.gc()` looked 4 MB
+better than the ones before, purely from noise. Home collects every 30 s for its first 5 minutes on screen, then every
+5 minutes, and only when the remote has been idle for 20 s.
+
+**Guide ◀▶: rows drawn straight on screen right after a window move (undone).** Measured with `tools/guidebench.sh guide`,
+3 passes, base and trial alternating twice. Box at 77–80 °C (the benchmark itself heats it, the same for both), so
+all of these read higher than the cooler numbers above; compare them with each other only.
+
+| Guide (3 passes each) | ▲▼ late frames | ◀▶ late frames | ◀▶ p90 |
+|---|---|---|---|
+| Base, first round | 27.1 / 46.0 / 36.1 % | 51.6 / 67.9 / 63.9 % | 34–38 ms |
+| Straight drawing for 500 ms, first round | 27.5 / 16.4 / 21.6 % | 66.7 / 70.3 / 74.2 % | 27–29 ms |
+| Base, second round | 30.4 / 14.8 / 18.4 % | 45.9 / 43.9 / 55.0 % | 30–31 ms |
+| Straight drawing for 500 ms, second round | 33.3 / 20.0 / 20.7 % | 70.6 / 68.1 / 67.2 % | 27–31 ms |
+
+More frames came out late (each is a little cheaper than sending new pictures to the GPU, p90 down 3 ms or so, but nearly
+all miss the 16 ms line). Worse on the number that counts, so **undone**. ◀▶ stays at about 42 % late when cool.
+
+**Live cams.** The "offline" labels were mostly false: the box had marked 19 of World Monitor's 26 streams as ended, while
+18 of the 26 were live when checked from their own pages. YouTube's thumbnails don't change for many live streams, so an
+unchanged picture now only raises a doubt and the stream's page decides (`"isLive":true`, browser user agent; old verdicts
+cleared once). 23 places added (nature, oceans, cities), plus spare streams for four cities: all checked live on 7 Nov from
+YouTube's own pages, except three seen only in its live search. Venice left out (its owner doesn't allow embedding).
+
+| Live cams | Before | After |
+|---|---|---|
+| Places in the list | 22 | **45** (44 live at the time of testing) |
+| A cam | opened the YouTube app | **full screen in Glow, ◀ ▶ next cam**, OK still opens YouTube |
+| ◀ ▶ to a playing stream | — | 10–15 s (the latest picture shows at once) |
+| Memory while a cam plays | — | ~170 MB, in its own process; none left after BACK (process gone) |
+| Heat | — | **84 °C after 3 minutes; CPU 140–200 % (of 400 %)**: WebView is much heavier than Glow's own player |
+
+The first build showed only the picture: R8 removed `@JavascriptInterface`, so the page couldn't report "playing". Now kept.
+YouTube's title and pause icon show when a stream starts or stalls, then fade by themselves (clean 10 s in, and 8 s after a
+tap). While the box's screen recorder runs the stream keeps stalling, so they stay in recordings: the videos use each
+cam's first seconds. A desktop user agent was tried and undone: the same overlay, more stalls, and 274 % CPU.
+
+**Videos.** `tools/video/film.sh` now films every scene (22) waiting for what's on screen, and What's new has no screenshots.
+Words that didn't match on the first full run: labels are capitals on screen, the radio guide draws its text itself, a
+player note can't be read over moving video, and "Mbit" was already on screen before the speed test ended (it now waits
+for "delay"). Filming the Apps scene with ▶ moved Netflix down the owner's shelf: put back, and the scene only uses ▼.
+
+**Radio covers.** The first iTunes result was often someone else's song (Roger Whittaker's "It's Your Love" got Destiny's
+Child). Now the first of five results by an artist the station named, or none: no cover beats the wrong one.

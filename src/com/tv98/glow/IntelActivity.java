@@ -725,8 +725,9 @@ public class IntelActivity extends Activity {
         TextView h = Ui.text(this, 21, Ui.TEXT, 300);
         h.setText("Live cams   ·   " + Cams.liveCount(this) + " places, live now");
         pane.addView(h);
-        // All 22 cards are built once (no recycling), so each keeps its cached GPU layer while the grid scrolls:
+        // All the cards are built once (no recycling), so each keeps its cached GPU layer while the grid scrolls:
         // a recycling GridView redrew layers on every reuse (16-26 % late frames; 95 % without layers).
+        // Their pictures are fetched as the rows come near (a picture is ~225 KB decoded, and there are over 50).
         ScrollView scroll = new ScrollView(this);
         scroll.setVerticalScrollBarEnabled(false);
         scroll.setSmoothScrollingEnabled(true); // clipped to its box (the rows' padding leaves room for the glow)
@@ -736,6 +737,14 @@ public class IntelActivity extends Activity {
         rows.setPadding(Ui.dp(Tile.GLOW_DP + 2), Ui.dp(16), Ui.dp(Tile.GLOW_DP + 2), Ui.dp(16));
         LinearLayout row = null;
         int[] order = Cams.order(this); // ended streams last
+        final Tile[] cards = new Tile[order.length];
+        final int[] pictured = {0};
+        final Runnable morePictures = () -> {
+            int rowH = Ui.dp(142), upTo = Math.min(order.length, ((scroll.getScrollY() + scroll.getHeight()) / rowH + 3) * 3);
+            for (; pictured[0] < upTo; pictured[0]++) camPicture(this, cards[pictured[0]], order[pictured[0]]);
+        };
+        scroll.setOnScrollChangeListener((v, x, y, ox, oy) -> morePictures.run());
+        scroll.post(morePictures);
         for (int n = 0; n < order.length; n++) {
             final int i = order[n];
             if (n % 3 == 0) {
@@ -750,7 +759,8 @@ public class IntelActivity extends Activity {
             LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1);
             tlp.setMargins(n % 3 == 0 ? 0 : Ui.dp(7), 0, n % 3 == 2 ? 0 : Ui.dp(7), 0);
             t.setLayoutParams(tlp);
-            fillCam(this, t, i);
+            fillCam(this, t, i, false);
+            cards[n] = t;
             t.setOnClickListener(v -> openCam(this, idx));
             row.addView(t);
         }
@@ -795,15 +805,23 @@ public class IntelActivity extends Activity {
     }
 
     static void fillCam(Context c, Tile t, int i) {
+        fillCam(c, t, i, true);
+    }
+
+    /** A recent frame of the stream from YouTube: 320x180 (16:9, ~225 KB decoded) rather than hqdefault's
+     *  letterboxed 480x360 (~690 KB) – it fills the card without bars at a third of the memory. */
+    static void camPicture(Context c, Tile t, int i) {
+        Net.image((ImageView) t.card.getChildAt(0), "https://i.ytimg.com/vi/" + Cams.id(c, i) + "/mqdefault_live.jpg", Ui.dp(240), null);
+    }
+
+    static void fillCam(Context c, Tile t, int i, boolean picture) {
         String[] r = WmCams.CAMS[i];
         ImageView img = (ImageView) t.card.getChildAt(0);
         LinearLayout words = (LinearLayout) t.card.getChildAt(1);
         ((TextView) words.getChildAt(0)).setText(r[1]);
         ((TextView) words.getChildAt(1)).setText(r[2] + "  ·  " + r[3]);
         img.setBackground(new SourceArt(r[1], 0xFF2C5FB8, Ui.dp(14)));
-        // A recent frame of the stream from YouTube: 320x180 (16:9, ~225 KB decoded) rather than hqdefault's
-        // letterboxed 480x360 (~690 KB) – it fills the card without bars at a third of the memory.
-        Net.image(img, "https://i.ytimg.com/vi/" + Cams.id(c, i) + "/mqdefault_live.jpg", Ui.dp(240), null);
+        if (picture) camPicture(c, t, i);
         t.setContentDescription(r[1] + " live cam");
         if (!Cams.live(c, i)) { // its streams have ended: still there to try, but dimmed and labelled
             t.card.setAlpha(0.45f);
@@ -812,8 +830,13 @@ public class IntelActivity extends Activity {
         }
     }
 
-    /** Opens a cam in the YouTube app (they're YouTube live streams). */
+    /** A cam full screen, with ◀ ▶ to the next. */
     static void openCam(Context c, int i) {
+        c.startActivity(new Intent(c, CamActivity.class).putExtra(CamActivity.EXTRA_CAM, i));
+    }
+
+    /** A cam in the YouTube app (they're YouTube live streams). */
+    static void openInYouTube(Context c, int i) {
         String id = Cams.id(c, i);
         Intent yt = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/watch?v=" + id))
                 .setPackage("com.google.android.youtube.tv").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);

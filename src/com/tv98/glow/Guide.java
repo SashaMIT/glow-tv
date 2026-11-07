@@ -43,8 +43,7 @@ final class Guide {
          */
         final String desc;
         int descAt = -1;
-        File descFile;
-        long descStamp;
+        IndexFile descIn;
 
         Prog(long start, long stop, String title) {
             this(start, stop, title, null);
@@ -61,18 +60,28 @@ final class Guide {
         Prog endingAt(long newStop) {
             Prog p = new Prog(start, newStop, title, desc);
             p.descAt = descAt;
-            p.descFile = descFile;
-            p.descStamp = descStamp;
+            p.descIn = descIn;
             return p;
+        }
+    }
+
+    /** The saved index a programme's description is in, one per file rather than two fields on each of ~28,000 programmes. */
+    private static final class IndexFile {
+        final File file;
+        final long stamp;
+
+        IndexFile(File file) {
+            this.file = file;
+            stamp = file.lastModified();
         }
     }
 
     /** A programme's description: in memory, or one small read from the index it was loaded from. */
     static String descOf(Prog p) {
         if (p == null) return null;
-        if (p.desc != null || p.descAt < 0 || p.descFile == null) return p.desc;
-        if (p.descFile.lastModified() != p.descStamp) return null; // the index has been rewritten since
-        try (java.io.RandomAccessFile f = new java.io.RandomAccessFile(p.descFile, "r")) {
+        if (p.desc != null || p.descAt < 0 || p.descIn == null) return p.desc;
+        if (p.descIn.file.lastModified() != p.descIn.stamp) return null; // the index has been rewritten since
+        try (java.io.RandomAccessFile f = new java.io.RandomAccessFile(p.descIn.file, "r")) {
             f.seek(p.descAt);
             String d = f.readUTF();
             return d.isEmpty() ? null : d;
@@ -533,7 +542,8 @@ final class Guide {
         if (!f.exists()) return;
         long t0 = SystemClock.elapsedRealtime();
         int n = 0;
-        final long stamp = f.lastModified();
+        final IndexFile source = new IndexFile(f);
+        final Map<String, String> titles = new HashMap<>(); // the same show on many channels and at many times: one String
         final long[] pos = {0};
         // Counts bytes read, so each description's place in the file can be kept instead of its text.
         java.io.InputStream file;
@@ -572,7 +582,14 @@ final class Guide {
                 List<Prog> l = new ArrayList<>(count);
                 for (int j = 0; j < count; j++) {
                     long s = in.readLong(), e = in.readLong();
+                    if (e < cutoff) { // over: don't make Strings of what's about to be dropped
+                        in.readFully(skip, 0, in.readUnsignedShort());
+                        if (version >= 2) in.readFully(skip, 0, in.readUnsignedShort());
+                        continue;
+                    }
                     String t = in.readUTF();
+                    String same = titles.putIfAbsent(t, t);
+                    if (same != null) t = same;
                     int at = -1;
                     if (version >= 2) {
                         at = (int) pos[0];
@@ -580,15 +597,12 @@ final class Guide {
                         if (len == 0) at = -1;
                         else in.readFully(skip, 0, len); // (skipBytes may stop short)
                     }
-                    if (e >= cutoff) {
-                        Prog p = new Prog(s, e, t, null);
-                        if (at >= 0) {
-                            p.descAt = at;
-                            p.descFile = f;
-                            p.descStamp = stamp;
-                        }
-                        l.add(p);
+                    Prog p = new Prog(s, e, t, null);
+                    if (at >= 0) {
+                        p.descAt = at;
+                        p.descIn = source;
                     }
+                    l.add(p);
                 }
                 if (!l.isEmpty()) {
                     l = tidy(l);

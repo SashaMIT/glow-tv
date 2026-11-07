@@ -14,7 +14,9 @@ import java.util.Map;
  */
 final class ChannelFacts {
     private static final long FRESH_MS = 7 * 86_400_000L;
-    private static Map<String, String[]> facts;
+    /** Feed id -> its languages, or {@link #HIDDEN}. Only what's asked of it: whole lines were 1.4 MB of the heap. */
+    private static Map<String, String> facts;
+    private static final String HIDDEN = "!";
     private static long factsAt;
 
     private ChannelFacts() {}
@@ -41,17 +43,24 @@ final class ChannelFacts {
         }
     }
 
-    private static synchronized Map<String, String[]> all(Context c) {
+    private static synchronized Map<String, String> all(Context c) {
         File f = file(c);
         if (facts != null && f.lastModified() == factsAt) return facts;
-        Map<String, String[]> m = new HashMap<>();
+        Map<String, String> m = new HashMap<>();
+        Map<String, String> same = new HashMap<>();
         if (f.exists()) {
             try (java.io.BufferedReader r = new java.io.BufferedReader(new java.io.FileReader(f), 32 * 1024)) {
                 String line;
                 while ((line = r.readLine()) != null) {
                     if (line.startsWith("#")) continue;
                     String[] p = line.split("\t", -1);
-                    if (p.length >= 8) m.put(p[0], p);
+                    if (p.length < 8) continue;
+                    if (!p[4].isEmpty() || !p[5].isEmpty() || !p[6].isEmpty() || !p[7].isEmpty()) {
+                        m.put(p[0], HIDDEN);
+                    } else if (!p[2].isEmpty()) {
+                        String langs = same.putIfAbsent(p[2], p[2]);
+                        m.put(p[0], langs != null ? langs : p[2]);
+                    }
                 }
             } catch (Exception ignored) {
             }
@@ -64,14 +73,13 @@ final class ChannelFacts {
     /** Closed, replaced by another channel, adult, or blocklisted. */
     static boolean hidden(Context c, Channel ch) {
         if (ch.feedId == null) return false;
-        String[] p = all(c).get(ch.feedId);
-        return p != null && (!p[4].isEmpty() || !p[5].isEmpty() || !p[6].isEmpty() || !p[7].isEmpty());
+        return all(c).get(ch.feedId) == HIDDEN;
     }
 
     /** ISO 639-3 codes like "eng,tha", or null when the database doesn't say. */
     static String languages(Context c, Channel ch) {
         if (ch.feedId == null) return null;
-        String[] p = all(c).get(ch.feedId);
-        return p == null || p[2].isEmpty() ? null : p[2];
+        String langs = all(c).get(ch.feedId);
+        return langs == HIDDEN ? null : langs;
     }
 }

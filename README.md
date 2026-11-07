@@ -4,11 +4,11 @@ A home screen and live TV app for cheap Android TV boxes. Glow turns a slow, clu
 something that feels like a proper set-top box: a clean home screen, a classic blue satellite-style TV guide
 with channel numbers, a player that keeps trying until a channel plays, a phone remote, and world headlines.
 
-It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. The whole app is 1.2 MB.
+It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. The whole app is 1.4 MB.
 
 ![Glow in 20 seconds: Home with Intelligence, the live world map and rain, live sport, cams, rain radar, the TV guide with listings, Now & Next, subtitles and a score banner](docs/glow-tour.gif)
 
-**[What's new since the first video: 76 seconds (MP4)](docs/glow-whatsnew.mp4)** · [The first video (MP4)](docs/glow-promo.mp4) · [The TV guide in motion (GIF)](docs/glow-guide.gif) · [All screenshots](docs/screenshots) · [Measured results](docs/BENCHMARKS.md) · [Roadmap](ROADMAP.md)
+**[Glow in one minute (MP4, with sound)](docs/glow-promo-1min.mp4)** · [What's new since the first video (MP4)](docs/glow-whatsnew.mp4) · [The first video (MP4)](docs/glow-promo.mp4) · [The TV guide in motion (GIF)](docs/glow-guide.gif) · [All screenshots](docs/screenshots) · [Measured results](docs/BENCHMARKS.md) · [Roadmap](ROADMAP.md)
 
 ## What it does
 
@@ -51,8 +51,8 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
 - **Phone remote**: open the box's address on your phone, enter the 4-digit code shown on the TV, then use a
   D-pad, type searches and logins, open favourites. Home network only; switches itself off after 30 minutes.
 - **Intelligence** (Home row and screen): a live world map drawn by Glow (earthquakes, current disaster alerts,
-  wildfires and storms, places in the news, webcams, the International Space Station, day and night), 22 live city
-  and space cams one click away (ended streams are spotted and skipped), Sports now (live scores, fixtures and
+  wildfires and storms, places in the news, webcams, the International Space Station, day and night), 45 live cams of cities, nature and
+  the oceans, full screen with ◀ ▶ to the next (ended streams are spotted and skipped), Sports now (live scores, fixtures and
   results for UFC, F1, Premier League, Champions League, NBA and NFL, with free sports channels to watch), a weather
   page with air quality and 7 days, a rain radar for the last two hours, rain across the world on the map, and what
   prediction markets expect. While you watch TV, small banners show goals, kick-offs and results in your leagues
@@ -120,7 +120,7 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
 | Changing channel (median of 20) | 2,395 ms | 1,984 ms |
 | Giving up on a dead channel | ~27 s | 11 s |
 | Top sports & news picks that play | — | 15 / 15 |
-| Glow's memory on Home | — | 77 MB (with the Intelligence row; smooth scrolling layers included) |
+| Glow's memory on Home | — | 73 MB (with the Intelligence row; smooth scrolling layers included) |
 
 Every change has a before/after in [docs/BENCHMARKS.md](docs/BENCHMARKS.md), including what didn't work.
 

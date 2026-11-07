@@ -169,7 +169,8 @@ final class Radio {
 
     /**
      * Off the main thread: cover art for "Artist - Title" from Apple's public iTunes Search (no key), or "" when
-     * there's none. Station jingles and talk ("Advert", the station's own name) simply find nothing.
+     * there's none. Station jingles and talk ("Advert", the station's own name) simply find nothing, and a result by
+     * an artist the station didn't name is left out: no cover beats the wrong one.
      */
     static String art(String song, String station) {
         song = query(song, station);
@@ -180,10 +181,13 @@ final class Radio {
         String url = "";
         try {
             String q = java.net.URLEncoder.encode(song, "UTF-8");
-            JSONObject r = new JSONObject(new String(Net.bytes("https://itunes.apple.com/search?media=music&entity=song&limit=1&term=" + q,
+            JSONObject r = new JSONObject(new String(Net.bytes("https://itunes.apple.com/search?media=music&entity=song&limit=5&term=" + q,
                     256 * 1024), "UTF-8"));
             JSONArray res = r.optJSONArray("results");
-            if (res != null && res.length() > 0) url = res.getJSONObject(0).optString("artworkUrl100").replace("100x100bb", "600x600bb");
+            for (int i = 0; res != null && i < res.length() && url.isEmpty(); i++) {
+                JSONObject o = res.getJSONObject(i);
+                if (namesArtist(song, o.optString("artistName"))) url = o.optString("artworkUrl100").replace("100x100bb", "600x600bb");
+            }
         } catch (Exception ignored) {
         }
         synchronized (ART) {
@@ -191,6 +195,14 @@ final class Radio {
             ART.put(song, url);
         }
         return url;
+    }
+
+    private static boolean namesArtist(String song, String artist) {
+        java.util.List<String> words = java.util.Arrays.asList(song.toLowerCase(java.util.Locale.ROOT).split("\\W+"));
+        for (String w : artist.toLowerCase(java.util.Locale.ROOT).split("\\W+")) {
+            if (w.length() > 1 && !w.equals("the") && !w.equals("and") && words.contains(w)) return true;
+        }
+        return false;
     }
 
     /**

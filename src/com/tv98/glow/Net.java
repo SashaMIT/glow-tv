@@ -62,13 +62,17 @@ final class Net {
     }
 
     static byte[] bytes(String url, int limit) throws IOException {
+        return bytes(url, limit, "Glow/1.0 (Android TV)");
+    }
+
+    static byte[] bytes(String url, int limit, String userAgent) throws IOException {
         HttpURLConnection c = null;
         for (int hop = 0; hop < 4; hop++) {
             c = (HttpURLConnection) new URL(url).openConnection();
             c.setConnectTimeout(8000);
             c.setReadTimeout(15000);
             c.setInstanceFollowRedirects(false);
-            c.setRequestProperty("User-Agent", "Glow/1.0 (Android TV)");
+            c.setRequestProperty("User-Agent", userAgent);
             int code = c.getResponseCode();
             if (code >= 300 && code < 400 && c.getHeaderField("Location") != null) {
                 url = new URL(new URL(url), c.getHeaderField("Location")).toString();
