@@ -109,6 +109,7 @@ final class Health {
             int n = l.number(ch);
             if (ch.url != null && n > 0 && n < 1000 && n % 100 <= 30) todo.put(ch.url, ch);
         }
+        if (Vitals.hot()) return; // a hot box: the next round can do it
         final Map<String, Boolean> map = results(c);
         long t0 = android.os.SystemClock.elapsedRealtime();
         final java.util.concurrent.atomic.AtomicInteger ok = new java.util.concurrent.atomic.AtomicInteger(), changed = new java.util.concurrent.atomic.AtomicInteger();
@@ -185,9 +186,7 @@ final class Health {
         HttpURLConnection conn = null;
         try {
             for (int hop = 0; hop < 4; hop++) {
-                conn = (HttpURLConnection) new URL(url).openConnection();
-                conn.setConnectTimeout(connectMs);
-                conn.setReadTimeout(readMs);
+                conn = Net.open(url, connectMs, readMs);
                 conn.setInstanceFollowRedirects(false);
                 conn.setRequestProperty("User-Agent", ch.userAgent != null ? ch.userAgent : "Mozilla/5.0 (Linux; Android 10)");
                 if (ch.referrer != null) conn.setRequestProperty("Referer", ch.referrer);

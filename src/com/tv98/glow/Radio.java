@@ -197,7 +197,7 @@ final class Radio {
         return url;
     }
 
-    private static boolean namesArtist(String song, String artist) {
+    static boolean namesArtist(String song, String artist) {
         java.util.List<String> words = java.util.Arrays.asList(song.toLowerCase(java.util.Locale.ROOT).split("\\W+"));
         for (String w : artist.toLowerCase(java.util.Locale.ROOT).split("\\W+")) {
             if (w.length() > 1 && !w.equals("the") && !w.equals("and") && words.contains(w)) return true;

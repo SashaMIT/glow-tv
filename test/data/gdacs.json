@@ -1,0 +1,64 @@
+{
+"features": [
+{
+"type": "Feature",
+"bbox": [
+12.876,
+48.127,
+12.876,
+48.127
+],
+"geometry": {
+"type": "Point",
+"coordinates": [
+12.876,
+48.127
+]
+},
+"properties": {
+"name": "Drought in Andorra, Albania, Austria, Bosnia  and  Herzegovina, Belgium, Bulgaria, Belarus, Switzerland, Czech Republic, Germany, Denmark, Spain, France, Croatia, Hungary, Ireland, Italy, Liechtenstein, Luxembourg, Moldova, Montenegro, Netherlands, Poland, Romania, Serbia, Sweden, Slovenia, Slovakia, Ukraine, ",
+"alertlevel": "Orange",
+"eventtype": "DR",
+"country": "Andorra, Albania, Austria, Bosnia & Herzegovina, Belgium, Bulgaria, Belarus, Switzerland, Czech Republic, Germany, Denmark, Spain, France, Croatia, Hungary, Ireland, Italy, Liechtenstein, Luxembourg, Moldova, Montenegro, Netherlands, Poland, Romania, Serbia, Sweden, Slovenia, Slovakia, Ukraine, ",
+"fromdate": "2025-12-21T00:00:00",
+"todate": "2026-11-05T00:00:00",
+"iscurrent": true,
+"url": {
+"geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=DR&eventid=1018332&episodeid=26",
+"report": "https://www.gdacs.org/report.aspx?eventid=1018332&episodeid=26&eventtype=DR",
+"details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=DR&eventid=1018332"
+}
+}
+},
+{
+"type": "Feature",
+"bbox": [
+-95.396,
+18.563,
+-95.396,
+18.563
+],
+"geometry": {
+"type": "Point",
+"coordinates": [
+-95.396,
+18.563
+]
+},
+"properties": {
+"name": "Drought in Belize, Costa Rica, Cuba, Dominican Republic, Guatemala, Honduras, Haiti, Mexico, Nicaragua, El Salvador, United States",
+"alertlevel": "Orange",
+"eventtype": "DR",
+"country": "Belize, Costa Rica, Cuba, Dominican Republic, Guatemala, Honduras, Haiti, Mexico, Nicaragua, El Salvador, United States",
+"fromdate": "2026-04-21T00:00:00",
+"todate": "2026-11-05T00:00:00",
+"iscurrent": true,
+"url": {
+"geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=DR&eventid=1027449&episodeid=13",
+"report": "https://www.gdacs.org/report.aspx?eventid=1027449&episodeid=13&eventtype=DR",
+"details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=DR&eventid=1027449"
+}
+}
+}
+]
+}

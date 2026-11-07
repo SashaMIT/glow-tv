@@ -119,7 +119,7 @@ final class F1Timing {
     }
 
     /** "+13.078", "+1 LAP", "1:34.035" (the leader's lap or race time), "DNF". */
-    private static String gap(JSONObject x, boolean race, boolean leader) {
+    static String gap(JSONObject x, boolean race, boolean leader) {
         if (x.optBoolean("dsq")) return "DSQ";
         if (x.optBoolean("dns")) return "DNS";
         if (x.optBoolean("dnf")) return "DNF";
@@ -137,7 +137,7 @@ final class F1Timing {
         return null;
     }
 
-    private static String clock(double sec, boolean hours) {
+    static String clock(double sec, boolean hours) {
         int h = (int) (sec / 3600), m = (int) (sec % 3600 / 60);
         double s = sec % 60;
         return hours && h > 0 ? String.format(Locale.ROOT, "%d:%02d:%06.3f", h, m, s) : String.format(Locale.ROOT, "%d:%06.3f", h * 60 + m, s);

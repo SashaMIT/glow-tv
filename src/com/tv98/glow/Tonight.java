@@ -32,7 +32,7 @@ final class Tonight {
     }
 
     private static final String[] FILLER = {"paid programming", "infomercial", "to be announced", "tba", "no information",
-            "close", "closedown", "off air", "programmes start", "teleshopping", "shopping", "station closed"};
+            "closedown", "off air", "programmes start", "teleshopping", "shopping", "station closed"};
 
     private static List<Pick> memo;
     private static long memoAt;
@@ -55,7 +55,7 @@ final class Tonight {
     private static final java.util.regex.Pattern YEAR = java.util.regex.Pattern.compile("\\b(19[5-9]\\d|20[0-4]\\d)\\b");
 
     /** Highlights, replays and anything naming a past year ("Bellator 199", "World Cup 2019"…) aren't tonight's sport. */
-    private static boolean replay(String t) {
+    static boolean replay(String t) {
         if (REPLAY.matcher(t).find()) return true;
         java.util.regex.Matcher y = YEAR.matcher(t);
         int now = Calendar.getInstance().get(Calendar.YEAR);
@@ -101,32 +101,10 @@ final class Tonight {
                 String t = p.title.toLowerCase(Locale.ROOT).trim();
                 if (t.length() < 3 || filler(t) || repeats.get(t) > 2) continue;
                 long minutes = (p.stop - p.start) / 60_000L;
-                Pick k = new Pick();
+                Pick k = classify(p.title, t, genres, minutes);
+                if (k == null) continue;
                 k.channel = ch;
                 k.prog = p;
-                if (genres.contains(Genres.SPORTS) && (replay(t) || !IntelActivity.looksLive(p.title))) {
-                    continue; // sport channels' magazines, replays and highlights
-                } else if (genres.contains(Genres.SPORTS)) {
-                    // "Live" in the title is the only sign the listings give that it really is live.
-                    boolean live = java.util.regex.Pattern.compile("\\blive\\b").matcher(t).find();
-                    k.kind = live ? "Live sport" : "Sport";
-                    k.score = live ? 3 : 1.8;
-                } else if (t.contains("premiere") || t.startsWith("new:") || t.contains("(new)") || t.contains("series finale")) {
-                    k.kind = "Premiere";
-                    k.score = 2.5;
-                } else if (genres.contains(Genres.NEWS) && (t.contains("special") || t.contains("debate") || t.contains("election")
-                        || t.contains("live coverage") || t.contains("breaking"))) {
-                    k.kind = "News special";
-                    k.score = 2;
-                } else if (genres.contains(Genres.MOVIES) && minutes >= 80 && minutes <= 200) {
-                    k.kind = "Film";
-                    k.score = 2;
-                } else if (genres.contains(Genres.DOCS) && minutes >= 45) {
-                    k.kind = "Documentary";
-                    k.score = 1;
-                } else {
-                    continue;
-                }
                 for (String team : teams) if (team.length() > 3 && t.contains(team)) k.score += 3; // my team plays
                 if (fav) k.score += 2;
                 if (p.start >= from + 2 * 3_600_000L && p.start < from + 4 * 3_600_000L) k.score += 0.3; // prime time
@@ -149,7 +127,37 @@ final class Tonight {
         return out;
     }
 
-    private static boolean filler(String t) {
+    /** What a programme is and how good a pick it is, from its channel's genres, its title and its length; null to leave it out. */
+    static Pick classify(String title, String t, List<Integer> genres, long minutes) {
+        Pick k = new Pick();
+        if (genres.contains(Genres.SPORTS) && (replay(t) || !IntelActivity.looksLive(title))) {
+            return null; // sport channels' magazines, replays and highlights
+        } else if (genres.contains(Genres.SPORTS)) {
+            // "Live" in the title is the only sign the listings give that it really is live.
+            boolean live = java.util.regex.Pattern.compile("\\blive\\b").matcher(t).find();
+            k.kind = live ? "Live sport" : "Sport";
+            k.score = live ? 3 : 1.8;
+        } else if (t.contains("premiere") || t.startsWith("new:") || t.contains("(new)") || t.contains("series finale")) {
+            k.kind = "Premiere";
+            k.score = 2.5;
+        } else if (genres.contains(Genres.NEWS) && (t.contains("special") || t.contains("debate") || t.contains("election")
+                || t.contains("live coverage") || t.contains("breaking"))) {
+            k.kind = "News special";
+            k.score = 2;
+        } else if (genres.contains(Genres.MOVIES) && minutes >= 80 && minutes <= 200) {
+            k.kind = "Film";
+            k.score = 2;
+        } else if (genres.contains(Genres.DOCS) && minutes >= 45) {
+            k.kind = "Documentary";
+            k.score = 1;
+        } else {
+            return null;
+        }
+        return k;
+    }
+
+    static boolean filler(String t) {
+        if (t.equals("close")) return true; // alone: "Close Encounters of the Third Kind" is a film
         for (String f : FILLER) if (t.equals(f) || t.startsWith(f + " ")) return true;
         return false;
     }

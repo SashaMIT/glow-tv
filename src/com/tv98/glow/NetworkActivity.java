@@ -70,6 +70,10 @@ public class NetworkActivity extends Activity {
                 L.f("Since the box started: {} (Glow itself {}). Counted by Glow from when it was installed; per app would need Android's usage access for Glow.",
                         DataUsage.size(DataUsage.sinceStart()), DataUsage.size(DataUsage.glow())), null);
 
+        java.util.List<String> failing = Feeds.failing(System.currentTimeMillis());
+        row(L.f("Data sources: {n} answering, {n} failing", Feeds.answering(), failing.size()),
+                failing.isEmpty() ? L.t("Weather, scores, news and the other sources Glow has asked since it started.") : String.join("\n", failing), null);
+
         row("Wi-Fi settings", "Change network, forget a network, or set a fixed address (Android settings).", v -> {
             try {
                 startActivity(new android.content.Intent(android.provider.Settings.ACTION_WIFI_SETTINGS));
@@ -161,9 +165,7 @@ public class NetworkActivity extends Activity {
     /** Reads up to {@code max} bytes (or until {@code ms} runs out), returns how many arrived. */
     private static long read(String url, long max, long ms) throws Exception {
         long until = SystemClock.elapsedRealtime() + Math.max(1_000, ms);
-        HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
-        c.setConnectTimeout(5_000);
-        c.setReadTimeout(5_000);
+        HttpURLConnection c = Net.open(url, 5_000, 5_000);
         c.setRequestProperty("User-Agent", "Glow/1.0 (Android TV)");
         long n = 0;
         boolean whole = false;

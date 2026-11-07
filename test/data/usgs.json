@@ -1,0 +1,101 @@
+{
+"type": "FeatureCollection",
+"metadata": {
+"generated": 1794057525000,
+"url": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson",
+"title": "USGS Magnitude 4.5+ Earthquakes, Past Day",
+"status": 200,
+"api": "2.8.2",
+"count": 8
+},
+"features": [
+{
+"type": "Feature",
+"properties": {
+"mag": 4.9,
+"place": "southern Mid-Atlantic Ridge",
+"time": 1794051338338,
+"updated": 1794052528040,
+"tz": null,
+"url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000twrt",
+"detail": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/detail/us7000twrt.geojson",
+"felt": null,
+"cdi": null,
+"mmi": null,
+"alert": null,
+"status": "reviewed",
+"tsunami": 0,
+"sig": 369,
+"net": "us",
+"code": "7000twrt",
+"ids": ",us7000twrt,",
+"sources": ",us,",
+"types": ",origin,phase-data,",
+"nst": 29,
+"dmin": 7.25,
+"rms": 1.12,
+"gap": 118,
+"magType": "mb",
+"type": "earthquake",
+"title": "M 4.9 - southern Mid-Atlantic Ridge"
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+-12.9445,
+-18.2483,
+10
+]
+},
+"id": "us7000twrt"
+},
+{
+"type": "Feature",
+"properties": {
+"mag": 5.5,
+"place": "74 km NE of Hasaki, Japan",
+"time": 1794049663355,
+"updated": 1794057176122,
+"tz": null,
+"url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000twrq",
+"detail": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/detail/us7000twrq.geojson",
+"felt": 17,
+"cdi": 3.4,
+"mmi": 4.054,
+"alert": "green",
+"status": "reviewed",
+"tsunami": 0,
+"sig": 471,
+"net": "us",
+"code": "7000twrq",
+"ids": ",us7000twrq,",
+"sources": ",us,",
+"types": ",dyfi,losspager,moment-tensor,origin,phase-data,shakemap,",
+"nst": 88,
+"dmin": 2.632,
+"rms": 0.62,
+"gap": 97,
+"magType": "mww",
+"type": "earthquake",
+"title": "M 5.5 - 74 km NE of Hasaki, Japan"
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+141.4404,
+36.1884,
+31.748
+]
+},
+"id": "us7000twrq"
+}
+],
+"bbox": [
+-68.6413,
+-57.9579,
+10,
+144.9932,
+36.1884,
+113.394
+]
+}

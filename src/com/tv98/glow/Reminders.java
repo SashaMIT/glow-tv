@@ -88,6 +88,7 @@ final class Reminders {
     }
 
     private static void fire(final String key, final String title) {
+        if (Kids.on(app)) return; // a grown-up's reminder would let a child open that channel
         Net.IO.execute(() -> {
             GuideLineup l = GuideLineup.build(app);
             Channel found = null;

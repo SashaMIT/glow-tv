@@ -117,7 +117,7 @@ final class Cams {
         return !contains(page, "\"isLive\":true") && contains(page, "\"playabilityStatus\":{\"status\":\"");
     }
 
-    private static boolean contains(byte[] b, String ascii) {
+    static boolean contains(byte[] b, String ascii) {
         int n = ascii.length();
         outer:
         for (int i = 0; i + n <= b.length; i++) {

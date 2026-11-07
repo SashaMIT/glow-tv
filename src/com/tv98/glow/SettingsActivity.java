@@ -60,6 +60,8 @@ public class SettingsActivity extends Activity {
                     });
         }
 
+        row("Box health", Vitals.line(this), null, v -> build());
+
         boolean adb = adbOn(this);
         row(adb ? "Developer access: ON" : "Developer access: off",
                 adb ? "Anyone on your Wi-Fi can fully control this box while it's on. Turn it off unless you're working on the box."

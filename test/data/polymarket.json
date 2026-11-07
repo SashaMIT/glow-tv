@@ -1,0 +1,38 @@
+[
+{
+"question": "Will Abdul El-Sayed win the 2028 Democratic presidential nomination?",
+"outcomePrices": "[\"0.0115\", \"0.9885\"]",
+"volume24hr": 1019284.510871,
+"endDate": "2028-11-07T00:00:00Z"
+},
+{
+"question": "Will Rick Scott win the 2028 Republican presidential nomination?",
+"outcomePrices": "[\"0.0015\", \"0.9985\"]",
+"volume24hr": 767393.048572,
+"endDate": "2028-11-08T04:59:00Z"
+},
+{
+"question": "Israel x Iran ceasefire continues through November 7?",
+"outcomePrices": "[\"0.979\", \"0.021\"]",
+"volume24hr": 696141.020079,
+"endDate": "2026-11-08T04:59:00Z"
+},
+{
+"question": "LoL: Invictus Gaming vs Gen.G (BO5) - Worlds Playoffs",
+"outcomePrices": "[\"0.195\", \"0.805\"]",
+"volume24hr": 670545.7089599998,
+"endDate": "2026-11-08T04:00:00Z"
+},
+{
+"question": "US x Iran effective ceasefire continues through November 6, 2026?",
+"outcomePrices": "[\"0.965\", \"0.035\"]",
+"volume24hr": 580120.051328,
+"endDate": "2026-11-07T04:59:00Z"
+},
+{
+"question": "Will Tulsi Gabbard win the 2028 Republican presidential nomination?",
+"outcomePrices": "[\"0.0015\", \"0.9985\"]",
+"volume24hr": 497283.03,
+"endDate": "2028-11-08T04:59:00Z"
+}
+]

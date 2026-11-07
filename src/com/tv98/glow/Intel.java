@@ -53,6 +53,9 @@ final class Intel {
         final List<long[]> daily = new ArrayList<>();    // {time, max*10, min*10, code, rain%}
     }
 
+    /** How often each page's main source is asked again. */
+    static final long POLYMARKET_FRESH_MS = 15 * 60_000L, WEATHER_FRESH_MS = 30 * 60_000L;
+
     private Intel() {}
 
     // Parsed results, reused while their data is fresh: Home asks again every time it comes back into view, and
@@ -96,6 +99,23 @@ final class Intel {
         }
     }
 
+    /** How long ago this source last answered, in ms, or -1 if it never has. */
+    static long ageMs(Context c, String name) {
+        File f = new File(c.getFilesDir(), "intel-" + name + ".json");
+        return f.exists() ? Math.max(0, System.currentTimeMillis() - f.lastModified()) : -1;
+    }
+
+    /**
+     * "Open-Meteo · updated 4 min ago". Past twice its refresh time the source isn't answering, and an old copy is
+     * on screen: "Open-Meteo · can't reach it, this is from 3 h ago".
+     */
+    static String stamp(String source, long ageMs, long freshMs) {
+        if (ageMs < 0) return source;
+        long min = ageMs / 60_000L;
+        String ago = min < 1 ? L.t("just now") : min < 60 ? L.f("{n} min ago", min) : min < 48 * 60 ? L.f("{n} h ago", min / 60) : L.f("{n} days ago", min / 1440);
+        return source + "   ·   " + (ageMs > 2 * freshMs ? L.f("can't reach it, this is from {t}", ago) : L.f("updated {t}", ago));
+    }
+
     private static String read(File f) {
         try (FileInputStream in = new FileInputStream(f)) {
             byte[] b = new byte[(int) f.length()];
@@ -115,8 +135,11 @@ final class Intel {
     }
 
     private static List<Event> quakesNow(Context c) {
+        return parseQuakes(cached(c, "usgs", "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson", 10 * 60_000L));
+    }
+
+    static List<Event> parseQuakes(String s) {
         List<Event> out = new ArrayList<>();
-        String s = cached(c, "usgs", "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson", 10 * 60_000L);
         if (s == null) return out;
         try {
             JSONArray f = new JSONObject(s).getJSONArray("features");
@@ -149,9 +172,12 @@ final class Intel {
     }
 
     private static List<Event> alertsNow(Context c) {
+        return parseAlerts(cached(c, "gdacs", "https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?eventlist=EQ;TC;FL;VO;DR;WF",
+                30 * 60_000L));
+    }
+
+    static List<Event> parseAlerts(String s) {
         List<Event> out = new ArrayList<>();
-        String s = cached(c, "gdacs", "https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?eventlist=EQ;TC;FL;VO;DR;WF",
-                30 * 60_000L);
         if (s == null) return out;
         Map<String, String> kinds = new HashMap<>();
         kinds.put("EQ", "Earthquake");
@@ -198,8 +224,11 @@ final class Intel {
     }
 
     private static List<Event> naturalNow(Context c) {
+        return parseNatural(cached(c, "eonet", "https://eonet.gsfc.nasa.gov/api/v3/events?status=open&days=30", 30 * 60_000L));
+    }
+
+    static List<Event> parseNatural(String s) {
         List<Event> out = new ArrayList<>();
-        String s = cached(c, "eonet", "https://eonet.gsfc.nasa.gov/api/v3/events?status=open&days=30", 30 * 60_000L);
         if (s == null) return out;
         SimpleDateFormat iso = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.ROOT);
         iso.setTimeZone(TimeZone.getTimeZone("UTC"));
@@ -332,9 +361,12 @@ final class Intel {
     }
 
     private static List<Market> marketsNow(Context c) {
+        return parseMarkets(cached(c, "polymarket",
+                "https://gamma-api.polymarket.com/markets?active=true&closed=false&order=volume24hr&ascending=false&limit=60", 15 * 60_000L));
+    }
+
+    static List<Market> parseMarkets(String s) {
         List<Market> out = new ArrayList<>();
-        String s = cached(c, "polymarket",
-                "https://gamma-api.polymarket.com/markets?active=true&closed=false&order=volume24hr&ascending=false&limit=60", 15 * 60_000L);
         if (s == null) return out;
         try {
             JSONArray a = new JSONArray(s);

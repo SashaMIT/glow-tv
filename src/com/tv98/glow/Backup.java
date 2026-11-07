@@ -16,7 +16,7 @@ import java.util.Set;
  * display, sports, player languages, screensaver, reminders. Never the IPTV sign-in ("xtream" isn't included).
  */
 final class Backup {
-    private static final String[] FILES = {"apps", "channels", "display", "dream", "player", "sports", "reminders"};
+    private static final String[] FILES = {"apps", "channels", "display", "dream", "player", "sports", "reminders", "radio"};
     private static final Set<String> SKIP = new HashSet<>(java.util.Arrays.asList("bandwidth")); // box-specific
 
     private Backup() {}

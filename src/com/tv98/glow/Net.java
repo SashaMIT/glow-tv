@@ -41,11 +41,17 @@ final class Net {
         GuideGridView.trimCache();
     }
 
+    /** Every connection Glow opens itself starts here (ExoPlayer has its own). TLS checks are Android's own and always on. */
+    static HttpURLConnection open(String url, int connectMs, int readMs) throws IOException {
+        HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+        c.setConnectTimeout(connectMs);
+        c.setReadTimeout(readMs);
+        return c;
+    }
+
     /** The first {@code limit} bytes of a web page (enough for its <head>), as a browser would ask for it. */
     static String head(String url, int limit) throws IOException {
-        HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
-        c.setConnectTimeout(8000);
-        c.setReadTimeout(10000);
+        HttpURLConnection c = open(url, 8000, 10000);
         c.setInstanceFollowRedirects(true);
         c.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 10; TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36");
         c.setRequestProperty("Accept", "text/html");
@@ -66,11 +72,20 @@ final class Net {
     }
 
     static byte[] bytes(String url, int limit, String userAgent) throws IOException {
+        try {
+            byte[] body = fetch(url, limit, userAgent);
+            Feeds.report(url, null, System.currentTimeMillis());
+            return body;
+        } catch (IOException e) {
+            Feeds.report(url, e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage(), System.currentTimeMillis());
+            throw e;
+        }
+    }
+
+    private static byte[] fetch(String url, int limit, String userAgent) throws IOException {
         HttpURLConnection c = null;
         for (int hop = 0; hop < 4; hop++) {
-            c = (HttpURLConnection) new URL(url).openConnection();
-            c.setConnectTimeout(8000);
-            c.setReadTimeout(15000);
+            c = open(url, 8000, 15000);
             c.setInstanceFollowRedirects(false);
             c.setRequestProperty("User-Agent", userAgent);
             int code = c.getResponseCode();

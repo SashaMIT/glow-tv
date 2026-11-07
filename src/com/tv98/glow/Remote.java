@@ -221,6 +221,9 @@ final class Remote {
                 case "/api/fav": result = fav(in2.optString("key")); break;
                 case "/api/backup": result = Backup.export(app); break;
                 case "/api/restore": result = new JSONObject().put("ok", true).put("restored", Backup.restore(app, in2)); break;
+                case "/api/tonight": result = tonight(); break;
+                case "/api/remind": result = remind(in2); break;
+                case "/api/health": result = new JSONObject().put("line", Vitals.line(app)).put("crashes", Vitals.crashes(app)); break;
                 case "/api/photos": result = new JSONObject().put("count", Photos.all(app).length); break;
                 case "/api/ha": result = in2.length() == 0 ? HomeAssistant.config(app) : HomeAssistant.set(app, in2); break;
                 case "/api/ha/entities": result = HomeAssistant.entities(app); break;
@@ -313,7 +316,13 @@ final class Remote {
     private static JSONObject channelJson(Channel ch) throws Exception {
         return new JSONObject().put("key", ch.key()).put("name", ch.name).put("logo", ch.logo).put("num", GuideLineup.numberOf(ch))
                 .put("country", Channel.countryName(ch.country) == null ? "" : Channel.countryName(ch.country))
-                .put("group", ch.group == null ? "" : ch.group).put("fav", Picks.isFavourite(app, ch));
+                .put("group", ch.group == null ? "" : ch.group).put("fav", Picks.isFavourite(app, ch))
+                .put("now", nowTitle(ch));
+    }
+
+    private static String nowTitle(Channel ch) {
+        Guide.Prog p = Guide.now(ch);
+        return p == null ? "" : p.title;
     }
 
     private static JSONArray search(String q) throws Exception {
@@ -337,6 +346,31 @@ final class Remote {
         JSONArray out = new JSONArray();
         for (Channel ch : Picks.favourites(app, allChannels())) out.put(channelJson(ch));
         return out;
+    }
+
+    /** Tonight's picks, as Home shows them. None in Kids mode: its only channels are the children's. */
+    private static JSONArray tonight() throws Exception {
+        JSONArray out = new JSONArray();
+        if (Kids.on(app)) return out;
+        for (Tonight.Pick k : Tonight.picks(app, 20)) {
+            out.put(channelJson(k.channel).put("title", k.prog.title).put("line", Tonight.line(app, k)).put("start", k.prog.start)
+                    .put("onNow", k.onNow()).put("reminder", Reminders.has(app, k.channel, k.prog)));
+        }
+        return out;
+    }
+
+    /** A reminder on or off for one of tonight's picks, by channel and start time. */
+    private static JSONObject remind(JSONObject in) throws Exception {
+        String key = in.optString("key");
+        long start = in.optLong("start");
+        if (!Kids.on(app)) {
+            for (Tonight.Pick k : Tonight.picks(app, 20)) {
+                if (k.channel.key().equals(key) && k.prog.start == start) {
+                    return new JSONObject().put("ok", true).put("reminder", Reminders.toggle(app, k.channel, k.prog));
+                }
+            }
+        }
+        return new JSONObject().put("ok", false).put("error", "That programme isn't in tonight's list any more");
     }
 
     /** Plays a channel on the TV; the list it came from becomes the ▲▼ zapping order. */

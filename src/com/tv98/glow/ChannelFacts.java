@@ -30,7 +30,7 @@ final class ChannelFacts {
         File f = file(c);
         if (f.exists() && System.currentTimeMillis() - f.lastModified() < FRESH_MS) return;
         try {
-            byte[] b = Net.bytes(Guide.GLOW_DATA + "facts.tsv", 4 * 1024 * 1024);
+            byte[] b = Signed.fetch(Guide.GLOW_DATA + "facts.tsv", 4 * 1024 * 1024);
             if (b.length < 1000) return;
             File tmp = new File(c.getFilesDir(), "facts.tsv.tmp");
             try (FileOutputStream out = new FileOutputStream(tmp)) {

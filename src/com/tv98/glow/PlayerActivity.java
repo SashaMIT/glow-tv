@@ -977,6 +977,7 @@ public class PlayerActivity extends Activity {
      */
     private void prepareStandby() {
         int n = Xtream.playlist.size();
+        if (Vitals.hot()) return; // on a hot box, instant ▲ ▼ can wait
         if (exo == null || n < 2 || corner != null) return; // a corner picture uses the decoder a standby would
         int above = (index + 1) % n, below = (index - 1 + n) % n;
         if (up.index != above) {

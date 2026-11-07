@@ -99,6 +99,19 @@ final class Sports {
     private static long memoAt;
 
     /** Forget the last result (leagues or favourite teams changed). */
+    /** How long ago the league answering most recently did, or -1: the note on the page goes by it. */
+    static long freshestAge(Context c) {
+        long best = -1;
+        for (String[] league : LEAGUES) {
+            long age = Intel.ageMs(c, "espn-" + league[0].replace('/', '-'));
+            if (age >= 0 && (best < 0 || age < best)) best = age;
+        }
+        return best;
+    }
+
+    /** The longest a league waits to ask again, with nothing on. */
+    static final long FRESH_MS = 30 * 60_000L;
+
     static synchronized void invalidate() {
         memo = null;
     }

@@ -515,8 +515,8 @@ public class IntelActivity extends Activity {
         h.setEllipsize(TextUtils.TruncateAt.END);
         pane.addView(h);
         TextView note = Ui.text(this, 11.5f, Ui.TEXT_DIM, 400);
-        note.setText("Live scores, fixtures in your time and results from the last day (ESPN). TV shows who broadcasts it in the US;"
-                + " OK plays it when a free channel here carries it, otherwise the free sports channels below. Leagues: Glow ▸ Settings.");
+        note.setText(L.t("Live scores, fixtures in your time and results from the last day (ESPN). TV shows who broadcasts it in the US;"
+                + " OK plays it when a free channel here carries it, otherwise the free sports channels below. Leagues: Glow ▸ Settings.") + "   " + Intel.stamp("ESPN", Sports.freshestAge(this), Sports.FRESH_MS));
         note.setPadding(0, Ui.dp(4), 0, Ui.dp(8));
         pane.addView(note);
 
@@ -866,6 +866,9 @@ public class IntelActivity extends Activity {
             pane.addView(none);
             return;
         }
+        TextView from = Ui.text(this, 11.5f, Ui.TEXT_DIM, 400);
+        from.setText(Intel.stamp("Open-Meteo", Intel.ageMs(this, "forecast"), Intel.WEATHER_FRESH_MS));
+        pane.addView(from);
         LinearLayout top = new LinearLayout(this);
         top.setGravity(Gravity.CENTER_VERTICAL);
         TextView icon = Ui.text(this, 64, Ui.TEXT, 300);
@@ -1012,7 +1015,8 @@ public class IntelActivity extends Activity {
         h.setText("What the world expects");
         pane.addView(h);
         TextView note = Ui.text(this, 11.5f, Ui.TEXT_DIM, 400);
-        note.setText("Prediction-market odds from Polymarket's most-traded open questions today, for information only.");
+        note.setText(L.t("Prediction-market odds from Polymarket's most-traded open questions today, for information only.")
+                + "   " + Intel.stamp("Polymarket", Intel.ageMs(this, "polymarket"), Intel.POLYMARKET_FRESH_MS));
         note.setPadding(0, Ui.dp(4), 0, Ui.dp(10));
         pane.addView(note);
         ListView list = new ListView(this);
@@ -1221,7 +1225,7 @@ public class IntelActivity extends Activity {
         h.setText("Markets");
         pane.addView(h);
         TextView note = Ui.text(this, 11.5f, Ui.TEXT_DIM, 400);
-        note.setText("Bitcoin, Ether and gold (PAX Gold, backed by one troy ounce) from CoinGecko, every 10 minutes; exchange rates from the European Central Bank, each working day. For information only.");
+        note.setText(L.t("Bitcoin, Ether and gold (PAX Gold, backed by one troy ounce) from CoinGecko, every 10 minutes; exchange rates from the European Central Bank, each working day. For information only.") + "   " + Intel.stamp("CoinGecko", Intel.ageMs(this, "coins"), 10 * 60_000L));
         note.setLineSpacing(0, 1.15f);
         note.setPadding(0, Ui.dp(4), 0, Ui.dp(6));
         pane.addView(note);

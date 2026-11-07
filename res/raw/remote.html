@@ -109,6 +109,9 @@
     <section id="tab-favs" hidden>
       <div class="card"><ul class="list" id="favs"><li class="empty">Loading…</li></ul></div>
     </section>
+    <section id="tab-tonight" hidden>
+      <div class="card"><ul class="list" id="tonight"><li class="empty">Loading…</li></ul></div>
+    </section>
     <section id="tab-more" hidden>
       <div class="card">
         <h3>Photos on the TV</h3>
@@ -149,6 +152,7 @@
   <button data-tab="remote" class="on">Remote</button>
   <button data-tab="search">Search</button>
   <button data-tab="favs">Favourites</button>
+  <button data-tab="tonight">Tonight</button>
   <button data-tab="more">More</button>
 </nav>
 <div class="toast" id="toast"></div>
@@ -227,7 +231,7 @@ function renderList(el, items, emptyMsg) {
   el.innerHTML = items.map((c, i) => `
     <li class="ch" data-i="${i}">
       ${c.logo ? `<img src="${esc(c.logo)}" alt="" loading="lazy" onerror="this.outerHTML='<span class=ph>${esc(initials(c.name))}</span>'">` : `<span class="ph">${esc(initials(c.name))}</span>`}
-      <span class="t"><div class="n">${c.num ? '<b>' + c.num + '</b>&nbsp; ' : ''}${esc(c.name)}</div><div class="m">${esc([c.country, c.group].filter(Boolean).join(' · '))}</div></span>
+      <span class="t"><div class="n">${c.num ? '<b>' + c.num + '</b>&nbsp; ' : ''}${esc(c.name)}</div><div class="m">${esc([c.now, c.country, c.group].filter(Boolean).join(' · '))}</div></span>
       <button class="star ${c.fav ? 'on' : ''}" data-fav="${i}" aria-label="Favourite">★</button>
     </li>`).join('');
   el.querySelectorAll('.ch').forEach(li => li.onclick = async (e) => {
@@ -239,6 +243,27 @@ function renderList(el, items, emptyMsg) {
     }
     const r = await api('/api/play', { key: c.key, list: keys }).catch(() => null);
     toast(r && r.ok ? '▶ ' + r.playing : (r && r.error) || 'Couldn’t start it');
+  });
+}
+
+// Tonight's picks: tap to watch (a programme already on) or set a reminder (one that hasn't started).
+function renderTonight(items) {
+  const el = $('tonight');
+  if (!items.length) { el.innerHTML = '<li class="empty">Nothing picked for tonight yet.</li>'; return; }
+  el.innerHTML = items.map((p, i) => `
+    <li class="ch" data-i="${i}">
+      <span class="t"><div class="n">${p.reminder ? '⏰ ' : ''}${esc(p.title)}</div><div class="m">${esc(p.line)} · ${esc(p.name)}</div></span>
+    </li>`).join('');
+  el.querySelectorAll('.ch').forEach(li => li.onclick = async () => {
+    const p = items[+li.dataset.i];
+    if (p.onNow) {
+      const r = await api('/api/play', { key: p.key, list: [p.key] }).catch(() => null);
+      toast(r && r.ok ? '▶ ' + r.playing : (r && r.error) || 'Couldn’t start it');
+      return;
+    }
+    const r = await api('/api/remind', { key: p.key, start: p.start }).catch(() => null);
+    if (r && r.ok) { p.reminder = r.reminder; renderTonight(items); toast(r.reminder ? '⏰ Reminder set' : 'Reminder removed'); }
+    else toast((r && r.error) || 'Couldn’t set it');
   });
 }
 
@@ -255,9 +280,10 @@ $('q').addEventListener('input', () => {
 
 document.querySelectorAll('nav button').forEach(b => b.onclick = async () => {
   document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
-  ['remote', 'search', 'favs', 'more'].forEach(t => $('tab-' + t).hidden = t !== b.dataset.tab);
+  ['remote', 'search', 'favs', 'tonight', 'more'].forEach(t => $('tab-' + t).hidden = t !== b.dataset.tab);
   if (b.dataset.tab === 'search') $('q').focus();
   if (b.dataset.tab === 'more') haLoad();
+  if (b.dataset.tab === 'tonight') renderTonight(await api('/api/tonight').catch(() => []));
   if (b.dataset.tab === 'favs') renderList($('favs'), await api('/api/favs').catch(() => []), 'No favourites yet — tap ★ on a channel in Search, or hold OK on one on the TV.');
 });
 

@@ -11,6 +11,7 @@ V=${1:?usage: tools/release.sh 1.0.0 [notes-file]}
 IFS=. read -r MA MI PA <<< "$V"
 export VERSION_NAME="$V" VERSION_CODE=$(( MA * 10000 + MI * 100 + PA ))
 ./build.sh
+tools/test.sh # no release with a failing test
 OUT="build/glow-$V.apk"
 cp build/glow.apk "$OUT"
 SDK="${ANDROID_HOME:-$(brew --prefix 2>/dev/null)/share/android-commandlinetools}"

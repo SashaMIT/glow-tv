@@ -585,3 +585,19 @@ Documentary	สารคดี
 Sport	กีฬา
 next cam	กล้องถัดไป
 open in YouTube	เปิดใน YouTube
+Box health	สุขภาพกล่อง
+now {n} °C	ตอนนี้ {} °C
+hottest today {n} °C	ร้อนสุดวันนี้ {} °C
+no crashes	ไม่มีการล่ม
+crashes: {n}	ล่ม: {} ครั้ง
+last restart	รีสตาร์ทล่าสุด
+({n} °C before it)	({} °C ก่อนหน้านั้น)
+Data sources: {n} answering, {n} failing	แหล่งข้อมูล: ตอบ {} ไม่ตอบ {}
+Weather, scores, news and the other sources Glow has asked since it started.	สภาพอากาศ ผลกีฬา ข่าว และแหล่งอื่นที่ Glow ถามตั้งแต่เริ่มทำงาน
+just now	เมื่อสักครู่
+{n} min ago	{} นาทีที่แล้ว
+{n} h ago	{} ชม.ที่แล้ว
+{n} days ago	{} วันที่แล้ว
+updated {t}	อัปเดต {}
+can't reach it, this is from {t}	เชื่อมต่อไม่ได้ ข้อมูลนี้จาก {}
+The box is too hot for live cams right now. Try again in a few minutes.	กล่องร้อนเกินไปสำหรับกล้องสดตอนนี้ ลองใหม่ในอีกไม่กี่นาที

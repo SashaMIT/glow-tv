@@ -25,6 +25,8 @@ import android.widget.TextView;
 public class CamActivity extends Activity {
     static final String EXTRA_CAM = "cam";
     private static final String BASE = "https://github.com/SashaMIT/glow-tv";
+    /** WebView works the box hard (82-85 °C in ten minutes): past this, the cam closes rather than risk a restart. */
+    private static final int STOP_AT = 86;
 
     private WebView web;
     private ImageView still;
@@ -35,6 +37,17 @@ public class CamActivity extends Activity {
     private boolean pageLoaded;
     private final Runnable hideCaption = () -> caption.animate().alpha(0f).setDuration(400).start();
     private final Runnable play = this::play;
+    private final Runnable heat = new Runnable() {
+        @Override
+        public void run() {
+            if (Vitals.readDegrees() >= getIntent().getIntExtra("stop_at", STOP_AT)) {
+                L.toast(CamActivity.this, "The box is too hot for live cams right now. Try again in a few minutes.", android.widget.Toast.LENGTH_LONG).show();
+                finish();
+                return;
+            }
+            caption.postDelayed(this, 20_000);
+        }
+    };
 
     @Override
     protected void onCreate(Bundle saved) {
@@ -74,6 +87,7 @@ public class CamActivity extends Activity {
         root.setSystemUiVisibility(View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
         show();
         play();
+        caption.postDelayed(heat, 20_000);
     }
 
     /** The cams ◀ ▶ walks through: those live now, with the one asked for even if it isn't. */
@@ -205,6 +219,7 @@ public class CamActivity extends Activity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        caption.removeCallbacks(heat);
         web.removeCallbacks(play);
         web.destroy();
         // This process only exists for the player: leaving frees all of it at once.

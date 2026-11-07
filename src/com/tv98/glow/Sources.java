@@ -132,9 +132,7 @@ final class Sources {
     static void warm(Attempt a) {
         if (a.url == null || a.builtIn) return;
         try {
-            java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(a.url).openConnection();
-            c.setConnectTimeout(4000);
-            c.setReadTimeout(5000);
+            java.net.HttpURLConnection c = Net.open(a.url, 4000, 5000);
             c.setRequestProperty("User-Agent", a.headers != null && a.headers.get("User-Agent") != null
                     ? a.headers.get("User-Agent") : "Mozilla/5.0 (Linux; Android 10; Android TV) AppleWebKit/537.36 Glow/1.0");
             if (a.headers != null && a.headers.get("Referer") != null) c.setRequestProperty("Referer", a.headers.get("Referer"));

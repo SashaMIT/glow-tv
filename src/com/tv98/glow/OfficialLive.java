@@ -157,9 +157,7 @@ final class OfficialLive {
         String video = null;
         java.net.HttpURLConnection conn = null;
         try {
-            conn = (java.net.HttpURLConnection) new java.net.URL("https://www.youtube.com/channel/" + channelId + "/live").openConnection();
-            conn.setConnectTimeout(8000);
-            conn.setReadTimeout(10000);
+            conn = Net.open("https://www.youtube.com/channel/" + channelId + "/live", 8000, 10000);
             conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36");
             conn.setRequestProperty("Accept-Language", "en-US,en");
             conn.setRequestProperty("Cookie", "CONSENT=YES+1; SOCS=CAI");

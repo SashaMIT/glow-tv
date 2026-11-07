@@ -187,9 +187,7 @@ final class HomeAssistant {
     }
 
     private static byte[] get(String url, String token, int limit) throws IOException {
-        HttpURLConnection h = (HttpURLConnection) new URL(url).openConnection();
-        h.setConnectTimeout(4000);
-        h.setReadTimeout(8000);
+        HttpURLConnection h = Net.open(url, 4000, 8000);
         h.setRequestProperty("Authorization", "Bearer " + token);
         h.setRequestProperty("Content-Type", "application/json");
         try {

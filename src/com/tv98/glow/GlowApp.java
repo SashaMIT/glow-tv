@@ -55,6 +55,14 @@ public class GlowApp extends Application {
         }
     };
 
+    private final Runnable vitals = new Runnable() {
+        @Override
+        public void run() {
+            Net.MAIN.postDelayed(this, 60_000);
+            Net.IO.execute(() -> Vitals.tick(GlowApp.this));
+        }
+    };
+
     private final Runnable alertsEverywhere = new Runnable() {
         @Override
         public void run() {
@@ -77,11 +85,13 @@ public class GlowApp extends Application {
     public void onCreate() {
         super.onCreate();
         L.init(this);
+        Vitals.recordCrashes(this);
         if (getProcessName().endsWith(":cam")) return; // the full-screen cam player's own process: just the player
         Reminders.start(this);
         Net.MAIN.postDelayed(alertsEverywhere, 90_000);
         Net.MAIN.postDelayed(doorbell, 10_000);
         Net.MAIN.post(dataTick);
+        Net.MAIN.post(vitals);
         registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks() {
             @Override public void onActivityResumed(Activity a) { front = a; }
             @Override public void onActivityPaused(Activity a) { if (front == a) front = null; }

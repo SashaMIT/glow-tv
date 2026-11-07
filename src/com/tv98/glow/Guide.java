@@ -479,11 +479,15 @@ final class Guide {
         int programmes = 0, kept = 0, matchedChannels = 0;
         HttpURLConnection conn = null;
         try {
-            conn = (HttpURLConnection) new URL(url).openConnection();
-            conn.setConnectTimeout(10_000);
-            conn.setReadTimeout(30_000);
-            conn.setRequestProperty("User-Agent", "Glow/1.0 (Android TV)");
-            try (InputStream in = new GZIPInputStream(new BufferedInputStream(conn.getInputStream(), 64 * 1024), 64 * 1024)) {
+            InputStream raw;
+            if (url.startsWith(GLOW_DATA)) { // Glow's own nightly file: signed, and checked before any of it is used
+                raw = new java.io.ByteArrayInputStream(Signed.fetch(url, 8 * 1024 * 1024));
+            } else {
+                conn = Net.open(url, 10_000, 30_000);
+                conn.setRequestProperty("User-Agent", "Glow/1.0 (Android TV)");
+                raw = conn.getInputStream();
+            }
+            try (InputStream in = new GZIPInputStream(new BufferedInputStream(raw, 64 * 1024), 64 * 1024)) {
                 Map<String, List<String>> idToKeys = byId != null ? byId : new HashMap<>();
                 XmltvScan.Names names = byId != null ? null : displayName -> {
                     List<Channel> match = mine.get(norm(displayName));

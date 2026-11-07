@@ -108,10 +108,8 @@ final class Updates {
         File apk = new File(c.getCacheDir(), "install.apk");
         try {
             progress.say("Downloading " + what + "…");
-            HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+            HttpURLConnection conn = Net.open(url, 10_000, 30_000);
             conn.setInstanceFollowRedirects(true);
-            conn.setConnectTimeout(10_000);
-            conn.setReadTimeout(30_000);
             try (InputStream in = conn.getInputStream(); OutputStream out = new FileOutputStream(apk)) {
                 byte[] buf = new byte[64 * 1024];
                 long total = 0;
