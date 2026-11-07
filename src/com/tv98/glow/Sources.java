@@ -53,9 +53,17 @@ final class Sources {
             return out;
         }
 
+        return plan(ch, c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("good:" + identity(ch), null),
+                alternates(c, ch), alt -> Health.isDead(c, alt));
+    }
+
+    /**
+     * The order to try a channel's links: the one that worked last, its own, the others (dead-looking ones last),
+     * the broadcaster's official links, its official YouTube stream, then Android's built-in player as a last resort.
+     */
+    static List<Attempt> plan(Channel ch, String good, List<Channel> same, java.util.function.Predicate<Channel> dead) {
+        List<Attempt> out = new ArrayList<>();
         Map<String, Channel> links = new LinkedHashMap<>();
-        String good = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("good:" + identity(ch), null);
-        List<Channel> same = alternates(c, ch);
         if (good != null) {
             for (Channel alt : same) if (alt.url.equals(good)) links.put(alt.url, alt);
         }
@@ -63,7 +71,7 @@ final class Sources {
         List<Channel> doubtful = new ArrayList<>();
         for (Channel alt : same) {
             if (links.containsKey(alt.url)) continue;
-            if (Health.isDead(c, alt)) doubtful.add(alt);
+            if (dead.test(alt)) doubtful.add(alt);
             else links.put(alt.url, alt);
         }
         for (Channel alt : doubtful) links.put(alt.url, alt);
@@ -83,6 +91,13 @@ final class Sources {
         if (!youtube.isEmpty()) out.add(new Attempt(null, null, false, youtube));
         out.add(new Attempt(ch.url, ch.headers(), true));
         return out;
+    }
+
+    /** From try k: the next worth trying, skipping links a check found dead. The built-in player and YouTube always get their turn. */
+    static int nextTry(int k, List<Attempt> attempts, Map<Integer, Boolean> checked) {
+        while (k < attempts.size() - 1 && Boolean.FALSE.equals(checked.get(k)) && !attempts.get(k).builtIn
+                && attempts.get(k).youtubeChannels == null) k++;
+        return k;
     }
 
     /** Other links for the same channel across all free lists. */

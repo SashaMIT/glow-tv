@@ -167,6 +167,9 @@ public final class GlowTests {
         same("live marker found", Cams.contains(page, "\"isLive\":true"), true);
         same("live marker missing", Cams.contains(page, "\"isLive\":false"), false);
         same("empty page", Cams.contains(new byte[0], "a"), false);
+        same("a cam with its own stream", Cams.direct("mecca") != null, true);
+        same("a YouTube cam has none", Cams.direct("brooks-falls"), null);
+        for (String[] cam : WmCams.CAMS) if (Cams.direct(cam[0]) != null) same("direct stream is a real cam: " + cam[0], cam.length > 6, true);
     }
 
     private static void vitals() {
@@ -261,8 +264,113 @@ public final class GlowTests {
         same("odds between 0 and 1", m.get(0).yes >= 0 && m.get(0).yes <= 1, true);
     }
 
+    private static Sports.Game espn(String sample, String league, int i) throws Exception {
+        int l = -1;
+        for (int k = 0; k < Sports.LEAGUES.length; k++) if (Sports.LEAGUES[k][0].equals(league)) l = k;
+        return Sports.parse(l, new JSONObject(file("espn-" + sample + ".json")).getJSONArray("events").getJSONObject(i), t -> "WHEN");
+    }
+
+    private static void sportsParse() throws Exception {
+        Sports.Game g = espn("soccer", "soccer/eng.1", 0);
+        same("match title", g.title, "Leeds v Spurs");
+        same("finished", g.state, Sports.DONE);
+        same("home score", g.homeScore, "1");
+        same("away score", g.awayScore, "0");
+        same("finished status", g.status, "FT");
+        Sports.Game live = espn("soccer", "soccer/eng.1", 1);
+        same("live", live.state, Sports.LIVE);
+        same("the minute", live.status, "44'");
+        same("basketball", espn("nba", "basketball/nba", 0).homeScore, "139");
+        Sports.Game fight = espn("ufc", "mma/ufc", 0);
+        same("fight card", fight.title, "UFC Fight Night: Cortes Acosta vs. Walker");
+        same("not started: the time goes through the screen's words", fight.status, "WHEN");
+        same("race weekend", espn("f1", "racing/f1", 0).title, "São Paulo Grand Prix");
+        same("golf", espn("golf", "golf/pga", 0).title, "World Wide Technology Championship");
+        same("tennis", espn("tennis", "tennis/atp", 0).title, "Rolex Paris Masters");
+    }
+
+    private static Channel link(String name, String url) {
+        return new Channel(1, 1, name, null, "news", url, null, null, "News");
+    }
+
+    private static List<String> urls(List<Sources.Attempt> list) {
+        List<String> out = new ArrayList<>();
+        for (Sources.Attempt a : list) out.add(a.builtIn ? "built-in" : a.url);
+        return out;
+    }
+
+    private static void sourceOrder() {
+        Channel ch = link("Quiet Channel", "https://a/own.m3u8");
+        Channel alt = link("Quiet Channel", "https://b/alt.m3u8"), dead = link("Quiet Channel", "https://c/dead.m3u8"), mpd = link("Quiet Channel", "https://d/x.mpd");
+        same("own link, then the others, dead ones last, built-in player at the end",
+                urls(Sources.plan(ch, null, Arrays.asList(dead, alt), c -> c == dead)),
+                Arrays.asList("https://a/own.m3u8", "https://b/alt.m3u8", "https://c/dead.m3u8", "built-in"));
+        same("the link that worked last time goes first",
+                urls(Sources.plan(ch, "https://b/alt.m3u8", Collections.singletonList(alt), c -> false)),
+                Arrays.asList("https://b/alt.m3u8", "https://a/own.m3u8", "built-in"));
+        same("DASH is left out", urls(Sources.plan(ch, null, Collections.singletonList(mpd), c -> false)), Arrays.asList("https://a/own.m3u8", "built-in"));
+
+        List<Sources.Attempt> list = Sources.plan(ch, null, Arrays.asList(alt, dead), c -> false);
+        Map<Integer, Boolean> checked = new HashMap<>();
+        same("nothing checked yet", Sources.nextTry(0, list, checked), 0);
+        checked.put(0, false);
+        same("a dead link is skipped", Sources.nextTry(0, list, checked), 1);
+        checked.put(1, false);
+        checked.put(2, false);
+        same("the built-in player always gets its turn", Sources.nextTry(0, list, checked), 3);
+        checked.put(1, true);
+        same("stops at one that answered", Sources.nextTry(0, list, checked), 1);
+    }
+
+    private static void numbers() {
+        Channel a = link("Alpha", "https://a/1"), b = link("Beta", "https://a/2"), c = link("Gamma", "https://a/3");
+        List<List<Channel>> members = new ArrayList<>();
+        for (int i = 0; i < Genres.NAMES.length; i++) members.add(new ArrayList<Channel>());
+        members.get(Genres.NEWS).addAll(Arrays.asList(a, b, c));
+        Map<Channel, List<Integer>> genres = new HashMap<>();
+        for (Channel x : Arrays.asList(a, b, c)) genres.put(x, Collections.singletonList(Genres.NEWS));
+        int block = Genres.BLOCK[Genres.NEWS];
+
+        Map<String, Integer> fresh = GuideLineup.assignNumbers(members, genres, new HashMap<String, Integer>());
+        same("first in its block", fresh.get(a.key()), block * 100 + 1);
+        same("then in ranked order", fresh.get(c.key()), block * 100 + 3);
+
+        Map<String, Integer> saved = new HashMap<>();
+        saved.put(b.key(), block * 100 + 50);
+        Map<String, Integer> kept = GuideLineup.assignNumbers(members, genres, saved);
+        same("a channel keeps its number", kept.get(b.key()), block * 100 + 50);
+        same("new ones take the next free", kept.get(a.key()), block * 100 + 1);
+
+        saved.clear();
+        saved.put(a.key(), block * 100 + 2); // already where the next new channel would go
+        Map<String, Integer> around = GuideLineup.assignNumbers(members, genres, saved);
+        same("new ones go around a kept number", around.get(b.key()), block * 100 + 1);
+        same("and on past it", around.get(c.key()), block * 100 + 3);
+
+        saved.clear();
+        saved.put(a.key(), (block == 1 ? 2 : 1) * 100 + 1); // from another genre's block
+        same("a channel that changed genre gets a new number", GuideLineup.assignNumbers(members, genres, saved).get(a.key()) / 100, block);
+        same("block of a three-digit number", GuideLineup.blockOf(512), 5);
+        same("block of a four-digit number", GuideLineup.blockOf(5123), 5);
+
+        Map<Channel, Integer> order = new HashMap<>(), base = new HashMap<>();
+        Channel first = channel("Quiet News", "News", "uk"), copy = channel("Quiet News Weather", "News", "uk"), other = channel("Zed Report", "News", "uk");
+        order.put(first, 0);
+        order.put(copy, 1);
+        order.put(other, 2);
+        base.put(first, 0);
+        base.put(copy, 0);
+        base.put(other, 0);
+        List<Channel> ranked = GuideLineup.rank(Genres.NEWS, Arrays.asList(copy, other, first), order, base);
+        same("the list's own order breaks a tie", ranked.get(0).name, "Quiet News");
+        same("a copy named after a channel above it drops below others", ranked.get(2).name, "Quiet News Weather");
+    }
+
     public static void main(String[] args) throws Exception {
         data = args[0];
+        sportsParse();
+        sourceOrder();
+        numbers();
         feedsParse();
         stamps();
         signed();

@@ -88,27 +88,7 @@ final class GuideLineup {
         // had last time (saved in numbers.tsv) as long as it's still in the same genre; new channels take the
         // next free number in their block.
         Map<String, Integer> saved = loadSaved(c);
-        Set<Integer> taken = new HashSet<>();
-        for (int genre : NUMBER_ORDER) {
-            for (Channel ch : members.get(genre)) {
-                Integer old = saved.get(ch.key());
-                if (genresOf.get(ch).get(0) != genre || old == null || blockOf(old) != Genres.BLOCK[genre]) continue;
-                if (taken.add(old)) g.numbers.put(ch.key(), old);
-            }
-        }
-        int[] used = new int[11];
-        for (int genre : NUMBER_ORDER) {
-            int block = Genres.BLOCK[genre];
-            for (Channel ch : members.get(genre)) {
-                if (genresOf.get(ch).get(0) != genre || g.numbers.containsKey(ch.key())) continue;
-                int n;
-                do {
-                    int k = ++used[block];
-                    n = k <= 99 ? block * 100 + k : k <= 999 ? block * 1000 + k : 10_000 + block * 1000 + k;
-                } while (!taken.add(n));
-                g.numbers.put(ch.key(), n);
-            }
-        }
+        g.numbers.putAll(assignNumbers(members, genresOf, saved));
         Map<String, Integer> toSave = new HashMap<>(g.numbers);
         if (!toSave.equals(saved)) save(c, toSave);
         Xtream.Account acct = Xtream.load(c);
@@ -172,6 +152,21 @@ final class GuideLineup {
             cov.append(' ').append(s.name).append(' ').append(with).append('/').append(s.channels.size()).append(';');
         }
         android.util.Log.i("GlowPerf", cov.toString());
+        // What people actually see: the first screen of each section (7 rows), and who's missing near the top.
+        StringBuilder top = new StringBuilder("guide first screen:");
+        StringBuilder missing = new StringBuilder("guide top 20 without listings:");
+        for (Section s : g.main) {
+            if (s.channels.isEmpty() || s.name.equals("Favourites")) continue;
+            int with = 0, shown = Math.min(7, s.channels.size());
+            for (int i = 0; i < shown; i++) if (Guide.has(s.channels.get(i))) with++;
+            top.append(' ').append(s.name).append(' ').append(with).append('/').append(shown).append(';');
+            for (int i = 0; i < Math.min(20, s.channels.size()); i++) {
+                Channel ch = s.channels.get(i);
+                if (!Guide.has(ch)) missing.append(' ').append(ch.name).append(" [").append(ch.feedId).append("];");
+            }
+        }
+        android.util.Log.i("GlowPerf", top.toString());
+        android.util.Log.i("GlowPerf", missing.toString());
         g.refreshPersonal(c);
         last = g;
         lastFree = free;
@@ -183,7 +178,37 @@ final class GuideLineup {
      * Ranked order inside a genre: {@link Genres#score}, then regional copies ("Red Bull TV DE" after
      * "Red Bull TV", "ABC News Live 4" after "ABC News Live") moved below the first of their name.
      */
-    private static List<Channel> rank(final int genre, List<Channel> list, final Map<Channel, Integer> order,
+    /**
+     * Each channel in its primary genre's block, in ranked order. A channel keeps the number it had (saved) as long
+     * as it's still in the same genre; new channels take the next free number in their block.
+     */
+    static Map<String, Integer> assignNumbers(List<List<Channel>> members, Map<Channel, List<Integer>> genresOf, Map<String, Integer> saved) {
+        Map<String, Integer> numbers = new HashMap<>();
+        Set<Integer> taken = new HashSet<>();
+        for (int genre : NUMBER_ORDER) {
+            for (Channel ch : members.get(genre)) {
+                Integer old = saved.get(ch.key());
+                if (genresOf.get(ch).get(0) != genre || old == null || blockOf(old) != Genres.BLOCK[genre]) continue;
+                if (taken.add(old)) numbers.put(ch.key(), old);
+            }
+        }
+        int[] used = new int[11];
+        for (int genre : NUMBER_ORDER) {
+            int block = Genres.BLOCK[genre];
+            for (Channel ch : members.get(genre)) {
+                if (genresOf.get(ch).get(0) != genre || numbers.containsKey(ch.key())) continue;
+                int n;
+                do {
+                    int k = ++used[block];
+                    n = k <= 99 ? block * 100 + k : k <= 999 ? block * 1000 + k : 10_000 + block * 1000 + k;
+                } while (!taken.add(n));
+                numbers.put(ch.key(), n);
+            }
+        }
+        return numbers;
+    }
+
+    static List<Channel> rank(final int genre, List<Channel> list, final Map<Channel, Integer> order,
             Map<Channel, Integer> base) {
         final Map<Channel, Integer> score = new HashMap<>();
         for (Channel ch : list) score.put(ch, Genres.score(genre, ch, base.get(ch)));
@@ -285,7 +310,7 @@ final class GuideLineup {
     }
 
     /** 401 -> 4, 4123 -> 4, 14123 -> 4. */
-    private static int blockOf(int n) {
+    static int blockOf(int n) {
         if (n >= 10_000) n -= 10_000;
         return n < 1_000 ? n / 100 : n / 1_000;
     }

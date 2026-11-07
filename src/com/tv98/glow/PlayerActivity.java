@@ -1134,8 +1134,7 @@ public class PlayerActivity extends Activity {
             return;
         }
         // Skip links already known to be dead (the built-in player stays as the last resort).
-        while (k < attempts.size() - 1 && Boolean.FALSE.equals(probes.get(k)) && !attempts.get(k).builtIn
-                && attempts.get(k).youtubeChannels == null) k++;
+        k = Sources.nextTry(k, attempts, probes);
         attempt = k;
         Sources.Attempt a = attempts.get(k);
         android.util.Log.i("GlowPlayer", current().name + ": trying " + (k + 1) + "/" + attempts.size()

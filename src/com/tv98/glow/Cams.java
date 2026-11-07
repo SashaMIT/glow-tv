@@ -23,6 +23,21 @@ final class Cams {
         return p;
     }
 
+    /**
+     * Cams whose owner publishes a direct stream, played in Glow's own player: far lighter on the box than YouTube's
+     * in WebView (see BENCHMARKS.md). Almost every cam is YouTube only. Slot -> link.
+     */
+    private static final String[][] DIRECT = {
+            {"mecca", "http://m.live.net.sa:1935/live/quran/gmswf.m3u8"}, // Saudi Broadcasting Authority
+            {"medina", "http://m.live.net.sa:1935/live/sunnah/gmswf.m3u8"},
+    };
+
+    /** This cam's direct stream, or null. */
+    static String direct(String slot) {
+        for (String[] d : DIRECT) if (d[0].equals(slot)) return d[1];
+        return null;
+    }
+
     private static boolean dead(SharedPreferences p, String id) {
         long since = p.getLong("d_" + id, 0);
         return since > 0 && System.currentTimeMillis() - since < RETRY;

@@ -832,6 +832,12 @@ public class IntelActivity extends Activity {
 
     /** A cam full screen, with ◀ ▶ to the next. */
     static void openCam(Context c, int i) {
+        String direct = Cams.direct(WmCams.CAMS[i][0]);
+        if (direct != null) {
+            Xtream.playlist = new ArrayList<>(java.util.Collections.singletonList(new Channel(90_000 + i, 0, WmCams.CAMS[i][1], null, "cams", direct, null, null, null)));
+            c.startActivity(new Intent(c, PlayerActivity.class).putExtra("index", 0));
+            return;
+        }
         c.startActivity(new Intent(c, CamActivity.class).putExtra(CamActivity.EXTRA_CAM, i));
     }
 

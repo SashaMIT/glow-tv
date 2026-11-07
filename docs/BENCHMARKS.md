@@ -890,3 +890,42 @@ Found on the first run: "Close Encounters of the Third Kind" and other titles st
 **Other.** One way to open a connection (`Net.open`), failing data sources on the Network page, source and age on Sports, Markets, Weather and Predictions (it says so when an old copy is showing), Tonight and reminders on the phone remote, what's on now in phone search.
 A grown-up's reminder could open its channel from Kids mode: reminders now wait until Kids mode is off. Backups now include radio favourites.
 Not run: the 24-hour test (`tools/soak.sh` is written, and hasn't been run), and heat protection above 80 °C has only been exercised through its limit, not by a genuinely overheating box.
+
+## Logic out of the screens, more listings, cams that run cool (1.6.2) — 8 Nov 2026
+
+**Logic separated.** The order of a channel's sources (`Sources.plan`, `nextTry`), channel numbering (`GuideLineup.assignNumbers`, `rank`) and ESPN parsing (`Sports.parse`, for team sports, fights, racing, golf and tennis) no longer touch the screen. 163 tests now, on real samples in `test/data`.
+
+| Same box, before and after | Before | After |
+|---|---|---|
+| Channel change, ▲, median / p75 (16 zaps) | 346 / 393 ms | 290 / 335 ms |
+| Guide ▲▼ late, 3 passes | 28.1 / 11.8 / 13.3 % | 32.3 / 13.4 / 13.8 % |
+| Guide ◀▶ late, 3 passes | 37.0 / 29.4 / 34.6 % | 38.0 / 36.7 / 35.4 % |
+| Home start (5) | 1.106 / 1.001 / 0.983 / 0.974 / 0.994 s | 1.032 / 0.975 / 0.983 / 0.981 / 0.989 s |
+
+No code on these paths got faster, so the channel-change gain is probably noise; the guide is the same within noise. Kept: nothing got worse.
+
+**Listings: first screens, not just totals.** The box now logs the first 7 rows of each section and who's missing from its top 20.
+
+| On the box | 1.6.1 start of day | One fallback more | Other feeds + exact names |
+|---|---|---|---|
+| All Channels with listings | 894 of 2,394 | 1,115 | **1,301 (54 %)** |
+| Nightly file | 1,099 channels | 1,144 | **1,401** |
+| First screen: Movies | | 2/7 | **6/7** |
+| First screen: Sports | | 5/7 | 6/7 |
+| First screen: Lifestyle | | 6/7 | 7/7 |
+| First screen: All, Entertainment, News, Kids | | 7/7 | 7/7 |
+| First screen: Documentaries | | 6/7 | 6/7 |
+| Channels missing from any section's top 20 | | 15 | **5** |
+
+Iptv-org ties about 149,000 listing rows to no channel: an exact name match is now tried, for names of two or more words, after a channel's other feeds. Local US stations are left out of the other-feed fallback, because their schedules differ by time zone. Rakuten's film channels now come from Samsung's UK schedule.
+
+**Cams: a direct stream against YouTube.** Same cam (Makkah), ten minutes each, twice. Bar: under 75 °C and 100 % CPU.
+
+| Player | CPU avg | Hottest | First picture |
+|---|---|---|---|
+| YouTube in WebView | 221 / 195 % | 83 / 83 °C | 15 / 14 s |
+| **Glow's own player, direct stream** | **41 / 40 %** | **72 / 70 °C** | **4.6 / 2.2 s** |
+
+**Bar met where a direct stream exists: only Makkah and Madinah (Saudi Broadcasting Authority).** Checked: iptv-org's 11,439 public links and about 27 owner pages (explore.org, Monterey Bay Aquarium, Dublin Port, Jackson Hole and others embed YouTube; 12 pages couldn't be read, some from guessed addresses, so this isn't exhaustive). EarthCam's streams carry a session token, so they don't qualify. NASA's channel answers from a computer but wouldn't play on the box: left on YouTube. The other 43 cams stay on YouTube.
+A cam with its own stream no longer shows as offline when its YouTube stream ends. 39 of 45 places show as live; the ended ones really are (Washington, Shanghai, Middle East, Istanbul, NASA, checked on each stream's own page).
+

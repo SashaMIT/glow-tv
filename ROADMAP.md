@@ -9,7 +9,7 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 
 | Area | Feature |
 |---|---|
-| Box | Debloat, Glow as Home, undo scripts, developer-access shield; Gradle-free build, MIT repo, signed releases (v1.0.0 → v1.6.1, `tools/release.sh`), in-app updates (box updated itself to 1.6.1) |
+| Box | Debloat, Glow as Home, undo scripts, developer-access shield; Gradle-free build, MIT repo, signed releases (v1.0.0 → v1.6.2, `tools/release.sh`), in-app updates (box updated itself to 1.6.2) |
 | Home | Clock, weather, headline ticker, icon header (Search, World, Phone remote, Cast, IPTV, Settings); full-colour app cards; app order; smooth scrolling (29.5 % → 1.1 % late) |
 | Home | Live TV row (TV Guide, favourites, recents, white/black logo cards, Resume badge); Intelligence row; Cast from phone |
 | TV Guide | Numbered genre menu, ranking, fixed numbers; classic grid with logos, info panel, preview, reminders, search; Radio tab |
@@ -23,7 +23,7 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 | Family & language | Kids mode (picked apps + Kids channels, PIN with lockout, everything else closed); Thai menus (Settings ▸ Language), one translation file |
 | Live cams (1.6) | 45 places (cities, nature, oceans), honest live check from each stream's own page, full-screen player with ◀ ▶ to the next cam, in its own process (all its memory goes on BACK) |
 | Memory (1.6) | Heap dumps of Home; listings and channel facts slimmed; a collection when Home is idle: **Home at 4 minutes 64.6–70.3 MB on released 1.6.1** (was 71–100) |
-| Reliability and data (1.6.1) | 128 tests on plain Java, run by every release; Box health (temperature, restarts, crashes); heat protection; source and age on Intelligence pages; failing sources on the Network page; signed nightly listings; listings on 1,115 of 2,394 channels (was 894); Tonight and reminders on the phone remote |
+| Reliability and data (1.6.1) | 128 tests on plain Java, run by every release; Box health (temperature, restarts, crashes); heat protection; source and age on Intelligence pages; failing sources on the Network page; signed nightly listings; listings on 1,301 of 2,394 channels (was 894); Tonight and reminders on the phone remote |
 | Video (1.6) | `tools/video/film.sh` films every scene waiting for what's on screen; one-minute promo with its own music; What's new with no screenshots |
 | Intelligence | Overview page; world map (quakes, alerts, EONET, news hotspots, ISS, day/night, rain, 2×/4× zoom); live cams + health; weather + air quality; rain radar; predictions; Markets (BTC, ETH, gold, baht/pound/euro); Sports now (24 leagues incl. tennis + golf, favourite teams); F1 timing sheet |
 | Other | World news with pictures + QR; phone remote (+ photos to screensaver, backup/restore); screensaver; Settings; My IPTV; Extra apps (SmartTube, Jellyfin, Kodi, NewPipe) |
@@ -42,9 +42,9 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 | Intelligence | ~~Markets~~ ✅; ~~overview page~~ ✅; ~~tennis/golf~~ ✅; ~~map zoom~~ ✅; ~~F1 timing (after each session)~~ ✅; F1 live timing ✖ (paid) | done |
 | Smart home | ~~Home Assistant card, doorbell pop-ups~~ ✅ (tested with a stand-in server); AirPlay (test first) | partly |
 | Privacy (owner's call) | Private DNS ad/tracker blocking; vendor-app audit | needs OK |
-| Sharing | ~~Extra apps installer~~ ✅; ~~tour on the repo page~~ ✅ (GIF); Obtainium note ✅; ~~signed releases~~ ✅ (v1.0.0 → v1.6.1, signed on the owner's Mac, box updated itself each time); awesome-list PR (after v1.0.0, owner's OK) | next |
-| Live cams | Under 75 °C and 100 % CPU not reached: WebView runs at 160 % and 83 °C after ten minutes (a smaller player was worse, undone). They close at 86 °C. Cam grid 10–23 % late | later |
-| Listings | About 1,500 channels have no source in iptv-org's database: find other sources | later |
+| Sharing | ~~Extra apps installer~~ ✅; ~~tour on the repo page~~ ✅ (GIF); Obtainium note ✅; ~~signed releases~~ ✅ (v1.0.0 → v1.6.2, signed on the owner's Mac, box updated itself each time); awesome-list PR (after v1.0.0, owner's OK) | next |
+| Live cams | Makkah and Madinah use direct streams (40 % CPU, 70–72 °C); the other 43 are YouTube only (about 200 % CPU, 83 °C), and close at 86 °C. Cam grid 10–23 % late | later |
+| Listings | 1,093 channels still have none; first screens 6–7 of 7, 5 missing from the top 20s | later |
 | Reliability | 24-hour test (`tools/soak.sh` written, not run) | later |
 | Sharing | ~~Contributors' guide~~ ✅ (CONTRIBUTING.md); more languages (one file each) | later |
 

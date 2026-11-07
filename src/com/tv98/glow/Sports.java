@@ -72,7 +72,7 @@ final class Sports {
         boolean[] on = chosen(c);
         List<String> n = new ArrayList<>();
         for (int i = 0; i < LEAGUES.length; i++) if (on[i]) n.add(LEAGUES[i][1]);
-        return n.isEmpty() ? "no leagues chosen" : android.text.TextUtils.join(", ", n);
+        return n.isEmpty() ? "no leagues chosen" : String.join(", ", n);
     }
     static final int PRE = 0, LIVE = 1, DONE = 2;
 
@@ -156,7 +156,7 @@ final class Sports {
             try {
                 JSONArray events = new JSONObject(s).optJSONArray("events");
                 for (int e = 0; events != null && e < events.length(); e++) {
-                    Game g = parse(i, events.getJSONObject(e), c);
+                    Game g = parse(i, events.getJSONObject(e), t -> when(c, t));
                     if (g != null) games.add(g);
                 }
             } catch (Exception ignored) {
@@ -226,20 +226,25 @@ final class Sports {
         return st.equals("in") ? LIVE : st.equals("post") ? DONE : PRE;
     }
 
-    private static Game parse(int league, JSONObject e, Context c) throws Exception {
+    /** Turns a time into words for the screen ("Today 21:00"): the parsers don't need to know how. */
+    interface When {
+        String at(long t);
+    }
+
+    static Game parse(int league, JSONObject e, When fmt) throws Exception {
         if (LEAGUES[league][0].startsWith("tennis/")) {
             Game t = new Game();
             t.league = league;
-            return tennis(t, e, c);
+            return tennis(t, e, fmt);
         }
         JSONArray comps = e.optJSONArray("competitions");
         if (comps == null || comps.length() == 0) return null;
         Game g = new Game();
         g.league = league;
         String path = LEAGUES[league][0];
-        if (path.startsWith("mma/")) return fightCard(g, e, comps, c);
-        if (path.startsWith("racing/")) return raceWeekend(g, e, comps, c);
-        if (path.startsWith("golf/")) return golf(g, e, comps, c);
+        if (path.startsWith("mma/")) return fightCard(g, e, comps, fmt);
+        if (path.startsWith("racing/")) return raceWeekend(g, e, comps, fmt);
+        if (path.startsWith("golf/")) return golf(g, e, comps, fmt);
 
         JSONObject comp = comps.getJSONObject(0);
         g.start = time(comp.optString("date", e.optString("date")));
@@ -269,7 +274,7 @@ final class Sports {
         g.title = g.home + " v " + g.away;
         JSONObject type = e.optJSONObject("status") == null ? null : e.getJSONObject("status").optJSONObject("type");
         String detail = type == null ? "" : type.optString("shortDetail");
-        g.status = g.state == PRE ? when(c, g.start) : g.state == LIVE ? detail : type != null && type.optString("description").startsWith("Postponed") ? "Postponed" : detail;
+        g.status = g.state == PRE ? fmt.at(g.start) : g.state == LIVE ? detail : type != null && type.optString("description").startsWith("Postponed") ? "Postponed" : detail;
         JSONObject venue = comp.optJSONObject("venue");
         g.line2 = venue == null ? "" : venue.optString("fullName");
         g.tv = broadcasters(comp);
@@ -286,7 +291,7 @@ final class Sports {
     }
 
     /** A UFC card: the event, and its main event (the last bout) or the bout on now. */
-    private static Game fightCard(Game g, JSONObject e, JSONArray bouts, Context c) throws Exception {
+    private static Game fightCard(Game g, JSONObject e, JSONArray bouts, When fmt) throws Exception {
         g.title = e.optString("name");
         g.state = state(e.optJSONObject("status"));
         g.start = time(e.optString("date"));
@@ -301,7 +306,7 @@ final class Sports {
         String[] f = fighters(b);
         if (g.state == DONE && f[2] != null) g.line2 = f[2] + " beat " + (f[2].equals(f[0]) ? f[1] : f[0]) + " in the main event";
         else g.line2 = (now != null ? "Fighting now: " : "Main event: ") + f[0] + " v " + f[1];
-        g.status = g.state == PRE ? when(c, g.start) : g.state == LIVE ? "Live" : "Final";
+        g.status = g.state == PRE ? fmt.at(g.start) : g.state == LIVE ? "Live" : "Final";
         g.tv = broadcasters(main);
         return g;
     }
@@ -319,7 +324,7 @@ final class Sports {
     }
 
     /** An F1 weekend: the session on now, else the next one, else the race result. */
-    private static Game raceWeekend(Game g, JSONObject e, JSONArray sessions, Context c) throws Exception {
+    private static Game raceWeekend(Game g, JSONObject e, JSONArray sessions, When fmt) throws Exception {
         g.title = e.optString("name").replace("MSC Cruises ", "").replace("Formula 1 ", "");
         JSONObject pick = null;
         int pickState = DONE;
@@ -349,7 +354,7 @@ final class Sports {
             // The latest finished session's top three is worth showing while waiting for the next.
             String last = lastResult(sessions);
             g.line2 = session + (last.isEmpty() ? "" : "   ·   " + last);
-            g.status = when(c, g.start);
+            g.status = fmt.at(g.start);
         } else {
             g.line2 = session + (top.length() > 0 ? ":   " + top : "");
             g.status = g.state == LIVE ? "Live" : "Final";
@@ -362,7 +367,7 @@ final class Sports {
      * A tennis tournament: the singles match on now (the latest round if several), else the next one, else the
      * latest result. "Semifinal: J. Sinner v C. Alcaraz  6-4 3-6 2-1".
      */
-    private static Game tennis(Game g, JSONObject e, Context c) {
+    private static Game tennis(Game g, JSONObject e, When fmt) {
         g.title = e.optString("name");
         JSONArray groups = e.optJSONArray("groupings");
         JSONObject live = null, done = null, next = null;
@@ -402,7 +407,7 @@ final class Sports {
             g.line2 = r + p[0] + " v " + p[1] + (g.state == LIVE ? "  " + sets(m, false) : "");
         }
         // "Final" only once the tournament is over; before that it's the latest result.
-        g.status = g.state == LIVE ? (liveCount > 1 ? liveCount + " live" : "Live") : g.state == PRE ? when(c, g.start)
+        g.status = g.state == LIVE ? (liveCount > 1 ? liveCount + " live" : "Live") : g.state == PRE ? fmt.at(g.start)
                 : state(e.optJSONObject("status")) == DONE ? "Final" : "Result";
         return g;
     }
@@ -439,7 +444,7 @@ final class Sports {
     }
 
     /** A golf tournament: the top three and their scores to par. */
-    private static Game golf(Game g, JSONObject e, JSONArray comps, Context c) throws Exception {
+    private static Game golf(Game g, JSONObject e, JSONArray comps, When fmt) throws Exception {
         g.title = e.optString("name");
         JSONObject type = e.optJSONObject("status") == null ? null : e.getJSONObject("status").optJSONObject("type");
         String detail = type == null ? "" : type.optString("shortDetail");
@@ -460,7 +465,7 @@ final class Sports {
                     .append(board.get(k).optString("score").replace('-', '−'));
         }
         g.line2 = top.length() > 0 ? top.toString() : "";
-        g.status = g.state == LIVE ? "Live" : g.state == DONE ? "Final" : st == LIVE ? detail : when(c, g.start);
+        g.status = g.state == LIVE ? "Live" : g.state == DONE ? "Final" : st == LIVE ? detail : fmt.at(g.start);
         return g;
     }
 
@@ -499,7 +504,7 @@ final class Sports {
             JSONArray n = b.optJSONObject(i) == null ? null : b.optJSONObject(i).optJSONArray("names");
             for (int k = 0; n != null && k < n.length(); k++) if (!names.contains(n.optString(k)) && names.size() < 3) names.add(n.optString(k));
         }
-        return android.text.TextUtils.join(", ", names);
+        return String.join(", ", names);
     }
 
     /** ESPN dates: 2026-10-25T14:00Z or 2026-10-25T14:00:00Z, UTC. */

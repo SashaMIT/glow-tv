@@ -11,7 +11,7 @@ OUT = pathlib.Path(OUT_ARG)
 CAPS = ["One home screen for everything", "2,400 free channels, a real TV guide", "Channels change in 0.28 s",
         "Tonight's best, picked for you", "Rewind live TV", "Live scores for your teams", "F1 timing",
         "Score banners over anything", "The world at a glance", "A live map of the world",
-        "44 live cams, full screen", "Weather & rain radar", "What the world expects",
+        "Live cams, full screen", "Weather & rain radar", "What the world expects",
         "Crypto, gold & currencies", "Radio with album covers", "Kids mode with a PIN",
         "Your doorbell on the TV", "Phone remote & all your apps"]
 for i, c in enumerate(CAPS, 1):
@@ -36,7 +36,7 @@ f = font(50, 0); tw = d.textlength(url, font=f)
 d.rectangle([W / 2 - tw / 2 - 28, 214, W / 2 + tw / 2 + 28, 286], fill=YELLOW)
 d.text((W / 2, 251), url, font=f, fill=INK, anchor="mm")
 rows = [("0.28 s", "to change channel"), ("1 s", "to the home screen, from cold"),
-        ("2,400", "free channels, ~900 with listings"), ("1.4 MB", "the whole app")]
+        ("2,400", "free channels, ~1,300 with listings"), ("1.4 MB", "the whole app")]
 y = 330
 for big, small in rows:
     d.rectangle([250, y, 450, y + 70], fill="#3A66CC")
