@@ -120,7 +120,7 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
 | Changing channel (median of 20) | 2,395 ms | 1,984 ms |
 | Giving up on a dead channel | ~27 s | 11 s |
 | Top sports & news picks that play | — | 15 / 15 |
-| Glow's memory on Home | — | 65–70 MB (with the Intelligence row; smooth scrolling layers included) |
+| Glow's memory on Home | — | 72–74 MB (with the Intelligence row; smooth scrolling layers included) |
 
 Every change has a before/after in [docs/BENCHMARKS.md](docs/BENCHMARKS.md), including what didn't work.
 

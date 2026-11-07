@@ -926,6 +926,8 @@ Iptv-org ties about 149,000 listing rows to no channel: an exact name match is n
 | YouTube in WebView | 221 / 195 % | 83 / 83 °C | 15 / 14 s |
 | **Glow's own player, direct stream** | **41 / 40 %** | **72 / 70 °C** | **4.6 / 2.2 s** |
 
-**Bar met where a direct stream exists: only Makkah and Madinah (Saudi Broadcasting Authority).** Checked: iptv-org's 11,439 public links and about 27 owner pages (explore.org, Monterey Bay Aquarium, Dublin Port, Jackson Hole and others embed YouTube; 12 pages couldn't be read, some from guessed addresses, so this isn't exhaustive). EarthCam's streams carry a session token, so they don't qualify. NASA's channel answers from a computer but wouldn't play on the box: left on YouTube. The other 43 cams stay on YouTube.
+**Bar met where a direct stream exists: only Makkah and Madinah (Saudi Broadcasting Authority).** Checked: iptv-org's 11,439 public links and about 27 owner pages (explore.org, Monterey Bay Aquarium, Dublin Port, Jackson Hole and others embed YouTube; 13 pages couldn't be read, some from guessed addresses, so this isn't exhaustive). EarthCam's streams carry a session token, so they don't qualify. NASA's channel answers from a computer but wouldn't play on the box: left on YouTube. The other 43 cams stay on YouTube.
 A cam with its own stream no longer shows as offline when its YouTube stream ends. 39 of 45 places show as live; the ended ones really are (Washington, Shanghai, Middle East, Istanbul, NASA, checked on each stream's own page).
+
+**Home at 4 minutes, released 1.6.2, straight after the box updated itself, with the larger guide (44,870 programmes):** 71.9 / 73.5 / 73.1 / 73.1 / 73.9 MB. Under 80 on all five, and about 3 MB up on 1.6.1 (Java 10, native 35).
 
