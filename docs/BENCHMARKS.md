@@ -851,7 +851,7 @@ what moves is Code and System, memory shared with other processes that's counted
 | **Released 1.6.1, straight after the box updated itself** | **68.5 / 70.0 / 70.1 / 70.3 / 69.9** | 9 / 34 / 5 / 19 |
 | **Released 1.6.1, after a reboot** | **64.8 / 64.7 / 64.6 / 64.9 / 64.6** | 9 / 34 / 8 / 11 |
 
-**Bar met on the released build: under 80 MB on all ten.** The shared rows grow with uptime and heavy use (the 79 and 80 MB rows came after days or hours of testing), and how long a normal box takes to get there hasn't been measured: that's what the 24-hour test is for. The 83.6 MB outlier on 1.6.0 hasn't come back in the 35 runs since.
+**Bar met on the released build: under 80 MB on all ten.** The shared rows grow with uptime and heavy use (the 79 and 80 MB rows came after days or hours of testing), and how long a normal box takes to get there hasn't been measured: that's what the 24-hour test is for. The 83.6 MB outlier on 1.6.0 hasn't come back in the 30 runs since.
 
 **Home after really using the box** (cold start, guide, a channel for 75 s, Intelligence pages, back Home for 40 s):
 
