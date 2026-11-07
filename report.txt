@@ -1,0 +1,4 @@
+built 2026-11-07 07:32 UTC
+channels with listings: 1099
+programmes: 49515
+size: 13067086 bytes, 1648335 gzipped
