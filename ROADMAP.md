@@ -9,7 +9,7 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 
 | Area | Feature |
 |---|---|
-| Box | Debloat, Glow as Home, undo scripts, developer-access shield; Gradle-free build, MIT repo, signed releases (v1.0.0 → v1.6.2, `tools/release.sh`), in-app updates (box updated itself to 1.6.2) |
+| Box | Debloat, Glow as Home, undo scripts, developer-access shield; Gradle-free build, MIT repo, signed releases (v1.0.0 → v1.6.3, `tools/release.sh`), in-app updates (box updated itself to 1.6.3) |
 | Home | Clock, weather, headline ticker, icon header (Search, World, Phone remote, Cast, IPTV, Settings); full-colour app cards; app order; smooth scrolling (29.5 % → 1.1 % late) |
 | Home | Live TV row (TV Guide, favourites, recents, white/black logo cards, Resume badge); Intelligence row; Cast from phone |
 | TV Guide | Numbered genre menu, ranking, fixed numbers; classic grid with logos, info panel, preview, reminders, search; Radio tab |

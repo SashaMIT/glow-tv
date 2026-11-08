@@ -1003,3 +1003,16 @@ player's list there; the player now builds the one-cam list itself from the requ
 its read-only requests passed to the box: 20 picks for this evening (19:00 onwards on 9 Nov at 03:16, the box's time
 zone), title, time, kind, length and channel per line, long titles shortened, the tab bar in reach. Not yet checked
 on a real phone.
+
+**Released 1.6.3: the box updated itself** (Settings ▸ Update available ▸ INSTALL, from the released 1.6.2; `speed-profile`).
+Home at 4 minutes, five runs each:
+
+| When | MB | Java / native | Code / System |
+|---|---|---|---|
+| Straight after the update, box up 1 day 5 h after a day of cam and guide tests | 79.5 / 84.3 / 79.7 / 79.4 / 79.2 | 9.6–11.1 / 34.9–37.7 | 17.6 / 15.4 |
+| After restarting the box | **63.1 / 63.3 / 63.3 / 63.7 / 63.6** | 9.5 / 34.6–34.9 | 5.6 / 11.9 |
+| (1.6.2 straight after its update, 8 Nov) | 71.9–73.9 | 9.8–10.0 / 35.1–35.8 | 4.4–5.1 / 20.7–21.1 |
+
+Glow's own memory (Java and native) is the same as 1.6.2. The difference is Code and System, Glow's share of memory it
+has in common with other processes, which grows with uptime and heavy use: under 80 on four of five before the restart,
+all five at 63–64 MB after it.
