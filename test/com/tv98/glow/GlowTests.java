@@ -1,5 +1,6 @@
 package com.tv98.glow;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.ByteArrayInputStream;
@@ -17,8 +18,13 @@ public final class GlowTests {
     private static final List<String> failed = new ArrayList<>();
 
     private static void same(String what, Object got, Object want) {
-        if (want == null ? got == null : want.equals(got)) passed++;
-        else failed.add(what + "\n    got  " + got + "\n    want " + want);
+        boolean ok = want == null ? got == null : got != null && Arrays.deepEquals(new Object[] {want}, new Object[] {got});
+        if (ok) passed++;
+        else failed.add(what + "\n    got  " + show(got) + "\n    want " + show(want));
+    }
+
+    private static String show(Object o) {
+        return o != null && o.getClass().isArray() ? Arrays.deepToString(new Object[] {o}) : String.valueOf(o);
     }
 
     private static Channel channel(String name, String group, String country) {
@@ -156,10 +162,10 @@ public final class GlowTests {
     private static void sports() {
         same("ESPN time", Sports.time("2026-10-29T00:00Z"), 1793232000000L);
         same("bad ESPN time", Sports.time("x"), 0L);
-        same("a match looks live", IntelActivity.looksLive("Arsenal v Spurs"), true);
-        same("live in the title", IntelActivity.looksLive("Sunday Live: Golf"), true);
-        same("highlights don't", IntelActivity.looksLive("Arsenal v Spurs highlights"), false);
-        same("a magazine doesn't", IntelActivity.looksLive("Tennis Today"), false);
+        same("a match looks live", IntelCards.looksLive("Arsenal v Spurs"), true);
+        same("live in the title", IntelCards.looksLive("Sunday Live: Golf"), true);
+        same("highlights don't", IntelCards.looksLive("Arsenal v Spurs highlights"), false);
+        same("a magazine doesn't", IntelCards.looksLive("Tennis Today"), false);
     }
 
     private static void cams() {
@@ -366,6 +372,101 @@ public final class GlowTests {
         same("a copy named after a channel above it drops below others", ranked.get(2).name, "Quiet News Weather");
     }
 
+    private static void playerRules() {
+        same("16:9 fits a 16:9 screen", PlayerRules.fit(1920, 1080, 1f, 1280, 720, PlayerRules.FIT), new int[] {1280, 720});
+        same("4:3 fits with bars at the sides", PlayerRules.fit(640, 480, 1f, 1280, 720, PlayerRules.FIT), new int[] {960, 720});
+        same("anamorphic 720x576 at 16:9", PlayerRules.fit(720, 576, 64f / 45f, 1280, 720, PlayerRules.FIT), new int[] {1280, 720});
+        same("4:3 filled: the top and bottom trimmed", PlayerRules.fit(640, 480, 1f, 1280, 720, PlayerRules.FILL), new int[] {1280, 960});
+        same("stretched", PlayerRules.fit(640, 480, 1f, 1280, 720, PlayerRules.STRETCH), new int[] {1280, 720});
+        same("zoom: a third bigger than fit", PlayerRules.fit(640, 480, 1f, 1280, 720, PlayerRules.ZOOM), new int[] {1277, 958});
+        same("no size yet", PlayerRules.fit(0, 0, 1f, 1280, 720, PlayerRules.FIT), null);
+        same("back 10 s", PlayerRules.rewindTarget(60_000, 10_000, false), 50_000L);
+        same("stops 8 s from the live window's start", PlayerRules.rewindTarget(15_000, 10_000, false), -1L);
+        same("at the start already", PlayerRules.rewindTarget(8_500, 10_000, true), 1_000L);
+        same("nothing further in what's kept", PlayerRules.rewindTarget(1_500, 10_000, true), -1L);
+        same("from what's kept", PlayerRules.keptStart(120_000, 5_000, 10_000), 105_000L);
+        same("too little kept", PlayerRules.keptStart(15_000, 0, 0), -1L);
+        same("not that much kept", PlayerRules.keptStart(30_000, 5_000, 30_000), -1L);
+        long m = 60_000L;
+        same("sleep: off to 30", PlayerRules.nextSleep(0, m), 30);
+        same("sleep: 29 min left rounds up to 30", PlayerRules.nextSleep(29 * m, m), 30);
+        same("sleep: 31 min left to 60", PlayerRules.nextSleep(31 * m, m), 60);
+        same("sleep: just set 30 goes on to 60", PlayerRules.nextSleep(30 * m - 2_000, m), 60);
+        same("sleep: after 120 it's off", PlayerRules.nextSleep(120 * m, m), 0);
+        same("a stream's caption track", PlayerRules.trackName("caption_2", "en"), "Captions 2");
+        same("the stream's own label", PlayerRules.trackName("english AD", "en"), "English AD");
+        same("language in English", PlayerRules.trackName(null, "es"), "Spanish");
+        same("unknown language", PlayerRules.trackName("", "und"), "Unknown");
+    }
+
+    private static void heatWatch() {
+        long m = 60_000L;
+        HeatWatch w = new HeatWatch(80, 4 * m);
+        same("cool", w.warn(70, 0), false);
+        same("just got hot", w.warn(82, m), false);
+        same("hot for 3 min", w.warn(83, 4 * m), false);
+        same("hot for 4 min: heads-up", w.warn(83, 5 * m), true);
+        same("said once", w.warn(84, 6 * m), false);
+        same("a dip below the line starts the clock again", w.warn(79, 7 * m), false);
+        same("hot again but warned already", w.warn(82, 12 * m), false);
+        same("cooled well down", w.warn(70, 13 * m), false);
+        w.warn(81, 14 * m);
+        same("a second hot stretch gets its own heads-up", w.warn(81, 18 * m), true);
+        same("unreadable temperature never warns", new HeatWatch(80, 0).warn(-1, 0), false);
+    }
+
+    /** The Overview's cards from real samples. */
+    private static void intelCards() throws Exception {
+        List<Sports.Game> games = new ArrayList<>();
+        JSONArray ev = new JSONObject(file("espn-soccer.json")).getJSONArray("events");
+        int l = -1;
+        for (int k = 0; k < Sports.LEAGUES.length; k++) if (Sports.LEAGUES[k][0].equals("soccer/eng.1")) l = k;
+        for (int i = 0; i < ev.length(); i++) games.add(Sports.parse(l, ev.getJSONObject(i), t -> "WHEN"));
+        String[] sport = IntelCards.sports(games);
+        same("a live match heads the sports card", sport[2].contains("LIVE"), true);
+        same("with its score", sport[1].matches(".+  \\d+–\\d+  .+"), true);
+        same("no games, no card", IntelCards.sports(new ArrayList<Sports.Game>()), null);
+
+        String[] quake = IntelCards.world(Intel.parseQuakes(file("usgs.json")));
+        same("earthquake card", quake[0], "Biggest earthquake");
+        same("its title", quake[1].startsWith("M"), true);
+        String[] storm = IntelCards.world(Intel.parseNatural(file("eonet.json")));
+        same("natural event card", storm[0], "Natural event");
+        same("nothing to report", IntelCards.world(new ArrayList<Intel.Event>()), null);
+
+        String[] bet = IntelCards.prediction(Intel.parseMarkets(file("polymarket.json")));
+        same("prediction as a percentage", bet[1].matches("\\d{1,3}%"), true);
+        same("the question", bet[2].startsWith("Will Abdul El-Sayed"), true);
+
+        List<Markets.Quote> qs = Arrays.asList(quote("XAU", 4013, 0.4, false), quote("BTC", 79939, -0.7, false), quote("USD/THB", 33.75, 0, true));
+        same("markets card", IntelCards.markets(qs)[1], "Gold  $4,013  +0.4%");
+        F1Timing.Sheet sheet = new F1Timing.Sheet();
+        sheet.session = "Race";
+        sheet.place = "São Paulo";
+        for (String[] d : new String[][] {{"NOR", "Lando Norris"}, {"ANT", "Andrea Kimi Antonelli"}, {"VER", "Max Verstappen"}}) {
+            F1Timing.Row r = new F1Timing.Row();
+            r.code = d[0];
+            r.name = d[1];
+            sheet.rows.add(r);
+        }
+        same("F1 podium", IntelCards.f1(sheet)[1], "NOR  ANT  VER");
+        same("F1 names", IntelCards.f1(sheet)[2], "Race   ·   São Paulo\n1  Lando Norris\n2  Andrea Kimi Antonelli\n3  Max Verstappen");
+
+        List<String> chans = Arrays.asList("Quiet", "Fights", "Darts", "Offline", "Match");
+        Map<String, String> on = new HashMap<>();
+        on.put("Fights", "Bellator Classic Fights");
+        on.put("Darts", "Darts Live");
+        on.put("Match", "Arsenal v Spurs");
+        same("live sport first, then a programme, then the rest",
+                IntelCards.freeSports(chans, on::get, c -> c.equals("Offline"), 4), Arrays.asList("Darts", "Match", "Fights", "Quiet"));
+        same("four at most", IntelCards.freeSports(chans, on::get, c -> false, 2).size(), 2);
+        float[] line = IntelCards.spark(new double[] {1, 3, 2}, 100, 40, 2);
+        same("spark starts left at the low", new float[] {line[0], line[1]}, new float[] {2f, 38f});
+        same("highest point at the top", line[3], 2f);
+        same("money", IntelCards.money(1_234_567), "$1.2M");
+        same("thousands", IntelCards.money(350_400), "$350K");
+    }
+
     public static void main(String[] args) throws Exception {
         data = args[0];
         sportsParse();
@@ -384,6 +485,9 @@ public final class GlowTests {
         f1();
         sports();
         cams();
+        playerRules();
+        heatWatch();
+        intelCards();
         for (String f : failed) System.out.println("FAILED " + f);
         System.out.println(passed + " passed, " + failed.size() + " failed");
         if (!failed.isEmpty()) System.exit(1);

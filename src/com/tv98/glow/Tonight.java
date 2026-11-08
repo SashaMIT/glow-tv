@@ -130,7 +130,7 @@ final class Tonight {
     /** What a programme is and how good a pick it is, from its channel's genres, its title and its length; null to leave it out. */
     static Pick classify(String title, String t, List<Integer> genres, long minutes) {
         Pick k = new Pick();
-        if (genres.contains(Genres.SPORTS) && (replay(t) || !IntelActivity.looksLive(title))) {
+        if (genres.contains(Genres.SPORTS) && (replay(t) || !IntelCards.looksLive(title))) {
             return null; // sport channels' magazines, replays and highlights
         } else if (genres.contains(Genres.SPORTS)) {
             // "Live" in the title is the only sign the listings give that it really is live.

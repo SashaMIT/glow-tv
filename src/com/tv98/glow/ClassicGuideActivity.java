@@ -147,7 +147,16 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
         LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
         tlp.gravity = Gravity.CENTER_VERTICAL;
         details.addView(texts, tlp);
+        // The lines that change on every key press sit on a quiet panel instead of having text shadows: each new
+        // shadowed line was blurred on the CPU in the frame that showed it (a third of ◀ ▶'s late frames).
+        for (TextView t : new TextView[] {infoTime, infoTitle, infoChannel, infoDesc, infoNext}) t.setShadowLayer(0, 0, 0, 0);
+        GradientDrawable panel = new GradientDrawable();
+        panel.setColor(0x38102A6E);
+        panel.setCornerRadius(Ui.dp(6));
+        details.setBackground(panel);
+        details.setPadding(Ui.dp(14), Ui.dp(6), Ui.dp(4), Ui.dp(6));
         LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1);
+        dlp.setMargins(0, Ui.dp(4), Ui.dp(20), 0);
         info.addView(details, dlp);
 
         preview = new FrameLayout(this);
@@ -808,14 +817,24 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
         showInfo(ch, prog, number);
         wanted = ch;
         preview.removeCallbacks(startPreview);
+        preview.removeCallbacks(resumePreview);
         if (ch != previewing) {
             if (exo != null) exo.stop();
             previewing = null;
             previewNote.setText(ch.name);
             previewNote.setVisibility(View.VISIBLE);
             preview.postDelayed(startPreview, PREVIEW_DWELL_MS);
+        } else if (exo != null) {
+            // ◀ ▶ through the same channel's times: the picture holds while the keys are pressed. Decoding video under the
+            // grid made a third more of its frames late (the GPU shares the box's memory with the decoder).
+            exo.setPlayWhenReady(false);
+            preview.postDelayed(resumePreview, PREVIEW_DWELL_MS);
         }
     }
+
+    private final Runnable resumePreview = () -> {
+        if (exo != null && previewing != null) exo.setPlayWhenReady(true);
+    };
 
     private void showInfo(Channel ch, Guide.Prog prog, int number) {
         if (ch.logo == null || ch.logo.isEmpty()) {
@@ -927,6 +946,7 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
             return;
         }
         if (exo == null) createExo();
+        exo.setPlayWhenReady(true);
         previewNote.setText(previewing.name);
         exo.setMediaSource(PlayerActivity.source(previewAttempts.get(previewAttempt)));
         exo.prepare();
@@ -956,6 +976,7 @@ public class ClassicGuideActivity extends Activity implements GuideGridView.List
 
     private void stopPreview(String note) {
         preview.removeCallbacks(startPreview);
+        preview.removeCallbacks(resumePreview);
         previewing = null;
         wanted = null;
         if (exo != null) exo.stop();

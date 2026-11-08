@@ -569,20 +569,12 @@ public class IntelActivity extends Activity {
         GuideLineup l = GuideLineup.current();
         // Live sport now, from the listings: channels showing something live (a "LIVE" or "x v y" title) first,
         // then ones with a programme on, then the rest, each group in the guide's order (fights and action first).
-        final List<Channel> sports = new ArrayList<>();
+        List<Channel> found = new ArrayList<>();
         if (l != null) for (GuideLineup.Section sec : l.main) if (sec.name.equals("Sports")) {
-            List<Channel> onLive = new ArrayList<>(), listed = new ArrayList<>(), rest = new ArrayList<>();
-            for (Channel ch : sec.channels) {
-                if (Channel.isOffline(this, ch) || Genres.neverPromote(ch)) continue;
-                Guide.Prog now = Guide.now(ch);
-                if (now == null) rest.add(ch);
-                else if (looksLive(now.title)) onLive.add(ch);
-                else listed.add(ch);
-            }
-            for (List<Channel> group : java.util.Arrays.asList(onLive, listed, rest)) {
-                for (Channel ch : group) if (sports.size() < 4) sports.add(ch); // four fit across
-            }
+            found = IntelCards.freeSports(sec.channels, ch -> { Guide.Prog now = Guide.now(ch); return now == null ? null : now.title; },
+                    ch -> Channel.isOffline(this, ch) || Genres.neverPromote(ch), 4); // four fit across
         }
+        final List<Channel> sports = found;
         for (Channel ch : sports) {
             Tile t = HomeActivity.channelTile(this, ch);
             LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) t.getLayoutParams();
@@ -598,13 +590,6 @@ public class IntelActivity extends Activity {
         } else if (focused != null) {
             pane.requestFocus();
         }
-    }
-
-    /** A programme title that reads like live sport rather than a replay or magazine show. */
-    static boolean looksLive(String title) {
-        String t = " " + title.toLowerCase(Locale.ROOT) + " ";
-        if (t.contains("highlights") || t.contains("replay") || t.contains("classic") || t.contains("review")) return false;
-        return t.contains(" live") || t.contains(" vs ") || t.contains(" vs. ") || t.contains(" v ");
     }
 
     private View gameRow(Sports.Game g) {
@@ -739,11 +724,32 @@ public class IntelActivity extends Activity {
         int[] order = Cams.order(this); // ended streams last
         final Tile[] cards = new Tile[order.length];
         final int[] pictured = {0};
+        // Pictures that arrive while the grid is moving wait until it stops: each one redraws its card's GPU texture,
+        // and those redraws during the scroll were most of the first scroll's late frames.
+        final List<Runnable> held = new ArrayList<>();
+        final long[] moved = {0};
+        final Runnable showHeld = () -> {
+            for (Runnable r : held) r.run();
+            held.clear();
+        };
         final Runnable morePictures = () -> {
             int rowH = Ui.dp(142), upTo = Math.min(order.length, ((scroll.getScrollY() + scroll.getHeight()) / rowH + 3) * 3);
-            for (; pictured[0] < upTo; pictured[0]++) camPicture(this, cards[pictured[0]], order[pictured[0]]);
+            for (; pictured[0] < upTo; pictured[0]++) {
+                final ImageView img = (ImageView) cards[pictured[0]].card.getChildAt(0);
+                Net.bitmap(this, camPictureUrl(this, order[pictured[0]]), Ui.dp(240), bm -> {
+                    if (bm == null) return;
+                    Runnable show = () -> img.setImageBitmap(bm);
+                    if (android.os.SystemClock.uptimeMillis() - moved[0] < 150) held.add(show);
+                    else show.run();
+                });
+            }
         };
-        scroll.setOnScrollChangeListener((v, x, y, ox, oy) -> morePictures.run());
+        scroll.setOnScrollChangeListener((v, x, y, ox, oy) -> {
+            moved[0] = android.os.SystemClock.uptimeMillis();
+            morePictures.run();
+            scroll.removeCallbacks(showHeld);
+            scroll.postDelayed(showHeld, 150);
+        });
         scroll.post(morePictures);
         for (int n = 0; n < order.length; n++) {
             final int i = order[n];
@@ -778,6 +784,9 @@ public class IntelActivity extends Activity {
         Tile t = new Tile(c, wDp, hDp);
         t.setFocusable(wDp > 0);
         t.setClickable(wDp > 0);
+        // The picture covers the card, so its glass never shows: a fixed colour means focus doesn't redraw the card's
+        // GPU texture (two cards per key press), only the glow and the lift change.
+        t.setSolid(0xFF0B0E1C);
         ImageView img = new ImageView(c);
         img.setScaleType(ImageView.ScaleType.CENTER_CROP);
         t.card.addView(img, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -811,7 +820,11 @@ public class IntelActivity extends Activity {
     /** A recent frame of the stream from YouTube: 320x180 (16:9, ~225 KB decoded) rather than hqdefault's
      *  letterboxed 480x360 (~690 KB) – it fills the card without bars at a third of the memory. */
     static void camPicture(Context c, Tile t, int i) {
-        Net.image((ImageView) t.card.getChildAt(0), "https://i.ytimg.com/vi/" + Cams.id(c, i) + "/mqdefault_live.jpg", Ui.dp(240), null);
+        Net.image((ImageView) t.card.getChildAt(0), camPictureUrl(c, i), Ui.dp(240), null);
+    }
+
+    static String camPictureUrl(Context c, int i) {
+        return "https://i.ytimg.com/vi/" + Cams.id(c, i) + "/mqdefault_live.jpg";
     }
 
     static void fillCam(Context c, Tile t, int i, boolean picture) {
@@ -832,13 +845,18 @@ public class IntelActivity extends Activity {
 
     /** A cam full screen, with ◀ ▶ to the next. */
     static void openCam(Context c, int i) {
-        String direct = Cams.direct(WmCams.CAMS[i][0]);
-        if (direct != null) {
-            Xtream.playlist = new ArrayList<>(java.util.Collections.singletonList(new Channel(90_000 + i, 0, WmCams.CAMS[i][1], null, "cams", direct, null, null, null)));
-            c.startActivity(new Intent(c, PlayerActivity.class).putExtra("index", 0));
+        if (Cams.direct(WmCams.CAMS[i][0]) != null) {
+            c.startActivity(new Intent(c, PlayerActivity.class).putExtra(EXTRA_DIRECT_CAM, i));
             return;
         }
         c.startActivity(new Intent(c, CamActivity.class).putExtra(CamActivity.EXTRA_CAM, i));
+    }
+
+    static final String EXTRA_DIRECT_CAM = "direct_cam";
+
+    /** A cam with its own stream, as a channel for Glow's player. */
+    static Channel directCam(int i) {
+        return new Channel(90_000 + i, 0, WmCams.CAMS[i][1], null, "cams", Cams.direct(WmCams.CAMS[i][0]), null, null, null);
     }
 
     /** A cam in the YouTube app (they're YouTube live streams). */
@@ -1047,7 +1065,7 @@ public class IntelActivity extends Activity {
                 q.setMaxLines(2);
                 q.setEllipsize(TextUtils.TruncateAt.END);
                 TextView meta = Ui.text(IntelActivity.this, 11, Ui.TEXT_DIM, 400);
-                meta.setText(money(m.volume24h) + " traded today" + (m.endDate.length() >= 10 ? "   ·   ends " + m.endDate.substring(0, 10) : ""));
+                meta.setText(IntelCards.money(m.volume24h) + " traded today" + (m.endDate.length() >= 10 ? "   ·   ends " + m.endDate.substring(0, 10) : ""));
                 meta.setPadding(0, Ui.dp(4), 0, 0);
                 words.addView(q);
                 words.addView(meta);
@@ -1083,56 +1101,27 @@ public class IntelActivity extends Activity {
             final String[][] c = new String[8][];
             // Each card shows as soon as its source answers (the slowest, F1 timing, can take a few seconds).
             Runnable post = () -> Net.MAIN.post(() -> { if (!isFinishing()) fillOverview(c.clone(), false); });
-            Intel.Weather w = Intel.weather(this);
-            if (w.code >= 0) {
-                String rain = w.daily.isEmpty() ? "" : "   ·   " + L.f("rain {n}%", w.daily.get(0)[4]);
-                c[0] = new String[] {"Weather", com.tv98.glow.Weather.symbol(w.code) + "  " + Math.round(w.temp) + "°  " + w.city,
-                        "H " + Math.round(w.max) + "°  L " + Math.round(w.min) + "°" + rain + (w.aqi >= 0 ? "   ·   air " + Intel.aqiBand(w.aqi)[0] : "")};
-            }
+            c[0] = IntelCards.weather(Intel.weather(this));
             post.run();
-            List<Sports.Game> games = Sports.load(this);
-            if (!games.isEmpty()) {
-                Sports.Game g = Sports.headline(games);
-                String what = g.teams() ? g.home + (g.state == Sports.PRE ? " v " : "  " + g.homeScore + "–" + g.awayScore + "  ") + g.away : g.title;
-                c[1] = new String[] {"Sports now", what, Sports.LEAGUES[g.league][1] + "   ·   "
-                        + (g.state == Sports.LIVE ? "LIVE" : g.status) + (g.teams() || g.line2.isEmpty() ? "" : "\n" + g.line2)};
-            }
+            c[1] = IntelCards.sports(Sports.load(this));
             post.run();
-            List<Markets.Quote> q = Markets.load(this);
-            if (!q.isEmpty()) {
-                Markets.Quote first = q.get(0);
-                c[2] = new String[] {"Markets", (first.symbol.equals("XAU") ? "Gold" : first.symbol) + "  " + Markets.price(first) + "  " + Markets.change(first),
-                        Markets.line(q.subList(1, q.size())) + "\n" + Markets.baht(q)};
-            }
+            c[2] = IntelCards.markets(Markets.load(this));
             post.run();
             List<Intel.Event> ev;
             synchronized (IntelActivity.class) {
                 ev = recent;
             }
-            if (ev == null) ev = collect();
-            for (Intel.Event e : ev) {
-                if (e.kind.equals(Intel.CAM) || e.kind.equals(Intel.NEWS)) continue;
-                c[3] = new String[] {e.kind.equals(Intel.QUAKE) ? "Biggest earthquake" : e.kind.equals(Intel.ALERT) ? "Disaster alert" : "Natural event",
-                        e.title, e.detail};
-                break;
-            }
+            c[3] = IntelCards.world(ev != null ? ev : collect());
             List<World.Story> top = World.section(World.cached(this), "__top");
             if (!top.isEmpty()) c[4] = new String[] {"Top story", top.get(0).title, top.get(0).source + "   ·   " + World.ago(top.get(0).at)};
-            List<Intel.Market> m = Intel.markets(this);
-            if (!m.isEmpty()) c[5] = new String[] {"Predictions", Math.round(m.get(0).yes * 100) + "%", m.get(0).question};
+            c[5] = IntelCards.prediction(Intel.markets(this));
             for (int i = 0; i < WmCams.CAMS.length; i++) {
                 if (!Cams.live(this, i)) continue;
                 c[6] = new String[] {"Live cam", WmCams.CAMS[i][1], String.valueOf(i)};
                 break;
             }
             post.run();
-            F1Timing.Sheet f1 = F1Timing.latest(this);
-            if (f1 != null && f1.rows.size() >= 3) {
-                StringBuilder podium = new StringBuilder();
-                for (int i = 0; i < 3; i++) podium.append(i == 0 ? "" : "\n").append(i + 1).append("  ").append(f1.rows.get(i).name);
-                c[7] = new String[] {"F1 timing", f1.rows.get(0).code + "  " + f1.rows.get(1).code + "  " + f1.rows.get(2).code,
-                        f1.session + "   ·   " + f1.place + "\n" + podium};
-            }
+            c[7] = IntelCards.f1(F1Timing.latest(this));
             Net.MAIN.post(() -> {
                 if (isFinishing()) return;
                 fillOverview(c, true);
@@ -1310,18 +1299,10 @@ public class IntelActivity extends Activity {
         @Override
         protected void onSizeChanged(int w, int h, int ow, int oh) {
             path.reset();
-            if (v.length < 2) return;
-            double lo = Double.MAX_VALUE, hi = -Double.MAX_VALUE;
-            for (double x : v) {
-                lo = Math.min(lo, x);
-                hi = Math.max(hi, x);
-            }
-            double span = hi - lo == 0 ? 1 : hi - lo;
-            float pad = Ui.dp(3);
-            for (int i = 0; i < v.length; i++) {
-                float x = pad + (w - 2 * pad) * i / (float) (v.length - 1), y = (float) (h - pad - (h - 2 * pad) * (v[i] - lo) / span);
-                if (i == 0) path.moveTo(x, y);
-                else path.lineTo(x, y);
+            float[] pts = IntelCards.spark(v, w, h, Ui.dp(3));
+            for (int i = 0; i < pts.length; i += 2) {
+                if (i == 0) path.moveTo(pts[i], pts[i + 1]);
+                else path.lineTo(pts[i], pts[i + 1]);
             }
         }
 
@@ -1329,11 +1310,5 @@ public class IntelActivity extends Activity {
         protected void onDraw(android.graphics.Canvas c) {
             c.drawPath(path, p);
         }
-    }
-
-    private static String money(double v) {
-        if (v >= 1e6) return String.format(Locale.ROOT, "$%.1fM", v / 1e6);
-        if (v >= 1e3) return String.format(Locale.ROOT, "$%.0fK", v / 1e3);
-        return String.format(Locale.ROOT, "$%.0f", v);
     }
 }

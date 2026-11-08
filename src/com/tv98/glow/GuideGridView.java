@@ -290,6 +290,9 @@ class GuideGridView extends View {
                 pending.remove(key);
                 if (gen != generation) return;
                 rowCache.put(key, done);
+                // Drawn ahead (the next time window, rows just off screen): sent to the GPU now, while the remote is
+                // idle, rather than in the frame that first shows it (~0.7 MB a window, 5 ms of a ◀ ▶ frame).
+                if (!first) done.prepareToDraw();
                 // Pictures arrive one after another: one redraw for the lot rather than one each.
                 if (!redrawPosted) {
                     redrawPosted = true;

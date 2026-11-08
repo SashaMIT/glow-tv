@@ -30,7 +30,8 @@ public class CamActivity extends Activity {
 
     private WebView web;
     private ImageView still;
-    private LinearLayout caption;
+    private LinearLayout caption, warning;
+    private HeatWatch watch;
     private TextView title, detail;
     private int[] cams;
     private int at, skipped, direction = 1;
@@ -40,11 +41,13 @@ public class CamActivity extends Activity {
     private final Runnable heat = new Runnable() {
         @Override
         public void run() {
-            if (Vitals.readDegrees() >= getIntent().getIntExtra("stop_at", STOP_AT)) {
+            int degrees = Vitals.readDegrees();
+            if (degrees >= getIntent().getIntExtra("stop_at", STOP_AT)) {
                 L.toast(CamActivity.this, "The box is too hot for live cams right now. Try again in a few minutes.", android.widget.Toast.LENGTH_LONG).show();
                 finish();
                 return;
             }
+            if (watch.warn(degrees, android.os.SystemClock.elapsedRealtime())) showWarning(degrees);
             caption.postDelayed(this, 20_000);
         }
     };
@@ -83,6 +86,18 @@ public class CamActivity extends Activity {
         caption.addView(title);
         caption.addView(detail);
         root.addView(caption, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM));
+        warning = new LinearLayout(this);
+        warning.setOrientation(LinearLayout.VERTICAL);
+        warning.setPadding(Ui.dp(28), Ui.dp(22), Ui.dp(28), Ui.dp(22));
+        android.graphics.drawable.GradientDrawable wb = new android.graphics.drawable.GradientDrawable();
+        wb.setColor(0xF00B0E1C);
+        wb.setCornerRadius(Ui.dp(16));
+        wb.setStroke(Ui.dp(1), 0x40FFFFFF);
+        warning.setBackground(wb);
+        warning.setVisibility(View.GONE);
+        FrameLayout.LayoutParams wlp = new FrameLayout.LayoutParams(Ui.dp(680), ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER);
+        root.addView(warning, wlp);
+        watch = new HeatWatch(getIntent().getIntExtra("warn_at", HeatWatch.WARN_AT), getIntent().getLongExtra("warn_after", HeatWatch.WARN_AFTER));
         setContentView(root);
         root.setSystemUiVisibility(View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
         show();
@@ -150,6 +165,53 @@ public class CamActivity extends Activity {
         web.postDelayed(play, 400);
     }
 
+    /**
+     * The box has run hot for a few minutes: offer the two cams that play in Glow's own player (about 40 % CPU and
+     * 70 °C, against YouTube's 200 % and 83 °C), or a stop. BACK keeps watching.
+     */
+    private void showWarning(int degrees) {
+        android.util.Log.i("GlowPerf", "cam heat heads-up at " + degrees + " C");
+        warning.removeAllViews();
+        TextView head = Ui.text(this, 21, Ui.TEXT, 600);
+        head.setText(L.f("The box has been at {n} °C for a few minutes", degrees));
+        TextView body = Ui.text(this, 15, Ui.TEXT_DIM, 400);
+        body.setText(L.t("YouTube cams work it hard. Mecca and Medina play in Glow's own player and stay much cooler."));
+        body.setLineSpacing(0, 1.15f);
+        body.setPadding(0, Ui.dp(6), 0, Ui.dp(16));
+        warning.addView(head);
+        warning.addView(body);
+        LinearLayout buttons = new LinearLayout(this);
+        View first = null;
+        for (String[] b : new String[][] {{"mecca", "Watch Mecca"}, {"medina", "Watch Medina"}, {"", "Stop"}}) {
+            final int cam = b[0].isEmpty() ? -1 : Cams.index(b[0]);
+            if (!b[0].isEmpty() && (cam < 0 || Cams.direct(b[0]) == null)) continue;
+            TextView t = Ui.text(this, 16, Ui.TEXT, 600);
+            t.setText(L.t(b[1]));
+            t.setGravity(Gravity.CENTER);
+            t.setPadding(Ui.dp(20), Ui.dp(10), Ui.dp(20), Ui.dp(10));
+            t.setFocusable(true);
+            t.setClickable(true);
+            t.setBackground(Ui.glass(Ui.dp(10), false));
+            t.setOnFocusChangeListener((v, has) -> v.setBackground(Ui.glass(Ui.dp(10), has)));
+            t.setOnClickListener(v -> {
+                if (cam >= 0) IntelActivity.openCam(this, cam);
+                finish();
+            });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.rightMargin = Ui.dp(12);
+            buttons.addView(t, lp);
+            if (first == null) first = t;
+        }
+        TextView back = Ui.text(this, 13, Ui.TEXT_DIM, 400);
+        back.setText(L.t("BACK keeps watching"));
+        back.setGravity(Gravity.CENTER_VERTICAL);
+        back.setPadding(Ui.dp(8), 0, 0, 0);
+        buttons.addView(back, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        warning.addView(buttons);
+        warning.setVisibility(View.VISIBLE);
+        if (first != null) first.requestFocus();
+    }
+
     /** What the player page tells Glow (these two calls are all it can reach). */
     private final class Page {
         @JavascriptInterface public void playing() {
@@ -180,6 +242,13 @@ public class CamActivity extends Activity {
     public boolean dispatchKeyEvent(KeyEvent e) {
         int code = e.getKeyCode();
         boolean down = e.getAction() == KeyEvent.ACTION_DOWN;
+        if (warning.getVisibility() == View.VISIBLE) { // the heads-up has the remote until it's answered
+            if (code == KeyEvent.KEYCODE_BACK) {
+                if (down) warning.setVisibility(View.GONE);
+                return true;
+            }
+            return super.dispatchKeyEvent(e);
+        }
         switch (code) {
             case KeyEvent.KEYCODE_DPAD_RIGHT:
             case KeyEvent.KEYCODE_CHANNEL_UP:

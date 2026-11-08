@@ -3,7 +3,7 @@
 Everything Glow could still do, roughly in the order it's worth doing. Each item gets measured on the box before and
 after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published sources only.
 
-## Status at a glance (7 Nov 2026)
+## Status at a glance (9 Nov 2026)
 
 ### Done
 
@@ -23,6 +23,7 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 | Family & language | Kids mode (picked apps + Kids channels, PIN with lockout, everything else closed); Thai menus (Settings ▸ Language), one translation file |
 | Live cams (1.6) | 45 places (cities, nature, oceans), honest live check from each stream's own page, full-screen player with ◀ ▶ to the next cam, in its own process (all its memory goes on BACK) |
 | Memory (1.6) | Heap dumps of Home; listings and channel facts slimmed; a collection when Home is idle: **Home at 4 minutes 64.6–70.3 MB on released 1.6.1** (was 71–100) |
+| Smoother, cooler (1.6.3) | Guide ◀▶ ~46 → ~15 % late frames (preview holds while pressed, rows sent to the GPU ahead, no text shadows to blur); cam grid ~15 → ~5 %; heads-up offering Mecca/Medina when a YouTube cam keeps the box above 80 °C; player and Intelligence logic out of the screens (214 tests) |
 | Reliability and data (1.6.1) | 128 tests on plain Java, run by every release; Box health (temperature, restarts, crashes); heat protection; source and age on Intelligence pages; failing sources on the Network page; signed nightly listings; listings on 1,301 of 2,394 channels (was 894); Tonight and reminders on the phone remote |
 | Video (1.6) | `tools/video/film.sh` films every scene waiting for what's on screen; one-minute promo with its own music; What's new with no screenshots |
 | Intelligence | Overview page; world map (quakes, alerts, EONET, news hotspots, ISS, day/night, rain, 2×/4× zoom); live cams + health; weather + air quality; rain radar; predictions; Markets (BTC, ETH, gold, baht/pound/euro); Sports now (24 leagues incl. tennis + golf, favourite teams); F1 timing sheet |
@@ -36,13 +37,13 @@ after (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)). Free and openly published 
 | Player | ~~Corner picture (PiP)~~ ✅; ~~pause & rewind (stream's window)~~ ✅; ~~night sound / levelling~~ ✅; ~~picture size, stats~~ ✅; ~~dialogue boost~~ ✅; ~~longer rewind (kept on storage)~~ ✅ | done |
 | TV Guide | ~~Now & Next~~ ✅; ~~Live sport now~~ ✅; smoother first pass (logos off the main thread ✅; rows still drawn on demand) | done / partly |
 | Memory | ~~Listings' descriptions on disk, rows updated in place~~ ✅; ~~Home under 80 MB at 4 min on all five, released build~~ ✅ (64.6–70.3 MB on 1.6.1); ~~real clean-up after use~~ ✅ (89–95 MB against 127–131). How it grows over days isn't measured | done / later |
-| TV Guide | ~~Radio favourites + album art~~ ✅; ~~Tonight picks~~ ✅; smoother browsing: ▲▼ 11–15 % late (was 18–29), ◀▶ ~42 % with half the frames; under 10 % not reached (rows drawn straight after ◀ ▶ tried: worse, undone); Trending (TMDB, free key) | partly |
+| TV Guide | ~~Radio favourites + album art~~ ✅; ~~Tonight picks~~ ✅; smoother browsing: ▲▼ 7–13 % late after the first pass, ◀▶ ~15 % (was ~46 %); cam grid ~5 % ✅; ◀▶ under 10 % not reached (this chip's driver redraws the whole screen every frame); Trending (TMDB, free key) | partly |
 | Home & box | ~~Photos to the screensaver from the phone~~ ✅; ~~settings backup~~ ✅ | done |
 | Home & box | ~~Remote remapping + quick settings~~ ✅; ~~banners over other apps~~ ✅ (notification access off by choice); ~~Thai menus~~ ✅; ~~parental PIN / Kids mode~~ ✅; ~~data usage + Wi-Fi~~ ✅ | done |
 | Intelligence | ~~Markets~~ ✅; ~~overview page~~ ✅; ~~tennis/golf~~ ✅; ~~map zoom~~ ✅; ~~F1 timing (after each session)~~ ✅; F1 live timing ✖ (paid) | done |
 | Smart home | ~~Home Assistant card, doorbell pop-ups~~ ✅ (tested with a stand-in server); AirPlay (test first) | partly |
 | Privacy (owner's call) | Private DNS ad/tracker blocking; vendor-app audit | needs OK |
-| Sharing | ~~Extra apps installer~~ ✅; ~~tour on the repo page~~ ✅ (GIF); Obtainium note ✅; ~~signed releases~~ ✅ (v1.0.0 → v1.6.2, signed on the owner's Mac, box updated itself each time); awesome-list PR (after v1.0.0, owner's OK) | next |
+| Sharing | ~~Extra apps installer~~ ✅; ~~tour on the repo page~~ ✅ (GIF); Obtainium note ✅; ~~signed releases~~ ✅ (v1.0.0 → v1.6.3, signed on the owner's Mac, box updated itself each time); awesome-list PR (after v1.0.0, owner's OK) | next |
 | Live cams | Makkah and Madinah use direct streams (40 % CPU, 70–72 °C); the other 43 are YouTube only (about 200 % CPU, 83 °C), and close at 86 °C. Cam grid 10–23 % late | later |
 | Listings | 1,093 channels still have none; first screens 6–7 of 7, 5 missing from the top 20s | later |
 | Reliability | 24-hour test (`tools/soak.sh` written, not run) | later |

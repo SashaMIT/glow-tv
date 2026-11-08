@@ -95,6 +95,9 @@ public class PlayerActivity extends Activity {
         Net.IO.execute(() -> Timeshift.ready(getApplicationContext())); // storage for rewinding, set up off screen
         Ui.init(this);
         acct = Xtream.load(this);
+        // A cam with its own stream, asked for from any process (the cam player runs in its own, where this list isn't).
+        int cam = getIntent().getIntExtra(IntelActivity.EXTRA_DIRECT_CAM, -1);
+        if (cam >= 0) Xtream.playlist = new java.util.ArrayList<>(java.util.Collections.singletonList(IntelActivity.directCam(cam)));
         if (Xtream.playlist.isEmpty()) {
             finish();
             return;
@@ -325,9 +328,8 @@ public class PlayerActivity extends Activity {
     private void rewind(long step) {
         if (exo == null) return;
         long pos = exo.getCurrentPosition(); // from the start of the live window (or of what's been kept)
-        long earliest = shifted ? 1_000 : 8_000; // a live window's first segments may already be gone when they'd load
-        long target = Math.max(earliest, pos - step);
-        if (target >= pos - 1_000 || (!shifted && pos - step < earliest)) {
+        long target = PlayerRules.rewindTarget(pos, step, shifted);
+        if (target < 0) {
             if (!shifted && shiftBack(step, true)) return; // further back, from what Glow has kept
             note("That's as far back as " + current().name + " keeps (" + Math.max(0, pos / 1000) + " s)"
                     + (Timeshift.status(this).startsWith("no room") ? "  ·  a USB stick lets Glow keep more" : ""));
@@ -349,9 +351,8 @@ public class PlayerActivity extends Activity {
         if (exo == null || attempt < 0 || attempt >= attempts.size()) return false;
         String key = current().key();
         long kept = (long) (Timeshift.seconds(key) * 1000);
-        long ahead = Math.max(0, exo.getBufferedPosition() - exo.getCurrentPosition()); // kept already, not yet shown
-        long start = kept - ahead - step;
-        if (kept < 20_000 || start < 0) return false;
+        long start = PlayerRules.keptStart(kept, exo.getBufferedPosition() - exo.getCurrentPosition(), step); // less what's buffered, not yet shown
+        if (start < 0) return false;
         Sources.Attempt a = attempts.get(attempt);
         if (a.builtIn || a.url == null) return false;
         long behind = behindLive();
@@ -566,7 +567,7 @@ public class PlayerActivity extends Activity {
                 if (!g.isTrackSupported(i)) continue;
                 final androidx.media3.common.Format f = g.getTrackFormat(i);
                 final boolean audio = type == androidx.media3.common.C.TRACK_TYPE_AUDIO;
-                String name = language(f);
+                String name = PlayerRules.trackName(f.label, f.language);
                 if (audio && f.channelCount > 2) name += "  5.1";
                 if (!seen.add((audio ? "a:" : "t:") + name)) continue; // the same language at several bitrates
                 if (audio) audioChoices++;
@@ -605,19 +606,8 @@ public class PlayerActivity extends Activity {
                 .show();
     }
 
-    private static String language(androidx.media3.common.Format f) {
-        String label = f.label == null ? "" : f.label.trim();
-        java.util.regex.Matcher cc = java.util.regex.Pattern.compile("(?i)(?:cc|caption)[ _-]?(\\d+)").matcher(label);
-        if (cc.matches()) return "Captions " + cc.group(1); // "caption_2" from the stream
-        if (!label.isEmpty()) return Character.toUpperCase(label.charAt(0)) + label.substring(1);
-        if (f.language == null || f.language.equals("und")) return "Unknown";
-        String name = new java.util.Locale(f.language).getDisplayLanguage(java.util.Locale.ENGLISH);
-        return name.isEmpty() ? f.language : name;
-    }
-
     // ---- sleep timer (▶ while watching) ----
 
-    private static final int[] SLEEP_STEPS = {0, 30, 60, 90, 120};
     static long sleepAt; // kept across channel changes and the guide; 0 = off (Quick settings sets it too)
     private final Runnable sleepTick = new Runnable() {
         @Override
@@ -643,9 +633,8 @@ public class PlayerActivity extends Activity {
 
     private void stepSleepTimer() {
         long left = sleepAt == 0 ? 0 : Math.max(0, sleepAt - System.currentTimeMillis());
-        int next = 0;
         long unit = sleepUnit();
-        for (int m : SLEEP_STEPS) if (m * unit > left + unit / 2) { next = m; break; } // the next step up
+        int next = PlayerRules.nextSleep(left, unit);
         sleepAt = next == 0 ? 0 : System.currentTimeMillis() + next * unit;
         osdNote.setText(next == 0 ? "Sleep timer off  ·  ▶ to set it" : "Sleep in " + next + " min  ·  ▶ change   ·   the screensaver comes on and TV stops");
         showOsd(4000);
@@ -1356,30 +1345,12 @@ public class PlayerActivity extends Activity {
 
     /** Letterbox the video inside the screen at its real shape. */
     private void fit(int w, int h, float pixelRatio) {
-        if (w <= 0 || h <= 0 || root.getWidth() == 0) return;
+        int[] size = PlayerRules.fit(w, h, pixelRatio, root.getWidth(), root.getHeight(), pictureMode);
+        if (size == null) return;
         lastW = w;
         lastH = h;
         lastRatio = pixelRatio;
-        float video = w * pixelRatio / h, screen = (float) root.getWidth() / root.getHeight();
-        int vw = root.getWidth(), vh = root.getHeight();
-        switch (pictureMode) {
-            case 1: // Fill: cover the screen, trimming the edges
-                if (video > screen) vw = Math.round(vh * video);
-                else vh = Math.round(vw / video);
-                break;
-            case 2: // Stretch to the screen
-                break;
-            case 3: // Zoom: a third bigger than Fit (4:3 shows inside a 16:9 frame, black bars round the picture)
-                if (video > screen) vh = Math.round(vw / video);
-                else vw = Math.round(vh * video);
-                vw = Math.round(vw * 1.33f);
-                vh = Math.round(vh * 1.33f);
-                break;
-            default: // Fit: the whole picture at its real shape
-                if (video > screen) vh = Math.round(vw / video);
-                else vw = Math.round(vh * video);
-        }
-        surface.setLayoutParams(new FrameLayout.LayoutParams(vw, vh, Gravity.CENTER));
+        surface.setLayoutParams(new FrameLayout.LayoutParams(size[0], size[1], Gravity.CENTER));
     }
 
     /** "Now: Title · until 21:30   Next 21:30: Title", or nothing when there's no guide for the channel. */

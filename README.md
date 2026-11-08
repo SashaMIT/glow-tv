@@ -52,7 +52,8 @@ It was built for (and on) a TV98 box: Allwinner H616, 1 GB of RAM, Android 10. T
   D-pad, type searches and logins, open favourites. Home network only; switches itself off after 30 minutes.
 - **Intelligence** (Home row and screen): a live world map drawn by Glow (earthquakes, current disaster alerts,
   wildfires and storms, places in the news, webcams, the International Space Station, day and night), 45 live cams of cities, nature and
-  the oceans, full screen with ◀ ▶ to the next (ended streams are spotted and skipped), Sports now (live scores, fixtures and
+  the oceans, full screen with ◀ ▶ to the next (ended streams are spotted and skipped; Mecca and Medina play in Glow's own
+  player and stay cool, and a heads-up offers them when a YouTube cam has kept the box above 80 °C for a few minutes), Sports now (live scores, fixtures and
   results for UFC, F1, Premier League, Champions League, NBA and NFL, with free sports channels to watch), a weather
   page with air quality and 7 days, a rain radar for the last two hours, rain across the world on the map, and what
   prediction markets expect. While you watch TV, small banners show goals, kick-offs and results in your leagues
@@ -173,7 +174,7 @@ switched off.
 
 | Path | What's there |
 |---|---|
-| `src/com/tv98/glow/` | The app. `HomeActivity`, `ClassicGuideActivity` + `GuideGridView` (guide, drawn as one view), `GuideLineup` + `Genres` (numbers and ranking), `PlayerActivity` + `Sources` + `OfficialLive` (playback and fallbacks), `FreeTv` + `Health` (channel lists and link checks), `Guide` (listings), `Remote` (phone remote), `World`, `Weather`, `IntelActivity` + `Intel` + `WorldMapView` + `Sports` + `ScoreAlerts` + `Cams` + `RadarView` + `Rain` + `Markets` + `F1Timing` (Intelligence), `Kids` + `PinActivity` (Kids mode), `L` (menu language) |
+| `src/com/tv98/glow/` | The app. `HomeActivity`, `ClassicGuideActivity` + `GuideGridView` (guide, drawn as one view), `GuideLineup` + `Genres` (numbers and ranking), `PlayerActivity` + `PlayerRules` + `Sources` + `OfficialLive` (playback and fallbacks), `FreeTv` + `Health` (channel lists and link checks), `Guide` (listings), `Remote` (phone remote), `World`, `Weather`, `IntelActivity` + `IntelCards` + `Intel` + `WorldMapView` + `Sports` + `ScoreAlerts` + `Cams` + `RadarView` + `Rain` + `Markets` + `F1Timing` (Intelligence), `Kids` + `PinActivity` (Kids mode), `L` (menu language) |
 | `res/raw/remote.html` | The phone remote's web page |
 | `res/raw/lang_th.tsv` | Thai menus: one English phrase and its Thai per line (see Translating) |
 | `.github/workflows/` | `release.yml` (signed releases), `guide.yml` (nightly listings + channel facts to the `data` branch) |

@@ -38,6 +38,12 @@ final class Cams {
         return null;
     }
 
+    /** The cam with this slot name ("mecca"), or -1. */
+    static int index(String slot) {
+        for (int i = 0; i < WmCams.CAMS.length; i++) if (WmCams.CAMS[i][0].equals(slot)) return i;
+        return -1;
+    }
+
     private static boolean dead(SharedPreferences p, String id) {
         long since = p.getLong("d_" + id, 0);
         return since > 0 && System.currentTimeMillis() - since < RETRY;

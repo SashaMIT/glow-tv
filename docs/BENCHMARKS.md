@@ -931,3 +931,75 @@ A cam with its own stream no longer shows as offline when its YouTube stream end
 
 **Home at 4 minutes, released 1.6.2, straight after the box updated itself, with the larger guide (44,870 programmes):** 71.9 / 73.5 / 73.1 / 73.1 / 73.9 MB. Under 80 on all five, and about 3 MB up on 1.6.1 (Java 10, native 35).
 
+
+## Guide ◀▶ and cam grid, by drawing stage (1.6.3) — 9 Nov 2026
+
+**Where the late frames come from.** `tools/framestats.py` splits each frame from `dumpsys gfxinfo … framestats` into
+stages (waiting, input, layout, recording, upload, GPU, swap) and names the biggest stage in each late frame;
+`FRAMESTATS=1 tools/guidebench.sh …` prints it after each pass. `guidebench.sh cams` measures the cam grid (8 ▼ from a
+fresh open, cooled under 70 °C before each pass).
+
+- The Mali-G31's driver has `EGL_KHR_partial_update` but not `EGL_EXT_buffer_age`, which Android 10's renderer needs
+  before it redraws only what changed: **every frame redraws the whole 1280×720 screen.** That can't be changed from an app.
+- Guide ◀▶, late frames: GPU 9–11 ms and upload 5–6 ms (new row pictures), recording 4 ms. Waiting for a screen buffer
+  was under 1 ms.
+- The muted preview keeps playing on ◀▶ (same channel); ▲▼ stops it. A diagnostic build without a preview: ◀▶
+  **28 / 28 / 24 %** late, against 47 / 40 / 38 % with it. The two screen layers are combined by the display hardware,
+  not the GPU, so the cost is the decoder and player sharing the box's CPU and memory.
+- Cam grid: only the first scroll is bad (34 % late by framestats), and those frames are GPU work: each card is cached
+  as a GPU texture, focus changed its glass background (two cards redrawn per press), and arriving pictures redrew
+  theirs mid-scroll.
+
+**What was tried, one at a time** (two rounds of each pair, alternating, box cooled under 68 °C before each run):
+
+| Guide ◀▶ late frames, 3 passes per run | A | B | Kept? |
+|---|---|---|---|
+| A base · B preview holds while ◀▶ is pressed (resumes 1.2 s later) | 44.8 / 43.6 / 47.4, 44.4 / 47.2 / 46.2 % (avg 45.6) | 40.0 / 36.0 / 36.7, 28.8 / 36.0 / 38.0 % (avg 35.9) | ✅ |
+| A that · B row pictures drawn ahead sent to the GPU while the remote is idle (`prepareToDraw`) | 29.4 / 26.9 / 35.3, 33.3 / 32.0 / 30.6 % (avg 31.3) | 30.6 / 26.4 / 22.6, 26.0 / 29.6 / 20.4 % (avg 25.9) | ✅ upload in late frames 5.5 → 0.4 ms |
+| A that · B the info panel's changing lines on a quiet panel instead of text shadows | 23.6 / 19.3 / 24.1, 26.8 / 16.4 / 14.3 % (avg 20.8) | 17.3 / 12.7 / 11.1, 13.7 / 10.7 / 22.4 % (avg **14.7**) | ✅ |
+
+After the first two, framestats still put GPU at ~9 ms in late frames against ~4.4 ms in the others. The info panel's
+lines change on every press and each had a text shadow, which Android blurs on the CPU for every new line, inside that
+frame's GPU stage. A diagnostic build without the shadows: 16.1 / 16.7 %. The shadows kept white text readable on the
+light sky, so the lines now sit on a translucent dark-blue panel like the key bar's (a fixed background, nothing to blur).
+
+**Guide ◀▶: about 46 % late → about 15 %, but the 10 % bar isn't reached** (best passes 10.7 and 11.1 %). What's left
+is the whole-screen redraw on each frame, which this driver forces.
+
+▲▼ was the same within noise in every pair (6–30 % per pass, the first pass of each run always highest).
+
+| Cam grid late frames (6 passes per run) | Runs | Average | Kept? |
+|---|---|---|---|
+| Base | 16.1 / 13.8 / 12.1 / 23.5 / 12.1 / 12.9, 23.7 / 12.9 / 11.3 / 12.9 / 14.5 / 10.3 % | 14.7 % | |
+| Cam cards with a fixed colour behind the picture (the glass never showed) | 6.9 / 6.0 / 19.1 / 7.8 / 18.1 / 7.0, 7.0 / 17.4 / 19.0 / 7.9 / 7.8 / 6.9, 7.9 / 6.0 / 16.4 / 7.7 / 7.0 / 17.2, 7.8 / 6.1 / 10.1 / 6.0 / 5.2 / 8.6 % | 9.9 % | ✅ |
+| + pictures arriving mid-scroll held until the grid stops | 4.9 / 6.5 / 5.8 / 4.9 / 4.9 / 4.9, 4.9 / 5.7 / 4.9 / 4.9 / 4.9 / 4.9 % | **5.2 %** | ✅ **under 10 % in all 12** |
+
+The held pictures show together in one frame once the grid stops, so the cam grid's p99 went from 27–29 ms to 34–38 ms
+(one heavier frame, while nothing moves).
+
+**Logic separated, part two.** The player's decisions (`PlayerRules`: picture size per mode, how far rewinding goes,
+where playback starts in what's kept, sleep timer steps, track names), the Intelligence pages' cards and free sports
+channels (`IntelCards`) and the cam heads-up (`HeatWatch`) no longer touch the screen. 214 tests (was 163), the
+Overview cards checked against the real ESPN, USGS, EONET and Polymarket samples.
+
+| Same box, cooled under 70 °C before each | 1.6.2 code | All of the above |
+|---|---|---|
+| Channel change, ▲, median / p75 (16 zaps) | 342 / 394 ms | 333 / 367 ms |
+| Guide ▲▼ late, 3 passes | 27.7 / 16.7 / 13.4 % | 26.7 / 9.1 / 6.5 % |
+| Guide ◀▶ late, 3 passes | 44.1 / 39.7 / 43.1 % | 21.4 / 13.8 / 20.7 % |
+| Home start (5) | 1.021 / 1.008 / 0.995 / 0.995 / 0.998 s | 1.105 / 1.020 / 0.979 / 1.023 / 0.994 s |
+
+Nothing worse beyond noise (Home start's first run is usually the slowest). Kept.
+
+**Cam heads-up.** When a YouTube cam has kept the box at 80 °C or more for 4 minutes, the cam screen offers Mecca or
+Medina (Glow's own player, ~40 % CPU and ~70 °C) or a stop; BACK keeps watching. Ten minutes of the giant panda cam,
+default settings, from 66 °C: 78 °C at 30 s, 80 °C at 68 s, 81–83 °C until the **heads-up at 5 min 24 s** ("at 83 °C"),
+then 78–81 °C (cam process 133–424 % CPU). Its three answers checked on the box: Watch Mecca → Glow's player, playing
+after 4.2 s; Stop → Home, the cam's process gone; BACK → the cam carries on.
+First version found by that test: Watch Mecca opened Home, because the cam screen runs in its own process and set the
+player's list there; the player now builds the one-cam list itself from the request.
+
+**Phone remote's Tonight tab at phone size.** The page as the box serves it, in a browser emulating a 375 × 812 phone,
+its read-only requests passed to the box: 20 picks for this evening (19:00 onwards on 9 Nov at 03:16, the box's time
+zone), title, time, kind, length and channel per line, long titles shortened, the tab bar in reach. Not yet checked
+on a real phone.
